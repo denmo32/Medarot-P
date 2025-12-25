@@ -1,0 +1,35 @@
+"""バトル状態管理システム"""
+
+from core.ecs import System
+
+class BattleStatusSystem(System):
+    """バトル状態管理システム（勝敗判定など）"""
+    
+    def update(self, dt: float = 0.016):
+        contexts = self.world.get_entities_with_components('battlecontext')
+        if not contexts: return
+        context = contexts[0][1]['battlecontext']
+
+        if context.game_over:
+            return
+
+        player_alive = False
+        enemy_alive = False
+
+        for _, components in self.world.entities.items():
+            team = components.get('team')
+            hp = components.get('parthealth')
+            if not team or not hp or hp.is_defeated:
+                continue
+
+            if team.team_type == "player":
+                player_alive = True
+            elif team.team_type == "enemy":
+                enemy_alive = True
+
+        if not player_alive:
+            context.winner = "エネミー"
+            context.game_over = True
+        elif not enemy_alive:
+            context.winner = "プレイヤー"
+            context.game_over = True
