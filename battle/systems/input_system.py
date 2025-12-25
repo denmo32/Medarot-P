@@ -3,6 +3,7 @@
 from core.ecs import System
 from config import GAME_PARAMS
 from components.battle import GaugeComponent
+from battle.utils import calculate_action_times
 
 class InputSystem(System):
     """
@@ -116,6 +117,18 @@ class InputSystem(System):
         if selected_action:
             gauge_comp.selected_action = selected_action
             gauge_comp.selected_part = selected_part
+            
+            # 攻撃力に応じてチャージ/クールダウン時間を設定
+            if selected_part:
+                part_id = part_list.parts.get(selected_part)
+                if part_id:
+                    part_comps = self.world.entities.get(part_id)
+                    if part_comps:
+                        attack_comp = part_comps.get('attack')
+                        if attack_comp:
+                            charging_time, cooldown_time = calculate_action_times(attack_comp.attack)
+                            gauge_comp.charging_time = charging_time
+                            gauge_comp.cooldown_time = cooldown_time
             
             # 状態遷移
             gauge_comp.status = GaugeComponent.CHARGING

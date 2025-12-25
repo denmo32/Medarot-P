@@ -3,6 +3,7 @@
 import random
 from core.ecs import System
 from components.battle import GaugeComponent, PartListComponent, HealthComponent, AttackComponent, DefeatedComponent
+from battle.utils import calculate_action_times
 
 class CombatSystem(System):
     """戦闘システム：AI思考と攻撃実行を担当"""
@@ -182,6 +183,17 @@ class CombatSystem(System):
         if available:
             gauge_comp.selected_part = random.choice(available)
             gauge_comp.selected_action = "attack"
+            
+            # 選択したパーツの攻撃力に応じてチャージ/クールダウン時間を設定
+            selected_part_id = part_list_comp.parts.get(gauge_comp.selected_part)
+            if selected_part_id:
+                selected_part_comps = self.world.entities.get(selected_part_id)
+                if selected_part_comps:
+                    attack_comp = selected_part_comps.get('attack')
+                    if attack_comp:
+                        charging_time, cooldown_time = calculate_action_times(attack_comp.attack)
+                        gauge_comp.charging_time = charging_time
+                        gauge_comp.cooldown_time = cooldown_time
         else:
             gauge_comp.selected_action = "skip"
 
