@@ -1,4 +1,4 @@
-"""バトル状態管理システム"""
+"""バトル状態管理システム（統一された敗北判定システム）"""
 
 from core.ecs import System
 
@@ -18,8 +18,13 @@ class BattleStatusSystem(System):
 
         for _, components in self.world.entities.items():
             team = components.get('team')
-            hp = components.get('parthealth')
-            if not team or not hp or hp.is_defeated:
+            defeated = components.get('defeated')
+            # チーム情報があり、敗北していない場合は生存扱い
+            if not team:
+                continue
+            
+            # DefeatedComponentがある場合、その状態をチェック
+            if defeated and defeated.is_defeated:
                 continue
 
             if team.team_type == "player":

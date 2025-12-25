@@ -1,8 +1,8 @@
-"""入力処理システム"""
+"""入力処理システム（統一された敗北判定システム）"""
 
 from core.ecs import System
 from config import GAME_PARAMS
-from components.battle import GaugeComponent, PartHealthComponent
+from components.battle import GaugeComponent
 
 class InputSystem(System):
     """
@@ -58,7 +58,11 @@ class InputSystem(System):
 
         comps = self.world.entities[eid]
         gauge_comp = comps.get('gauge')
-        hp_comp = comps.get('parthealth')
+        part_list = comps.get('partlist')
+
+        if not gauge_comp or not part_list:
+            context.waiting_for_action = False
+            return
 
         # レイアウト定数（config.pyと合わせる必要あり）
         window_y = GAME_PARAMS['MESSAGE_WINDOW_Y']
@@ -82,16 +86,27 @@ class InputSystem(System):
         def is_clicked(bx, by, bw, bh):
             return bx <= mouse_x <= bx + bw and by <= mouse_y <= by + bh
 
+        # 各パーツのHPを取得（統一されたシステムを使用）
+        def get_part_hp(part_type):
+            part_id = part_list.parts.get(part_type)
+            if part_id:
+                part_comps = self.world.entities.get(part_id)
+                if part_comps:
+                    health = part_comps.get('health')
+                    if health:
+                        return health.hp
+            return 0
+
         if is_clicked(head_x, button_y, button_width, button_height):
-            if hp_comp.head_hp > 0:
+            if get_part_hp('head') > 0:
                 selected_action = "attack"
                 selected_part = "head"
         elif is_clicked(r_arm_x, button_y, button_width, button_height):
-            if hp_comp.right_arm_hp > 0:
+            if get_part_hp('right_arm') > 0:
                 selected_action = "attack"
                 selected_part = "right_arm"
         elif is_clicked(l_arm_x, button_y, button_width, button_height):
-            if hp_comp.left_arm_hp > 0:
+            if get_part_hp('left_arm') > 0:
                 selected_action = "attack"
                 selected_part = "left_arm"
         elif is_clicked(skip_x, button_y, button_width, button_height):

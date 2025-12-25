@@ -1,4 +1,4 @@
-"""ATBゲージ更新システム"""
+"""ATBゲージ更新システム（統一された敗北判定システム）"""
 
 from core.ecs import System
 from components.battle import GaugeComponent
@@ -17,38 +17,39 @@ class GaugeSystem(System):
         if is_paused:
             return
 
-        # GaugeComponentとPartHealthComponentを持つエンティティを更新
+        # GaugeComponentとDefeatedComponentを持つエンティティを更新（統一システム）
         for entity_id, components in self.world.entities.items():
             gauge_comp = components.get('gauge')
-            part_health_comp = components.get('parthealth')
+            defeated = components.get('defeated')
 
-            if gauge_comp and part_health_comp:
-                # 頭部HPが0の場合、機能停止（ロジックはシステム側で実行）
-                if part_health_comp.head_hp <= 0:
-                    part_health_comp.is_defeated = True
-                    continue
+            if not gauge_comp:
+                continue
+            
+            # 敗北している場合は処理停止
+            if defeated and defeated.is_defeated:
+                continue
                 
-                # ゲージ更新ロジック
-                if gauge_comp.status == GaugeComponent.ACTION_CHOICE:
-                    # 行動選択待ち状態になったらキューに追加
+            # ゲージ更新ロジック
+            if gauge_comp.status == GaugeComponent.ACTION_CHOICE:
+                # 行動選択待ち状態になったらキューに追加
+                if entity_id not in context.waiting_queue:
+                    context.waiting_queue.append(entity_id)
+            
+            elif gauge_comp.status == GaugeComponent.CHARGING:
+                # チャージ中
+                gauge_comp.progress += dt / gauge_comp.charging_time * 100.0
+                if gauge_comp.progress >= 100.0:
+                    gauge_comp.progress = 100.0
+                    # チャージ完了したら実行待ちキューへ
                     if entity_id not in context.waiting_queue:
                         context.waiting_queue.append(entity_id)
-                
-                elif gauge_comp.status == GaugeComponent.CHARGING:
-                    # チャージ中
-                    gauge_comp.progress += dt / gauge_comp.charging_time * 100.0
-                    if gauge_comp.progress >= 100.0:
-                        gauge_comp.progress = 100.0
-                        # チャージ完了したら実行待ちキューへ
-                        if entity_id not in context.waiting_queue:
-                            context.waiting_queue.append(entity_id)
-                
-                elif gauge_comp.status == GaugeComponent.COOLDOWN:
-                    # クールダウン中
-                    gauge_comp.progress += dt / gauge_comp.cooldown_time * 100.0
-                    if gauge_comp.progress >= 100.0:
-                        gauge_comp.progress = 0.0
-                        gauge_comp.status = GaugeComponent.ACTION_CHOICE
-                        # クールダウン完了で行動選択待ちへ
-                        if entity_id not in context.waiting_queue:
-                            context.waiting_queue.append(entity_id)
+            
+            elif gauge_comp.status == GaugeComponent.COOLDOWN:
+                # クールダウン中
+                gauge_comp.progress += dt / gauge_comp.cooldown_time * 100.0
+                if gauge_comp.progress >= 100.0:
+                    gauge_comp.progress = 0.0
+                    gauge_comp.status = GaugeComponent.ACTION_CHOICE
+                    # クールダウン完了で行動選択待ちへ
+                    if entity_id not in context.waiting_queue:
+                        context.waiting_queue.append(entity_id)

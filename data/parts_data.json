@@ -1,0 +1,44 @@
+{
+  "player_parts": {
+    "head": {
+      "name": "ヘッド",
+      "hp": 50,
+      "attack": 10
+    },
+    "right_arm": {
+      "name": "ライトアーム",
+      "hp": 40,
+      "attack": 15
+    },
+    "left_arm": {
+      "name": "レフトアーム",
+      "hp": 40,
+      "attack": 12
+    },
+    "leg": {
+      "name": "レッグ",
+      "hp": 60
+    }
+  },
+  "enemy_parts": {
+    "head": {
+      "name": "敵ヘッド",
+      "hp": 45,
+      "attack": 8
+    },
+    "right_arm": {
+      "name": "敵ライトアーム",
+      "hp": 35,
+      "attack": 12
+    },
+    "left_arm": {
+      "name": "敵レフトアーム",
+      "hp": 35,
+      "attack": 10
+    },
+    "leg": {
+      "name": "敵レッグ",
+      "hp": 55
+    }
+  }
+}

@@ -43,19 +43,20 @@ class RenderSystem(System):
     def _render_entities(self):
         """全エンティティの描画"""
         for eid, comps in self.world.entities.items():
-            if 'render' in comps and 'position' in comps and 'gauge' in comps and 'parthealth' in comps and 'team' in comps:
+            if 'render' in comps and 'position' in comps and 'gauge' in comps and 'partlist' in comps and 'team' in comps and 'defeated' in comps:
                 self._render_single_entity(eid, comps)
 
     def _render_single_entity(self, eid, comps):
         """個別のエンティティ描画"""
-        hp = comps['parthealth']
-        if hp.is_defeated: return
+        defeated = comps['defeated']
+        if defeated.is_defeated: return
 
         pos = comps['position']
         gauge = comps['gauge']
         team = comps['team']
         name = comps['name']
         render = comps['render']
+        part_list = comps['partlist']
 
         # ゲージと名前
         self._render_gauge_icon(
@@ -64,7 +65,7 @@ class RenderSystem(System):
             team.team_type, team.team_color
         )
         # HPバー
-        self._render_hp_bars(pos.x, pos.y, hp)
+        self._render_hp_bars(pos.x, pos.y, part_list)
 
     def _render_gauge_icon(self, x, y, width, height, name, status, progress, team_type, team_color):
         """ATBゲージのアイコンと名前を描画"""
@@ -100,28 +101,34 @@ class RenderSystem(System):
         name_text = self.font.render(name, True, COLORS['TEXT'])
         self.screen.blit(name_text, (x, y - 25))
 
-    def _render_hp_bars(self, x, y, hp_comp):
+    def _render_hp_bars(self, x, y, part_list_comp):
         """パーツ別HPバーの描画"""
         part_names = ['head', 'right_arm', 'left_arm', 'leg']
         part_colors = [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]
-        
+
         for i, (part, color) in enumerate(zip(part_names, part_colors)):
             hp_bar_x = x + i * (GAME_PARAMS['HP_BAR_WIDTH'] + 5)
             hp_bar_y = y + GAME_PARAMS['HP_BAR_Y_OFFSET']
             w = GAME_PARAMS['HP_BAR_WIDTH']
             h = GAME_PARAMS['HP_BAR_HEIGHT']
 
-            current = getattr(hp_comp, f"{part}_hp")
-            max_val = getattr(hp_comp, f"max_{part}_hp")
+            part_id = part_list_comp.parts.get(part)
+            if part_id:
+                part_comps = self.world.entities.get(part_id)
+                if part_comps:
+                    health = part_comps.get('health')
+                    if health:
+                        current = health.hp
+                        max_val = health.max_hp
 
-            # 背景
-            pygame.draw.rect(self.screen, COLORS['HP_BG'], (hp_bar_x, hp_bar_y, w, h))
-            # 進行バー
-            if max_val > 0:
-                fill_w = int(w * (current / max_val))
-                pygame.draw.rect(self.screen, color, (hp_bar_x, hp_bar_y, fill_w, h))
-            # 枠
-            pygame.draw.rect(self.screen, COLORS['TEXT'], (hp_bar_x, hp_bar_y, w, h), 1)
+                        # 背景
+                        pygame.draw.rect(self.screen, COLORS['HP_BG'], (hp_bar_x, hp_bar_y, w, h))
+                        # 進行バー
+                        if max_val > 0:
+                            fill_w = int(w * (current / max_val))
+                            pygame.draw.rect(self.screen, color, (hp_bar_x, hp_bar_y, fill_w, h))
+                        # 枠
+                        pygame.draw.rect(self.screen, COLORS['TEXT'], (hp_bar_x, hp_bar_y, w, h), 1)
 
     def _render_team_titles(self):
         player_title = self.title_font.render("プレイヤーチーム", True, COLORS['PLAYER'])
@@ -158,9 +165,10 @@ class RenderSystem(System):
     def _render_action_menu(self, context, wx, wy, wh, pad):
         eid = context.current_turn_entity_id
         if eid not in self.world.entities: return
-        
-        name = self.world.entities[eid]['name'].name
-        hp = self.world.entities[eid]['parthealth']
+
+        comps = self.world.entities[eid]
+        name = comps['name'].name
+        part_list = comps['partlist']
 
         turn_text = self.font.render(f"{name}のターン", True, COLORS['TEXT'])
         self.screen.blit(turn_text, (wx + pad, wy + wh - 100))
@@ -170,9 +178,38 @@ class RenderSystem(System):
         btn_h = 40
         btn_pad = 10
 
-        self._draw_button(0, "頭部", hp.head_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(1, "右腕", hp.right_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(2, "左腕", hp.left_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
+        # 各パーツのHPを取得
+        head_hp = 0
+        right_arm_hp = 0
+        left_arm_hp = 0
+
+        head_id = part_list.parts.get('head')
+        if head_id:
+            head_comps = self.world.entities.get(head_id)
+            if head_comps:
+                health = head_comps.get('health')
+                if health:
+                    head_hp = health.hp
+
+        right_arm_id = part_list.parts.get('right_arm')
+        if right_arm_id:
+            right_arm_comps = self.world.entities.get(right_arm_id)
+            if right_arm_comps:
+                health = right_arm_comps.get('health')
+                if health:
+                    right_arm_hp = health.hp
+
+        left_arm_id = part_list.parts.get('left_arm')
+        if left_arm_id:
+            left_arm_comps = self.world.entities.get(left_arm_id)
+            if left_arm_comps:
+                health = left_arm_comps.get('health')
+                if health:
+                    left_arm_hp = health.hp
+
+        self._draw_button(0, "頭部", head_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
+        self._draw_button(1, "右腕", right_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
+        self._draw_button(2, "左腕", left_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
         self._draw_button(3, "スキップ", 1, wx, pad, btn_y, btn_w, btn_h, btn_pad)
 
     def _draw_button(self, idx, label, hp_val, wx, pad, by, bw, bh, bpad):

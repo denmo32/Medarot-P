@@ -2,7 +2,7 @@
 
 import random
 from core.ecs import System
-from components.battle import GaugeComponent
+from components.battle import GaugeComponent, PartListComponent, HealthComponent, AttackComponent, DefeatedComponent
 
 class CombatSystem(System):
     """戦闘システム：AI思考と攻撃実行を担当"""
@@ -30,8 +30,8 @@ class CombatSystem(System):
             return
             
         components = self.world.entities[entity_id]
-        hp_comp = components.get('parthealth')
-        if not hp_comp or hp_comp.is_defeated:
+        defeated_comp = components.get('defeated')
+        if not defeated_comp or defeated_comp.is_defeated:
             context.waiting_queue.pop(0)
             return
 
@@ -101,31 +101,47 @@ class CombatSystem(System):
     def _calculate_and_apply_damage(self, attacker_id: int, target_id: int, part: str) -> int:
         attacker_comps = self.world.entities[attacker_id]
         target_comps = self.world.entities[target_id]
-        
-        atk_comp = attacker_comps.get('partattack')
-        hp_comp = target_comps.get('parthealth')
 
-        if not hp_comp or not atk_comp: return 0
+        part_list_comp = attacker_comps.get('partlist')
+        target_part_list_comp = target_comps.get('partlist')
 
-        # 攻撃力取得
-        power = 0
-        if part == "head": power = atk_comp.head_attack
-        elif part == "right_arm": power = atk_comp.right_arm_attack
-        elif part == "left_arm": power = atk_comp.left_arm_attack
-        else: power = 10 # フォールバック
+        if not part_list_comp or not target_part_list_comp: return 0
+
+        # 攻撃者のパーツから攻撃力を取得
+        attacker_part_id = part_list_comp.parts.get(part)
+        if not attacker_part_id: return 0
+
+        attacker_part_comps = self.world.entities.get(attacker_part_id)
+        if not attacker_part_comps: return 0
+
+        attack_comp = attacker_part_comps.get('attack')
+        if not attack_comp: return 0
+
+        power = attack_comp.attack
 
         # ターゲットパーツの決定（ランダム）
-        t_part = random.choice(["head", "right_arm", "left_arm", "leg"])
+        target_part_types = list(target_part_list_comp.parts.keys())
+        t_part = random.choice(target_part_types)
+
+        target_part_id = target_part_list_comp.parts.get(t_part)
+        if not target_part_id: return 0
+
+        target_part_comps = self.world.entities.get(target_part_id)
+        if not target_part_comps: return 0
+
+        health_comp = target_part_comps.get('health')
+        if not health_comp: return 0
+
         damage = random.randint(int(power * 0.8), int(power * 1.2))
 
         # ダメージ適用
-        if t_part == "head": hp_comp.head_hp = max(0, hp_comp.head_hp - damage)
-        elif t_part == "right_arm": hp_comp.right_arm_hp = max(0, hp_comp.right_arm_hp - damage)
-        elif t_part == "left_arm": hp_comp.left_arm_hp = max(0, hp_comp.left_arm_hp - damage)
-        elif t_part == "leg": hp_comp.leg_hp = max(0, hp_comp.leg_hp - damage)
+        health_comp.hp = max(0, health_comp.hp - damage)
 
-        if hp_comp.head_hp <= 0:
-            hp_comp.is_defeated = True
+        # Medabot全体の敗北判定（頭部が0になったら）
+        if t_part == "head" and health_comp.hp <= 0:
+            target_defeated_comp = target_comps.get('defeated')
+            if target_defeated_comp:
+                target_defeated_comp.is_defeated = True
 
         return damage
 
@@ -134,28 +150,41 @@ class CombatSystem(System):
         alive = []
         for eid, comps in self.world.entities.items():
             team = comps.get('team')
-            hp = comps.get('parthealth')
-            if team and team.team_type == target_team and hp and not hp.is_defeated:
-                alive.append((eid, comps))
+            part_list = comps.get('partlist')
+            if team and team.team_type == target_team and part_list:
+                # 頭部のHPを確認
+                head_part_id = part_list.parts.get('head')
+                if head_part_id:
+                    head_comps = self.world.entities.get(head_part_id)
+                    if head_comps:
+                        health = head_comps.get('health')
+                        if health and health.hp > 0:
+                            alive.append((eid, comps))
         return random.choice(alive) if alive else None
 
     def _handle_enemy_ai(self, entity_id):
         comps = self.world.entities[entity_id]
-        hp_comp = comps.get('parthealth')
+        part_list_comp = comps.get('partlist')
         gauge_comp = comps.get('gauge')
-        
-        # 使用可能なパーツを確認
+
+        if not part_list_comp or not gauge_comp: return
+
+        # 使用可能なパーツを確認（攻撃力のあるパーツ）
         available = []
-        if hp_comp.head_hp > 0: available.append("head")
-        if hp_comp.right_arm_hp > 0: available.append("right_arm")
-        if hp_comp.left_arm_hp > 0: available.append("left_arm")
+        for part_type, part_id in part_list_comp.parts.items():
+            if part_type == "leg": continue  # 脚部は攻撃不可
+            part_comps = self.world.entities.get(part_id)
+            if part_comps:
+                health = part_comps.get('health')
+                if health and health.hp > 0:
+                    available.append(part_type)
 
         if available:
             gauge_comp.selected_part = random.choice(available)
             gauge_comp.selected_action = "attack"
         else:
             gauge_comp.selected_action = "skip"
-        
+
         # 状態遷移
         gauge_comp.status = GaugeComponent.CHARGING
         gauge_comp.progress = 0.0
