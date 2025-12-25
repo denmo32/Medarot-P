@@ -4,9 +4,10 @@ import json
 from core.ecs import World
 from components.common import NameComponent, PositionComponent
 from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
-                               BattleContextComponent, PartComponent, HealthComponent, 
+                               BattleContextComponent, PartComponent, HealthComponent,
                                AttackComponent, PartListComponent, DefeatedComponent)
 from components.input import InputComponent
+from data.parts_data_manager import get_parts_manager
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリクラス"""
@@ -23,19 +24,26 @@ class BattleEntityFactory:
         return entity.id
 
     @staticmethod
-    def create_medabot_parts(world: World, is_player: bool = True) -> dict:
-        """Medabotのパーツ一式を生成（JSONデータから）"""
-        with open('data/parts_data.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        parts_key = "player_parts" if is_player else "enemy_parts"
-        parts_data = data[parts_key]
+    def create_medabot_parts(world: World) -> dict:
+        """Medabotのパーツ一式を生成（デフォルトパーツを使用）"""
+        parts_manager = get_parts_manager()
 
         parts = {}
-        for part_type, part_info in parts_data.items():
-            name = part_info["name"]
-            hp = part_info["hp"]
-            attack = part_info.get("attack")  # 脚部にはattackがない
+        part_types = ['head', 'right_arm', 'left_arm', 'legs']
+
+        for part_type in part_types:
+            # 各部位の最初のIDを取得（デフォルトパーツ）
+            part_ids = parts_manager.get_part_ids_for_type(part_type)
+            if not part_ids:
+                continue  # パーツがない場合はスキップ
+            default_part_id = part_ids[0]  # 最初のIDを使用
+
+            # パーツデータを取得
+            part_data = parts_manager.get_part_data(default_part_id)
+            name = part_data.get("name", default_part_id)
+            hp = part_data.get("hp", 0)
+            attack = part_data.get("attack")  # 脚部にはattackがない場合None
+
             parts[part_type] = BattleEntityFactory.create_part(world, part_type, name, hp, attack)
 
         return parts
@@ -63,7 +71,7 @@ class BattleEntityFactory:
         # プレイヤー生成
         for i in range(player_count):
             # パーツエンティティの作成
-            parts = BattleEntityFactory.create_medabot_parts(world, is_player=True)
+            parts = BattleEntityFactory.create_medabot_parts(world)
 
             # Medabotエンティティの作成
             e = world.create_entity()
@@ -82,7 +90,7 @@ class BattleEntityFactory:
         # エネミー生成
         for i in range(enemy_count):
             # パーツエンティティの作成
-            parts = BattleEntityFactory.create_medabot_parts(world, is_player=False)
+            parts = BattleEntityFactory.create_medabot_parts(world)
 
             # Medabotエンティティの作成
             e = world.create_entity()

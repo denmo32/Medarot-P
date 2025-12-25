@@ -142,7 +142,7 @@ class CombatSystem(System):
                 target_defeated_comp.is_defeated = True
 
         # 部位名の日本語化（簡易）
-        names = {"head": "頭部", "right_arm": "右腕", "left_arm": "左腕", "leg": "脚部"}
+        names = {"head": "頭部", "right_arm": "右腕", "left_arm": "左腕", "legs": "脚部"}
         return damage, names.get(t_part, t_part)
 
     def _get_random_alive_target(self, my_team: str):
@@ -166,7 +166,7 @@ class CombatSystem(System):
         # 使用可能なパーツを確認（HPがあり、攻撃力のあるパーツ）
         available = []
         for part_type, part_id in part_list_comp.parts.items():
-            if part_type == "leg": continue
+            if part_type == "legs": continue  # 脚部は攻撃に使わない
             part_comps = self.world.entities.get(part_id)
             if part_comps:
                 health = part_comps.get('health')

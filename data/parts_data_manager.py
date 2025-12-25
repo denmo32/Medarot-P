@@ -2,11 +2,19 @@
 
 import json
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 class PartsDataManager:
     """parts_data.jsonからパーツデータを管理するクラス"""
-    
+
+    # 部位の表示名マッピング
+    PART_TYPE_LABELS = {
+        'head': '頭部',
+        'right_arm': '右腕',
+        'left_arm': '左腕',
+        'legs': '脚部'
+    }
+
     def __init__(self, json_path: str = None):
         """初期化
         
@@ -33,65 +41,69 @@ class PartsDataManager:
         except json.JSONDecodeError as e:
             print(f"警告: JSON解析エラー: {e}")
             return {}
-    
-    def get_player_part_name(self, part_key: str) -> str:
-        """プレイヤーパーツの表示名を取得
-        
+
+    def get_part_data(self, part_id: str) -> Dict[str, Any]:
+        """パーツIDからパーツデータを取得
+
         Args:
-            part_key: パーツのキー（'head', 'right_arm', 'left_arm', 'leg'）
-            
+            part_id: パーツのID（例: 'head_001'）
+
         Returns:
-            パーツの表示名（例: 'ヘッド', 'ライトアーム'）
+            パーツのデータ辞書、存在しない場合は空辞書
         """
-        player_parts = self.data.get('player_parts', {})
-        part_data = player_parts.get(part_key, {})
-        return part_data.get('name', part_key)  # デフォルトはキー本身
-    
-    def get_enemy_part_name(self, part_key: str) -> str:
-        """エネミーパーツの表示名を取得
-        
+        parts = self.data.get('parts', {})
+        for part_type, part_dict in parts.items():
+            if part_id in part_dict:
+                return part_dict[part_id]
+        return {}
+
+    def get_part_name(self, part_id: str) -> str:
+        """パーツIDから表示名を取得
+
         Args:
-            part_key: パーツのキー（'head', 'right_arm', 'left_arm', 'leg'）
-            
+            part_id: パーツのID
+
         Returns:
-            パーツの表示名（例: '敵ヘッド', '敵ライト阿姨'）
+            パーツの表示名、存在しない場合はID本身
         """
-        enemy_parts = self.data.get('enemy_parts', {})
-        part_data = enemy_parts.get(part_key, {})
-        return part_data.get('name', part_key)  # デフォルトはキー本身
-    
-    def get_all_player_part_names(self) -> Dict[str, str]:
-        """プレイヤーパーツの全表示名を取得
-        
+        part_data = self.get_part_data(part_id)
+        return part_data.get('name', part_id)
+
+    def get_parts_for_part_type(self, part_type: str) -> Dict[str, Dict[str, Any]]:
+        """部位タイプからその部位の全パーツを取得
+
+        Args:
+            part_type: 部位タイプ（'head', 'right_arm', 'left_arm', 'legs'）
+
         Returns:
-             клюекры-part_key、value-表示名の辞書
+            パーツIDをキーとしたパーツデータ辞書
         """
-        player_parts = self.data.get('player_parts', {})
-        return {key: part_data.get('name', key) for key, part_data in player_parts.items()}
-    
-    def get_all_enemy_part_names(self) -> Dict[str, str]:
-        """エネミーパーツの全表示名を取得
-        
+        parts = self.data.get('parts', {})
+        return parts.get(part_type, {})
+
+    def get_part_ids_for_type(self, part_type: str) -> List[str]:
+        """部位タイプからパーツIDのリストを取得
+
+        Args:
+            part_type: 部位タイプ
+
         Returns:
-             клюекры-part_key、value-表示名の辞書
+            パーツIDのリスト
         """
-        enemy_parts = self.data.get('enemy_parts', {})
-        return {key: part_data.get('name', key) for key, part_data in enemy_parts.items()}
-    
+        part_dict = self.get_parts_for_part_type(part_type)
+        return list(part_dict.keys())
+
     def get_button_labels(self, is_player: bool = True) -> Dict[str, str]:
-        """ボタン表示用のラベルを取得
-        
+        """ボタン表示用のラベルを取得（部位タイプのラベル）
+
         Args:
-            is_player: プレイヤーの場合はTrue、エネミーの場合はFalse
-            
+            is_player: プレイヤーの場合はTrue、エネミーの場合はFalse（互換性のため）
+
         Returns:
-            ボタン表示用のラベル辞書
+            ボタン表示用のラベル辞書（部位タイプ -> ラベル）
         """
-        if is_player:
-            return self.get_all_player_part_names()
-        else:
-            return self.get_all_enemy_part_names()
-    
+        return self.PART_TYPE_LABELS
+
     def reload_data(self) -> None:
         """データを再読み込み"""
         self.data = self._load_data()

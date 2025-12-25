@@ -55,7 +55,7 @@ class RenderSystem(System):
 
         # HPバーデータ計算
         hp_data = []
-        parts_order = ['head', 'right_arm', 'left_arm', 'leg']
+        parts_order = ['head', 'right_arm', 'left_arm', 'legs']
         colors = [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]
         
         for p_key, p_color in zip(parts_order, colors):
@@ -89,16 +89,33 @@ class RenderSystem(System):
         
         buttons = []
         parts_keys = ['head', 'right_arm', 'left_arm']
-        is_player = comps['team'].team_type == "player"
-        labels = self.parts_manager.get_button_labels(is_player) if self.parts_manager else {}
+        labels = self.parts_manager.get_button_labels() if self.parts_manager else {}
 
         for key in parts_keys:
             p_id = comps['partlist'].parts.get(key)
-            hp = self.world.entities[p_id].get('health').hp if p_id else 0
+            part_name = labels.get(key, key) # デフォルトは部位種別名(頭部など)
+            hp = 0
+            
+            if p_id is not None and p_id in self.world.entities:
+                p_comps = self.world.entities[p_id]
+                
+                # 名称コンポーネントから実際の名前(ヘッドライフル等)を取得
+                name_comp = p_comps.get('name')
+                if name_comp:
+                    part_name = name_comp.name
+                
+                # HP取得
+                h_comp = p_comps.get('health')
+                if h_comp:
+                    hp = h_comp.hp
+
             buttons.append({
-                'label': labels.get(key, key),
+                'label': part_name,
                 'enabled': hp > 0
             })
         
         buttons.append({'label': "スキップ", 'enabled': True})
-        self.renderer.draw_action_menu(comps['name'].name, buttons)
+        
+        # 描画側に渡す
+        turn_name = comps['name'].name
+        self.renderer.draw_action_menu(turn_name, buttons)

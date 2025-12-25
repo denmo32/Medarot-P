@@ -1,44 +1,24 @@
 {
-  "player_parts": {
+  "parts": {
     "head": {
-      "name": "テストヘッド1",
-      "hp": 50,
-      "attack": 10
+      "head_001": { "name": "ヘッドライフル", "hp": 40, "attack": 15 },
+      "head_002": { "name": "ヘッドソード", "hp": 50, "attack": 10 },
+      "head_003": { "name": "ヘッドガトリング", "hp": 35, "attack": 12 }
     },
     "right_arm": {
-      "name": "テストライト1",
-      "hp": 40,
-      "attack": 15
+      "rarm_001": { "name": "ライトライフル", "hp": 50, "attack": 25 },
+      "rarm_002": { "name": "ライトソード", "hp": 50, "attack": 30 },
+      "rarm_003": { "name": "ライトガトリング", "hp": 45, "attack": 20 }
     },
     "left_arm": {
-      "name": "テストレフト1",
-      "hp": 40,
-      "attack": 12
+      "larm_001": { "name": "レフトライフル", "hp": 50, "attack": 22 },
+      "larm_002": { "name": "レフトソード", "hp": 50, "attack": 35 },
+      "larm_003": { "name": "レフトガトリング", "hp": 45, "attack": 28 }
     },
-    "leg": {
-      "name": "テストレッグ1",
-      "hp": 60
-    }
-  },
-  "enemy_parts": {
-    "head": {
-      "name": "テストヘッド2",
-      "hp": 45,
-      "attack": 8
-    },
-    "right_arm": {
-      "name": "テストライト2",
-      "hp": 35,
-      "attack": 12
-    },
-    "left_arm": {
-      "name": "テストレフト2",
-      "hp": 35,
-      "attack": 10
-    },
-    "leg": {
-      "name": "テストレッグ2",
-      "hp": 55
+    "legs": {
+      "legs_001": { "name": "ライフルレッグ", "hp": 60 },
+      "legs_002": { "name": "ソードレッグ", "hp": 70 },
+      "legs_003": { "name": "ガトリングレッグ", "hp": 50 }
     }
   }
 }
