@@ -19,3 +19,7 @@ ui/__pycache__/renderer.cpython-313.pyc
 data/__pycache__/__init__.cpython-313.pyc
 battle/__pycache__/utils.cpython-313.pyc
 fullcode.txt
+scenes/__pycache__/__init__.cpython-313.pyc
+scenes/__pycache__/battle_scene.cpython-313.pyc
+scenes/__pycache__/title_scene.cpython-313.pyc
+scenes/__pycache__/customize_scene.cpython-313.pyc

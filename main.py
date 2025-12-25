@@ -1,43 +1,70 @@
-"""Medarot-P バトルシステム - メインエントリーポイント"""
+"""Medarot-P メインエントリーポイント - シーン管理"""
 
 import pygame
 import sys
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, GAME_PARAMS
-from battle.manager import BattleSystem
-from input.event_manager import EventManager
+from scenes.title_scene import TitleScene
+from scenes.battle_scene import BattleScene
+from scenes.customize_scene import CustomizeScene
 
 # pygameの初期化
 pygame.init()
 
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Medarot-P Battle System (Full ECS)")
+    pygame.display.set_caption("Medarot-P")
 
-    # バトルシステムの初期化（screenを渡してRenderSystemを内部で構築）
-    battle_system = BattleSystem(
-        screen,
-        player_count=GAME_PARAMS['PLAYER_COUNT'],
-        enemy_count=GAME_PARAMS['ENEMY_COUNT']
-    )
-
-    # InputComponentへのイベントブリッジ
-    event_manager = EventManager(battle_system.world)
+    # 初期シーンをタイトル画面に設定
+    current_scene = 'title'
+    title_scene = TitleScene(screen)
+    battle_scene = BattleScene(screen)
+    customize_scene = CustomizeScene(screen)
     
     clock = pygame.time.Clock()
     running = True
     
     try:
         while running:
-            # 1. 入力イベント収集 -> InputComponent更新
-            running = event_manager.handle_events()
-            
-            # 2. デルタタイム計算
+            # 1. デルタタイム計算
             dt = min(clock.tick(GAME_PARAMS['FPS']) / 1000.0, 1.0 / GAME_PARAMS['FPS'])
 
-            # 3. ECSシステム一括更新 (Input -> Logic -> Render)
-            battle_system.update(dt)
+            # 2. 現在のシーンに応じてイベント処理
+            if current_scene == 'title':
+                action = title_scene.handle_events()
+                if action == 'battle':
+                    current_scene = 'battle'
+                elif action == 'customize':
+                    current_scene = 'customize'
+                elif action == 'quit':
+                    running = False
+            elif current_scene == 'battle':
+                action = battle_scene.handle_events()
+                if action == 'title':
+                    current_scene = 'title'
+                elif action == 'quit':
+                    running = False
+            elif current_scene == 'customize':
+                action = customize_scene.handle_events()
+                if action == 'title':
+                    current_scene = 'title'
+                elif action == 'quit':
+                    running = False
 
-            # 描画処理はRenderSystem内で行われるため、ここには記述不要
+            # 3. 現在のシーンの更新
+            if current_scene == 'title':
+                title_scene.update(dt)
+            elif current_scene == 'battle':
+                battle_scene.update(dt)
+            elif current_scene == 'customize':
+                customize_scene.update(dt)
+
+            # 4. 現在のシーンの描画
+            if current_scene == 'title':
+                title_scene.render()
+            elif current_scene == 'battle':
+                battle_scene.render()
+            elif current_scene == 'customize':
+                customize_scene.render()
 
     except KeyboardInterrupt:
         pass
