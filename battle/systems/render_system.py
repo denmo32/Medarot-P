@@ -4,6 +4,13 @@ import pygame
 from core.ecs import System
 from config import COLORS, FONT_NAMES, GAME_PARAMS
 
+# PartsDataManagerのインポートを試行、失敗時はフォールバックを使用
+try:
+    from data.parts_data_manager import get_parts_manager
+    PARTS_MANAGER_AVAILABLE = True
+except ImportError:
+    PARTS_MANAGER_AVAILABLE = False
+
 class RenderSystem(System):
     """
     ECSアーキテクチャにおける描画担当システム。
@@ -17,6 +24,12 @@ class RenderSystem(System):
         self.notice_font = pygame.font.SysFont(FONT_NAMES, 36)
         self.icon_size = 32
         self.icon_radius = self.icon_size // 2
+        
+        # PartsDataManagerの初期化（利用可能な場合のみ）
+        if PARTS_MANAGER_AVAILABLE:
+            self.parts_manager = get_parts_manager()
+        else:
+            self.parts_manager = None
 
     def update(self, dt: float = 0.016):
         """
@@ -169,6 +182,7 @@ class RenderSystem(System):
         comps = self.world.entities[eid]
         name = comps['name'].name
         part_list = comps['partlist']
+        team_type = comps['team'].team_type
 
         turn_text = self.font.render(f"{name}のターン", True, COLORS['TEXT'])
         self.screen.blit(turn_text, (wx + pad, wy + wh - 100))
@@ -207,9 +221,21 @@ class RenderSystem(System):
                 if health:
                     left_arm_hp = health.hp
 
-        self._draw_button(0, "頭部", head_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(1, "右腕", right_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(2, "左腕", left_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
+        # PartsDataManagerからparts名を取得
+        if self.parts_manager:
+            is_player = team_type == "player"
+            head_name = self.parts_manager.get_player_part_name("head") if is_player else self.parts_manager.get_enemy_part_name("head")
+            right_arm_name = self.parts_manager.get_player_part_name("right_arm") if is_player else self.parts_manager.get_enemy_part_name("right_arm")
+            left_arm_name = self.parts_manager.get_player_part_name("left_arm") if is_player else self.parts_manager.get_enemy_part_name("left_arm")
+        else:
+            # フォールバック：デフォルトのボタン名
+            head_name = "頭部"
+            right_arm_name = "右腕"
+            left_arm_name = "左腕"
+
+        self._draw_button(0, head_name, head_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
+        self._draw_button(1, right_arm_name, right_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
+        self._draw_button(2, left_arm_name, left_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
         self._draw_button(3, "スキップ", 1, wx, pad, btn_y, btn_w, btn_h, btn_pad)
 
     def _draw_button(self, idx, label, hp_val, wx, pad, by, bw, bh, bpad):

@@ -3,14 +3,6 @@
 import pygame
 from config import COLORS, FONT_NAMES, GAME_PARAMS
 
-# PartsDataManagerのインポートを試行、失敗時はフォールバックを使用
-try:
-    from data.parts_data_manager import get_parts_manager
-    PARTS_MANAGER_AVAILABLE = True
-except ImportError:
-    PARTS_MANAGER_AVAILABLE = False
-    print("警告: PartsDataManagerが利用できません。フォールバックモードを使用します。")
-
 class Renderer:
     """画面描画を担当するプレゼンテーションクラス"""
 
@@ -21,12 +13,6 @@ class Renderer:
         self.notice_font = pygame.font.SysFont(FONT_NAMES, 36)
         self.icon_size = 32
         self.icon_radius = self.icon_size // 2
-        
-        # PartsDataManagerの初期化（利用可能な場合のみ）
-        if PARTS_MANAGER_AVAILABLE:
-            self.parts_manager = get_parts_manager()
-        else:
-            self.parts_manager = None
 
     def clear_screen(self) -> None:
         """画面を背景色でクリア"""
@@ -183,7 +169,6 @@ class Renderer:
             if eid in world.entities:
                 name = world.entities[eid]['name'].name
                 hp = world.entities[eid]['parthealth']
-                team_type = world.entities[eid]['team'].team_type
                 
                 turn_text = self.font.render(f"{name}のターン", True, COLORS['TEXT'])
                 self.screen.blit(turn_text, (window_x + padding, window_y + window_height - 100))
@@ -206,21 +191,9 @@ class Renderer:
                     txt = self.font.render(label, True, COLORS['TEXT'])
                     self.screen.blit(txt, (bx + 15, button_y + 10))
 
-                # プレイヤーパーツの表示名を取得（parts_data.jsonから）
-                if self.parts_manager:
-                    is_player = team_type == "player"
-                    head_name = self.parts_manager.get_player_part_name("head") if is_player else self.parts_manager.get_enemy_part_name("head")
-                    right_arm_name = self.parts_manager.get_player_part_name("right_arm") if is_player else self.parts_manager.get_enemy_part_name("right_arm")
-                    left_arm_name = self.parts_manager.get_player_part_name("left_arm") if is_player else self.parts_manager.get_enemy_part_name("left_arm")
-                else:
-                    # フォールバック：デフォルトのボタン名
-                    head_name = "頭部"
-                    right_arm_name = "右腕"
-                    left_arm_name = "左腕"
-
-                draw_btn(0, head_name, hp.head_hp)
-                draw_btn(1, right_arm_name, hp.right_arm_hp)
-                draw_btn(2, left_arm_name, hp.left_arm_hp)
+                draw_btn(0, "頭部", hp.head_hp)
+                draw_btn(1, "右腕", hp.right_arm_hp)
+                draw_btn(2, "左腕", hp.left_arm_hp)
                 draw_btn(3, "スキップ")
 
         # クリック待ちメッセージ
