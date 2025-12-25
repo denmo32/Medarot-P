@@ -83,5 +83,6 @@ class BattleContextComponent(Component):
         self.battle_log: List[str] = []
         self.waiting_for_input: bool = False       # メッセージ送り待ち
         self.waiting_for_action: bool = False      # 行動選択待ち
+        self.selected_menu_index: int = 0          # キーボード選択用
         self.game_over: bool = False
         self.winner: Optional[str] = None

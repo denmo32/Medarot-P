@@ -118,4 +118,4 @@ class RenderSystem(System):
         
         # 描画側に渡す
         turn_name = comps['name'].name
-        self.renderer.draw_action_menu(turn_name, buttons)
+        self.renderer.draw_action_menu(turn_name, buttons, context.selected_menu_index)

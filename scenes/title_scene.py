@@ -12,6 +12,7 @@ class TitleScene:
         self.button_font = pygame.font.SysFont(FONT_NAMES, 32)
         self.title_text = "Medarot-P"
         self.running = True
+        self.selected_index = 0  # キーボード選択用
 
         # ボタンの設定
         button_width = 200
@@ -39,12 +40,30 @@ class TitleScene:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return 'quit'
+            
+            elif event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_UP, pygame.K_w):
+                    self.selected_index = (self.selected_index - 1) % len(self.buttons)
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    self.selected_index = (self.selected_index + 1) % len(self.buttons)
+                elif event.key == pygame.K_z:
+                    return self.buttons[self.selected_index]['action']
+                elif event.key == pygame.K_x:
+                    return 'quit'
+            
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # 左クリック
                     mouse_pos = pygame.mouse.get_pos()
-                    for button in self.buttons:
+                    for i, button in enumerate(self.buttons):
                         if button['rect'].collidepoint(mouse_pos):
                             return button['action']
+        
+        # マウスホバーで選択インデックスを更新
+        mouse_pos = pygame.mouse.get_pos()
+        for i, button in enumerate(self.buttons):
+            if button['rect'].collidepoint(mouse_pos):
+                self.selected_index = i
+
         return None
 
     def update(self, dt):
@@ -62,10 +81,14 @@ class TitleScene:
         self.screen.blit(title_surface, title_rect)
 
         # ボタンの描画
-        for button in self.buttons:
+        for i, button in enumerate(self.buttons):
             # ボタン背景
             pygame.draw.rect(self.screen, COLORS['BUTTON_BG'], button['rect'])
-            pygame.draw.rect(self.screen, COLORS['BUTTON_BORDER'], button['rect'], 2)
+            
+            # 選択中のハイライト
+            border_color = (255, 255, 0) if i == self.selected_index else COLORS['BUTTON_BORDER']
+            border_width = 3 if i == self.selected_index else 2
+            pygame.draw.rect(self.screen, border_color, button['rect'], border_width)
 
             # ボタンテキスト
             text_surface = self.button_font.render(button['text'], True, COLORS['TEXT'])

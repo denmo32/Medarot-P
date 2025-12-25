@@ -17,26 +17,21 @@ class InputSystem(System):
         if not contexts: return
         context = contexts[0][1]['battlecontext']
 
-        if not input_comp.mouse_clicked:
-            return
-
-        mouse_x = input_comp.mouse_x
-        mouse_y = input_comp.mouse_y
-
         if context.game_over:
             return
 
-        # 2. メッセージ送り待ち
+        # 1. メッセージ送り待ち
         if context.waiting_for_input:
-            context.waiting_for_input = False
-            context.battle_log.clear()
+            if input_comp.mouse_clicked or input_comp.key_z:
+                context.waiting_for_input = False
+                context.battle_log.clear()
             return
 
-        # 3. 行動選択待ち
+        # 2. 行動選択待ち
         if context.waiting_for_action:
-            self._handle_action_selection(context, mouse_x, mouse_y)
+            self._handle_action_selection(context, input_comp)
 
-    def _handle_action_selection(self, context, mouse_x, mouse_y):
+    def _handle_action_selection(self, context, input_comp):
         eid = context.current_turn_entity_id
         if eid is None or eid not in self.world.entities:
             context.waiting_for_action = False
@@ -55,12 +50,29 @@ class InputSystem(System):
         button_height = ui_cfg['BTN_HEIGHT']
         button_padding = ui_cfg['BTN_PADDING']
 
+        # --- キーボードによるインデックス操作 ---
+        if input_comp.key_left:
+            context.selected_menu_index = (context.selected_menu_index - 1) % 4
+        elif input_comp.key_right:
+            context.selected_menu_index = (context.selected_menu_index + 1) % 4
+
+        # --- マウスホバーによるインデックス同期 & クリック判定 ---
+        mouse_selected = -1
+        for i in range(4):
+            bx = padding + i * (button_width + button_padding)
+            if bx <= input_comp.mouse_x <= bx + button_width and button_y <= input_comp.mouse_y <= button_y + button_height:
+                mouse_selected = i
+                context.selected_menu_index = i # ホバーでインデックス更新
+
+        # --- 決定処理 (Zキー or クリック) ---
+        do_execute = input_comp.key_z or (input_comp.mouse_clicked and mouse_selected != -1)
+        
+        if not do_execute:
+            return
+
+        # 選択内容の決定
         selected_action = None
         selected_part = None
-
-        def is_clicked(idx):
-            bx = padding + idx * (button_width + button_padding)
-            return bx <= mouse_x <= bx + button_width and button_y <= mouse_y <= button_y + button_height
 
         def get_part_hp(part_type):
             part_id = part_list.parts.get(part_type)
@@ -70,17 +82,17 @@ class InputSystem(System):
                 return h.hp if h else 0
             return 0
 
-        # 各ボタン判定
-        if is_clicked(0): # 頭部
+        idx = context.selected_menu_index
+        if idx == 0: # 頭部
             if get_part_hp('head') > 0:
                 selected_action, selected_part = "attack", "head"
-        elif is_clicked(1): # 右腕
+        elif idx == 1: # 右腕
             if get_part_hp('right_arm') > 0:
                 selected_action, selected_part = "attack", "right_arm"
-        elif is_clicked(2): # 左腕
+        elif idx == 2: # 左腕
             if get_part_hp('left_arm') > 0:
                 selected_action, selected_part = "attack", "left_arm"
-        elif is_clicked(3): # スキップ
+        elif idx == 3: # スキップ
             selected_action = "skip"
 
         if selected_action:
@@ -98,6 +110,7 @@ class InputSystem(System):
             gauge_comp.progress = 0.0
             context.current_turn_entity_id = None
             context.waiting_for_action = False
+            context.selected_menu_index = 0 # リセット
             
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)

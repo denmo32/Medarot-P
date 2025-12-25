@@ -29,6 +29,12 @@ class EventManager:
         # フレームごとのリセット
         input_comp.mouse_clicked = False
         input_comp.escape_pressed = False
+        input_comp.key_z = False
+        input_comp.key_x = False
+        input_comp.key_left = False
+        input_comp.key_right = False
+        input_comp.key_up = False
+        input_comp.key_down = False
         
         # 現在のマウス位置を取得
         mx, my = pygame.mouse.get_pos()
@@ -46,5 +52,17 @@ class EventManager:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     input_comp.escape_pressed = True
+                elif event.key == pygame.K_z:
+                    input_comp.key_z = True
+                elif event.key == pygame.K_x:
+                    input_comp.key_x = True
+                elif event.key in (pygame.K_LEFT, pygame.K_a):
+                    input_comp.key_left = True
+                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    input_comp.key_right = True
+                elif event.key in (pygame.K_UP, pygame.K_w):
+                    input_comp.key_up = True
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    input_comp.key_down = True
         
         return True

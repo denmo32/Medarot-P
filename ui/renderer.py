@@ -58,12 +58,13 @@ class Renderer:
 
         if waiting_input:
             ui_cfg = GAME_PARAMS['UI']
-            txt = self.font.render("クリックして次に進む", True, COLORS['TEXT'])
-            self.screen.blit(txt, (wx + ww - ui_cfg['NEXT_MSG_X_OFFSET'], wy + wh - ui_cfg['NEXT_MSG_Y_OFFSET']))
+            txt = self.font.render("Zキー or クリックで次に進む", True, COLORS['TEXT'])
+            self.screen.blit(txt, (wx + ww - ui_cfg['NEXT_MSG_X_OFFSET'] - 50, wy + wh - ui_cfg['NEXT_MSG_Y_OFFSET']))
 
-    def draw_action_menu(self, turn_name, buttons):
+    def draw_action_menu(self, turn_name, buttons, selected_index):
         """
         buttons: List of dict {'label': str, 'enabled': bool}
+        selected_index: int (0-3)
         """
         wx, wy = 0, GAME_PARAMS['MESSAGE_WINDOW_Y']
         wh = GAME_PARAMS['MESSAGE_WINDOW_HEIGHT']
@@ -78,9 +79,17 @@ class Renderer:
 
         for i, btn in enumerate(buttons):
             bx = wx + pad + i * (btn_w + btn_pad)
+            
+            # 背景色
             bg = COLORS['BUTTON_BG'] if btn['enabled'] else COLORS['BUTTON_DISABLED_BG']
             pygame.draw.rect(self.screen, bg, (bx, btn_y, btn_w, btn_h))
-            pygame.draw.rect(self.screen, COLORS['BUTTON_BORDER'], (bx, btn_y, btn_w, btn_h), 2)
+            
+            # 枠線（選択中は黄色、通常は黒）
+            border_color = (255, 255, 0) if i == selected_index else COLORS['BUTTON_BORDER']
+            border_width = 3 if i == selected_index else 2
+            pygame.draw.rect(self.screen, border_color, (bx, btn_y, btn_w, btn_h), border_width)
+            
+            # テキスト
             self.screen.blit(self.font.render(btn['label'], True, COLORS['TEXT']), (bx + 10, btn_y + 10))
 
     def draw_game_over(self, winner_name):
