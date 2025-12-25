@@ -1,43 +1,43 @@
 {
   "player_parts": {
     "head": {
-      "name": "ヘッド",
+      "name": "テストヘッド1",
       "hp": 50,
       "attack": 10
     },
     "right_arm": {
-      "name": "ライトアーム",
+      "name": "テストライト1",
       "hp": 40,
       "attack": 15
     },
     "left_arm": {
-      "name": "レフトアーム",
+      "name": "テストレフト1",
       "hp": 40,
       "attack": 12
     },
     "leg": {
-      "name": "レッグ",
+      "name": "テストレッグ1",
       "hp": 60
     }
   },
   "enemy_parts": {
     "head": {
-      "name": "敵ヘッド",
+      "name": "テストヘッド2",
       "hp": 45,
       "attack": 8
     },
     "right_arm": {
-      "name": "敵ライトアーム",
+      "name": "テストライト2",
       "hp": 35,
       "attack": 12
     },
     "left_arm": {
-      "name": "敵レフトアーム",
+      "name": "テストレフト2",
       "hp": 35,
       "attack": 10
     },
     "leg": {
-      "name": "敵レッグ",
+      "name": "テストレッグ2",
       "hp": 55
     }
   }

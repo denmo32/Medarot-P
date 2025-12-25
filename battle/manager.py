@@ -7,12 +7,11 @@ from battle.systems.combat_system import CombatSystem
 from battle.systems.battle_status_system import BattleStatusSystem
 from battle.systems.input_system import InputSystem
 from battle.systems.render_system import RenderSystem
+from ui.renderer import Renderer
 
 class BattleSystem:
     """
     ECSワールドとシステムのコンテナ。
-    エンティティの生成はFactoryへ、描画はRenderSystemへ委譲され、
-    このクラスは純粋な構成管理のみを行う。
     """
     def __init__(self, screen,
                  player_count: int = 3, enemy_count: int = 3,
@@ -31,17 +30,22 @@ class BattleSystem:
             gauge_width, gauge_height
         )
 
-        # 2. システム初期化
+        # 2. プレゼンテーション層の初期化
+        self.renderer = Renderer(screen)
+
+        # 3. システム初期化
         self.input_system = InputSystem(self.world)
         self.gauge_system = GaugeSystem(self.world)
         self.combat_system = CombatSystem(self.world)
         self.battle_status_system = BattleStatusSystem(self.world)
-        self.render_system = RenderSystem(self.world, screen)
+        # RenderSystemにRendererを注入
+        self.render_system = RenderSystem(self.world, self.renderer)
 
     def update(self, dt: float = 0.016) -> None:
-        """全システムの更新を実行（描画含む）"""
+        """全システムの更新を実行"""
         self.input_system.update(dt)
         self.gauge_system.update(dt)
         self.combat_system.update(dt)
         self.battle_status_system.update(dt)
+        # 描画システムの更新
         self.render_system.update(dt)

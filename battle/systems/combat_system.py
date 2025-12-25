@@ -68,14 +68,7 @@ class CombatSystem(System):
             else:
                 # エネミーならAI思考
                 self._handle_enemy_ai(entity_id)
-                # AIは即時決定するのでキューから外す処理はGaugeSystem側で管理されるべきだが、
-                # ここで決定した状態(CHARGING)に移行させるため、ループ次周で処理される
-                # ただし、ACTION_CHOICE状態のままキューに残るとブロックするので、
-                # 状態遷移だけここで行い、キュー操作はGaugeSystemやロジックフローに委ねる
-                # 既存ロジックではここでpopしていたが、AI決定後はCHARGINGになるため、
-                # キューに残ったままでもCHARGING処理待ちになるはず。
-                # ただし、CHARGINGは時間経過が必要なので、キュー先頭をブロックすべきでない。
-                # ATBの仕様として「チャージ中」はキューから外れるべきなら外す。
+                # AI決定後はチャージ中(CHARGING)になるため、キューから外す
                 if context.waiting_queue and context.waiting_queue[0] == entity_id:
                     context.waiting_queue.pop(0)
 
@@ -87,10 +80,10 @@ class CombatSystem(System):
             target = self._get_random_alive_target(team_comp.team_type)
             if target:
                 target_id, target_comps = target
-                damage = self._calculate_and_apply_damage(entity_id, target_id, gauge_comp.selected_part)
+                damage, t_part_name = self._calculate_and_apply_damage(entity_id, target_id, gauge_comp.selected_part)
                 
                 target_name = target_comps['name'].name
-                msg = f"{name_comp.name}が{target_name}に{damage}のダメージ！"
+                msg = f"{name_comp.name}の攻撃！{target_name}の{t_part_name}に{damage}のダメージ！"
                 context.battle_log.append(msg)
                 context.waiting_for_input = True # メッセージ確認待ちへ
         
@@ -99,39 +92,43 @@ class CombatSystem(System):
             context.battle_log.append(msg)
             context.waiting_for_input = True
 
-    def _calculate_and_apply_damage(self, attacker_id: int, target_id: int, part: str) -> int:
+    def _calculate_and_apply_damage(self, attacker_id: int, target_id: int, part: str) -> tuple:
+        """ダメージ適用。返り値: (ダメージ量, 命中部位名)"""
         attacker_comps = self.world.entities[attacker_id]
         target_comps = self.world.entities[target_id]
 
         part_list_comp = attacker_comps.get('partlist')
         target_part_list_comp = target_comps.get('partlist')
 
-        if not part_list_comp or not target_part_list_comp: return 0
+        if not part_list_comp or not target_part_list_comp: return 0, "不明"
 
         # 攻撃者のパーツから攻撃力を取得
         attacker_part_id = part_list_comp.parts.get(part)
-        if not attacker_part_id: return 0
+        if not attacker_part_id: return 0, "不明"
 
         attacker_part_comps = self.world.entities.get(attacker_part_id)
-        if not attacker_part_comps: return 0
+        if not attacker_part_comps: return 0, "不明"
 
         attack_comp = attacker_part_comps.get('attack')
-        if not attack_comp: return 0
+        if not attack_comp: return 0, "不明"
 
         power = attack_comp.attack
 
-        # ターゲットパーツの決定（ランダム）
-        target_part_types = list(target_part_list_comp.parts.keys())
-        t_part = random.choice(target_part_types)
+        # ターゲットパーツの決定（生存しているパーツからランダム）
+        alive_parts = []
+        for p_type, p_id in target_part_list_comp.parts.items():
+            p_comps = self.world.entities.get(p_id)
+            if p_comps:
+                h = p_comps.get('health')
+                if h and h.hp > 0:
+                    alive_parts.append(p_type)
+        
+        if not alive_parts: return 0, "不明"
+        t_part = random.choice(alive_parts)
 
         target_part_id = target_part_list_comp.parts.get(t_part)
-        if not target_part_id: return 0
-
         target_part_comps = self.world.entities.get(target_part_id)
-        if not target_part_comps: return 0
-
         health_comp = target_part_comps.get('health')
-        if not health_comp: return 0
 
         damage = random.randint(int(power * 0.8), int(power * 1.2))
 
@@ -144,23 +141,19 @@ class CombatSystem(System):
             if target_defeated_comp:
                 target_defeated_comp.is_defeated = True
 
-        return damage
+        # 部位名の日本語化（簡易）
+        names = {"head": "頭部", "right_arm": "右腕", "left_arm": "左腕", "leg": "脚部"}
+        return damage, names.get(t_part, t_part)
 
     def _get_random_alive_target(self, my_team: str):
         target_team = "enemy" if my_team == "player" else "player"
         alive = []
         for eid, comps in self.world.entities.items():
             team = comps.get('team')
-            part_list = comps.get('partlist')
-            if team and team.team_type == target_team and part_list:
-                # 頭部のHPを確認
-                head_part_id = part_list.parts.get('head')
-                if head_part_id:
-                    head_comps = self.world.entities.get(head_part_id)
-                    if head_comps:
-                        health = head_comps.get('health')
-                        if health and health.hp > 0:
-                            alive.append((eid, comps))
+            defeated = comps.get('defeated')
+            if team and team.team_type == target_team:
+                if not defeated or not defeated.is_defeated:
+                    alive.append((eid, comps))
         return random.choice(alive) if alive else None
 
     def _handle_enemy_ai(self, entity_id):
@@ -170,10 +163,10 @@ class CombatSystem(System):
 
         if not part_list_comp or not gauge_comp: return
 
-        # 使用可能なパーツを確認（攻撃力のあるパーツ）
+        # 使用可能なパーツを確認（HPがあり、攻撃力のあるパーツ）
         available = []
         for part_type, part_id in part_list_comp.parts.items():
-            if part_type == "leg": continue  # 脚部は攻撃不可
+            if part_type == "leg": continue
             part_comps = self.world.entities.get(part_id)
             if part_comps:
                 health = part_comps.get('health')
@@ -184,16 +177,13 @@ class CombatSystem(System):
             gauge_comp.selected_part = random.choice(available)
             gauge_comp.selected_action = "attack"
             
-            # 選択したパーツの攻撃力に応じてチャージ/クールダウン時間を設定
             selected_part_id = part_list_comp.parts.get(gauge_comp.selected_part)
-            if selected_part_id:
-                selected_part_comps = self.world.entities.get(selected_part_id)
-                if selected_part_comps:
-                    attack_comp = selected_part_comps.get('attack')
-                    if attack_comp:
-                        charging_time, cooldown_time = calculate_action_times(attack_comp.attack)
-                        gauge_comp.charging_time = charging_time
-                        gauge_comp.cooldown_time = cooldown_time
+            selected_part_comps = self.world.entities.get(selected_part_id)
+            attack_comp = selected_part_comps.get('attack')
+            if attack_comp:
+                charging_time, cooldown_time = calculate_action_times(attack_comp.attack)
+                gauge_comp.charging_time = charging_time
+                gauge_comp.cooldown_time = cooldown_time
         else:
             gauge_comp.selected_action = "skip"
 

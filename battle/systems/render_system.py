@@ -1,10 +1,8 @@
-"""描画システム"""
+"""描画ロジック（データ加工）を担当するシステム"""
 
-import pygame
 from core.ecs import System
-from config import COLORS, FONT_NAMES, GAME_PARAMS
+from config import COLORS, GAME_PARAMS
 
-# PartsDataManagerのインポートを試行、失敗時はフォールバックを使用
 try:
     from data.parts_data_manager import get_parts_manager
     PARTS_MANAGER_AVAILABLE = True
@@ -12,259 +10,95 @@ except ImportError:
     PARTS_MANAGER_AVAILABLE = False
 
 class RenderSystem(System):
-    """
-    ECSアーキテクチャにおける描画担当システム。
-    Worldの状態を読み取り、画面への描画を行う。
-    """
-    def __init__(self, world, screen):
+    """ECS Worldからデータを取得・計算し、Rendererに渡すシステム"""
+    
+    def __init__(self, world, renderer):
         super().__init__(world)
-        self.screen = screen
-        self.font = pygame.font.SysFont(FONT_NAMES, 24)
-        self.title_font = pygame.font.SysFont(FONT_NAMES, 32)
-        self.notice_font = pygame.font.SysFont(FONT_NAMES, 36)
-        self.icon_size = 32
-        self.icon_radius = self.icon_size // 2
-        
-        # PartsDataManagerの初期化（利用可能な場合のみ）
-        if PARTS_MANAGER_AVAILABLE:
-            self.parts_manager = get_parts_manager()
-        else:
-            self.parts_manager = None
+        self.renderer = renderer
+        self.parts_manager = get_parts_manager() if PARTS_MANAGER_AVAILABLE else None
 
     def update(self, dt: float = 0.016):
-        """
-        描画更新処理。
-        他のシステムと異なり、dtによる状態変化ではなく、現在の状態の可視化を行う。
-        """
-        # 1. 画面クリア
-        self.screen.fill(COLORS['BACKGROUND'])
-
-        # 2. コンテキスト取得
         contexts = self.world.get_entities_with_components('battlecontext')
         if not contexts: return
         context = contexts[0][1]['battlecontext']
 
-        # 3. 各要素の描画
-        self._render_team_titles()
-        self._render_entities()
-        self._render_message_window(context)
-        self._render_game_over(context)
+        self.renderer.clear()
+        self.renderer.draw_team_titles("プレイヤーチーム", "エネミーチーム")
 
-        # 4. 画面フリップ（表示更新）
-        pygame.display.flip()
-
-    def _render_entities(self):
-        """全エンティティの描画"""
+        # キャラクター描画データの準備
         for eid, comps in self.world.entities.items():
-            if 'render' in comps and 'position' in comps and 'gauge' in comps and 'partlist' in comps and 'team' in comps and 'defeated' in comps:
-                self._render_single_entity(eid, comps)
+            if all(k in comps for k in ('render', 'position', 'gauge', 'partlist', 'team', 'defeated')):
+                self._process_entity_render(eid, comps)
 
-    def _render_single_entity(self, eid, comps):
-        """個別のエンティティ描画"""
-        defeated = comps['defeated']
-        if defeated.is_defeated: return
+        # メッセージウィンドウデータの準備
+        logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
+        self.renderer.draw_message_window(logs, context.waiting_for_input)
 
-        pos = comps['position']
-        gauge = comps['gauge']
-        team = comps['team']
-        name = comps['name']
-        render = comps['render']
-        part_list = comps['partlist']
-
-        # ゲージと名前
-        self._render_gauge_icon(
-            pos.x, pos.y, render.gauge_width, render.gauge_height,
-            name.name, gauge.status, gauge.progress,
-            team.team_type, team.team_color
-        )
-        # HPバー
-        self._render_hp_bars(pos.x, pos.y, part_list)
-
-    def _render_gauge_icon(self, x, y, width, height, name, status, progress, team_type, team_color):
-        """ATBゲージのアイコンと名前を描画"""
-        # アイコン位置計算
-        center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
-        executing_offset = 40
-        icon_x = x
-
-        if team_type == "player":
-            if status == "charging":
-                icon_x = x + (progress / 100.0) * (center_x - executing_offset - x)
-            elif status == "executing":
-                icon_x = center_x - executing_offset
-            elif status == "cooldown":
-                icon_x = (center_x - executing_offset) - (progress / 100.0) * ((center_x - executing_offset) - x)
-        elif team_type == "enemy":
-            end_x = x + GAME_PARAMS['GAUGE_WIDTH']
-            if status == "charging":
-                icon_x = end_x - (progress / 100.0) * (end_x - (center_x + executing_offset))
-            elif status == "executing":
-                icon_x = center_x + executing_offset
-            elif status == "cooldown":
-                icon_x = (center_x + executing_offset) + (progress / 100.0) * (end_x - (center_x + executing_offset))
-            else:
-                icon_x = end_x
-
-        icon_y = y + height // 2
-        
-        # アイコン描画
-        pygame.draw.circle(self.screen, team_color, (int(icon_x), int(icon_y)), self.icon_radius)
-        
-        # 名前描画
-        name_text = self.font.render(name, True, COLORS['TEXT'])
-        self.screen.blit(name_text, (x, y - 25))
-
-    def _render_hp_bars(self, x, y, part_list_comp):
-        """パーツ別HPバーの描画"""
-        part_names = ['head', 'right_arm', 'left_arm', 'leg']
-        part_colors = [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]
-
-        for i, (part, color) in enumerate(zip(part_names, part_colors)):
-            hp_bar_x = x + i * (GAME_PARAMS['HP_BAR_WIDTH'] + 5)
-            hp_bar_y = y + GAME_PARAMS['HP_BAR_Y_OFFSET']
-            w = GAME_PARAMS['HP_BAR_WIDTH']
-            h = GAME_PARAMS['HP_BAR_HEIGHT']
-
-            part_id = part_list_comp.parts.get(part)
-            if part_id:
-                part_comps = self.world.entities.get(part_id)
-                if part_comps:
-                    health = part_comps.get('health')
-                    if health:
-                        current = health.hp
-                        max_val = health.max_hp
-
-                        # 背景
-                        pygame.draw.rect(self.screen, COLORS['HP_BG'], (hp_bar_x, hp_bar_y, w, h))
-                        # 進行バー
-                        if max_val > 0:
-                            fill_w = int(w * (current / max_val))
-                            pygame.draw.rect(self.screen, color, (hp_bar_x, hp_bar_y, fill_w, h))
-                        # 枠
-                        pygame.draw.rect(self.screen, COLORS['TEXT'], (hp_bar_x, hp_bar_y, w, h), 1)
-
-    def _render_team_titles(self):
-        player_title = self.title_font.render("プレイヤーチーム", True, COLORS['PLAYER'])
-        enemy_title = self.title_font.render("エネミーチーム", True, COLORS['ENEMY'])
-        self.screen.blit(player_title, (50, 50))
-        self.screen.blit(enemy_title, (450, 50))
-
-    def _render_message_window(self, context):
-        wx = 0
-        wy = GAME_PARAMS['MESSAGE_WINDOW_Y']
-        ww = GAME_PARAMS['SCREEN_WIDTH']
-        wh = GAME_PARAMS['MESSAGE_WINDOW_HEIGHT']
-        pad = GAME_PARAMS['MESSAGE_WINDOW_PADDING']
-
-        # ウィンドウ背景
-        pygame.draw.rect(self.screen, GAME_PARAMS['MESSAGE_WINDOW_BG_COLOR'], (wx, wy, ww, wh))
-        pygame.draw.rect(self.screen, GAME_PARAMS['MESSAGE_WINDOW_BORDER_COLOR'], (wx, wy, ww, wh), 2)
-
-        # ログ表示
-        recent_logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
-        for i, log in enumerate(recent_logs):
-            txt = self.font.render(log, True, COLORS['TEXT'])
-            self.screen.blit(txt, (wx + pad, wy + pad + i * 25))
-
-        # 行動選択UI
+        # アクションメニューデータの準備
         if context.waiting_for_action and not context.game_over:
-            self._render_action_menu(context, wx, wy, wh, pad)
+            self._process_action_menu(context)
 
-        # クリック待ちメッセージ
-        if context.waiting_for_input and not context.game_over:
-            txt = self.font.render("クリックして次に進む", True, COLORS['TEXT'])
-            self.screen.blit(txt, (wx + ww - 250, wy + wh - 30))
+        # ゲームオーバーデータの準備
+        if context.game_over:
+            self.renderer.draw_game_over(context.winner)
 
-    def _render_action_menu(self, context, wx, wy, wh, pad):
+        self.renderer.present()
+
+    def _process_entity_render(self, eid, comps):
+        if comps['defeated'].is_defeated: return
+
+        pos, gauge, team, name = comps['position'], comps['gauge'], comps['team'], comps['name']
+        
+        # アイコン座標計算
+        icon_x = self._calculate_icon_x(pos.x, gauge.status, gauge.progress, team.team_type)
+        self.renderer.draw_character_info(pos.x, pos.y, name.name, icon_x, team.team_color)
+
+        # HPバーデータ計算
+        hp_data = []
+        parts_order = ['head', 'right_arm', 'left_arm', 'leg']
+        colors = [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]
+        
+        for p_key, p_color in zip(parts_order, colors):
+            p_id = comps['partlist'].parts.get(p_key)
+            if p_id:
+                h = self.world.entities[p_id].get('health')
+                ratio = h.hp / h.max_hp if h and h.max_hp > 0 else 0
+                hp_data.append({'ratio': ratio, 'color': p_color})
+        
+        self.renderer.draw_hp_bars(pos.x, pos.y, hp_data)
+
+    def _calculate_icon_x(self, x, status, progress, team_type):
+        center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
+        exec_offset = 40
+        if team_type == "player":
+            if status == "charging": return x + (progress / 100.0) * (center_x - exec_offset - x)
+            if status == "executing": return center_x - exec_offset
+            if status == "cooldown": return (center_x - exec_offset) - (progress / 100.0) * ((center_x - exec_offset) - x)
+            return x
+        else:
+            end_x = x + GAME_PARAMS['GAUGE_WIDTH']
+            if status == "charging": return end_x - (progress / 100.0) * (end_x - (center_x + exec_offset))
+            if status == "executing": return center_x + exec_offset
+            if status == "cooldown": return (center_x + exec_offset) + (progress / 100.0) * (end_x - (center_x + exec_offset))
+            return end_x
+
+    def _process_action_menu(self, context):
         eid = context.current_turn_entity_id
         if eid not in self.world.entities: return
-
         comps = self.world.entities[eid]
-        name = comps['name'].name
-        part_list = comps['partlist']
-        team_type = comps['team'].team_type
-
-        turn_text = self.font.render(f"{name}のターン", True, COLORS['TEXT'])
-        self.screen.blit(turn_text, (wx + pad, wy + wh - 100))
-
-        btn_y = wy + wh - 60
-        btn_w = 80
-        btn_h = 40
-        btn_pad = 10
-
-        # 各パーツのHPを取得
-        head_hp = 0
-        right_arm_hp = 0
-        left_arm_hp = 0
-
-        head_id = part_list.parts.get('head')
-        if head_id:
-            head_comps = self.world.entities.get(head_id)
-            if head_comps:
-                health = head_comps.get('health')
-                if health:
-                    head_hp = health.hp
-
-        right_arm_id = part_list.parts.get('right_arm')
-        if right_arm_id:
-            right_arm_comps = self.world.entities.get(right_arm_id)
-            if right_arm_comps:
-                health = right_arm_comps.get('health')
-                if health:
-                    right_arm_hp = health.hp
-
-        left_arm_id = part_list.parts.get('left_arm')
-        if left_arm_id:
-            left_arm_comps = self.world.entities.get(left_arm_id)
-            if left_arm_comps:
-                health = left_arm_comps.get('health')
-                if health:
-                    left_arm_hp = health.hp
-
-        # PartsDataManagerからparts名を取得
-        if self.parts_manager:
-            is_player = team_type == "player"
-            head_name = self.parts_manager.get_player_part_name("head") if is_player else self.parts_manager.get_enemy_part_name("head")
-            right_arm_name = self.parts_manager.get_player_part_name("right_arm") if is_player else self.parts_manager.get_enemy_part_name("right_arm")
-            left_arm_name = self.parts_manager.get_player_part_name("left_arm") if is_player else self.parts_manager.get_enemy_part_name("left_arm")
-        else:
-            # フォールバック：デフォルトのボタン名
-            head_name = "頭部"
-            right_arm_name = "右腕"
-            left_arm_name = "左腕"
-
-        self._draw_button(0, head_name, head_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(1, right_arm_name, right_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(2, left_arm_name, left_arm_hp, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-        self._draw_button(3, "スキップ", 1, wx, pad, btn_y, btn_w, btn_h, btn_pad)
-
-    def _draw_button(self, idx, label, hp_val, wx, pad, by, bw, bh, bpad):
-        bx = wx + pad + idx * (bw + bpad)
-        is_enabled = hp_val > 0
-        bg = COLORS['BUTTON_BG'] if is_enabled else COLORS['BUTTON_DISABLED_BG']
         
-        pygame.draw.rect(self.screen, bg, (bx, by, bw, bh))
-        pygame.draw.rect(self.screen, COLORS['BUTTON_BORDER'], (bx, by, bw, bh), 2)
-        
-        txt = self.font.render(label, True, COLORS['TEXT'])
-        self.screen.blit(txt, (bx + 15, by + 10))
+        buttons = []
+        parts_keys = ['head', 'right_arm', 'left_arm']
+        is_player = comps['team'].team_type == "player"
+        labels = self.parts_manager.get_button_labels(is_player) if self.parts_manager else {}
 
-    def _render_game_over(self, context):
-        if not context.game_over: return
+        for key in parts_keys:
+            p_id = comps['partlist'].parts.get(key)
+            hp = self.world.entities[p_id].get('health').hp if p_id else 0
+            buttons.append({
+                'label': labels.get(key, key),
+                'enabled': hp > 0
+            })
         
-        overlay = pygame.Surface((GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']), pygame.SRCALPHA)
-        overlay.fill(COLORS['NOTICE_BG'])
-        self.screen.blit(overlay, (0, 0))
-
-        color = COLORS['PLAYER'] if context.winner == "プレイヤー" else COLORS['ENEMY']
-        res_text = self.notice_font.render(f"{context.winner}の勝利！", True, color)
-        
-        center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
-        center_y = GAME_PARAMS['SCREEN_HEIGHT'] // 2
-        
-        tr = res_text.get_rect(center=(center_x, center_y))
-        self.screen.blit(res_text, tr)
-
-        restart_text = self.font.render("ESCキーで終了", True, COLORS['TEXT'])
-        rr = restart_text.get_rect(center=(center_x, center_y + GAME_PARAMS['NOTICE_Y_OFFSET']))
-        self.screen.blit(restart_text, rr)
+        buttons.append({'label': "スキップ", 'enabled': True})
+        self.renderer.draw_action_menu(comps['name'].name, buttons)

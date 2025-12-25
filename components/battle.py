@@ -3,20 +3,6 @@
 from typing import List, Optional, Dict
 from core.ecs import Component
 
-class PartHealthComponent(Component):
-    """パーツごとのHPコンポーネント（統一版 - is_defeated削除）"""
-    def __init__(self, head_hp: int, right_arm_hp: int, left_arm_hp: int, leg_hp: int,
-                 max_head_hp: int, max_right_arm_hp: int, max_left_arm_hp: int, max_leg_hp: int):
-        self.head_hp = head_hp
-        self.right_arm_hp = right_arm_hp
-        self.left_arm_hp = left_arm_hp
-        self.leg_hp = leg_hp
-        self.max_head_hp = max_head_hp
-        self.max_right_arm_hp = max_right_arm_hp
-        self.max_left_arm_hp = max_left_arm_hp
-        self.max_leg_hp = max_leg_hp
-        # is_defeatedはDefeatedComponentに移動し、統一管理
-
 class GaugeComponent(Component):
     """ATBゲージコンポーネント（純粋データ）"""
     # 行動状態の定義
@@ -42,13 +28,6 @@ class TeamComponent(Component):
     def __init__(self, team_type: str, team_color: tuple):
         self.team_type = team_type # "player" or "enemy"
         self.team_color = team_color
-
-class PartAttackComponent(Component):
-    """パーツごとの攻撃力コンポーネント（純粋データ）"""
-    def __init__(self, head_attack: int, right_arm_attack: int, left_arm_attack: int):
-        self.head_attack = head_attack
-        self.right_arm_attack = right_arm_attack
-        self.left_arm_attack = left_arm_attack
 
 class RenderComponent(Component):
     """描画用コンポーネント（純粋データ）"""

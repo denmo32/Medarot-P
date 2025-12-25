@@ -52,18 +52,13 @@ GAME_PARAMS = {
     'MESSAGE_WINDOW_BG_COLOR': (30, 30, 30),
     'MESSAGE_WINDOW_BORDER_COLOR': (100, 100, 100),
     'MESSAGE_WINDOW_PADDING': 10,
-}
-
-# キャラクター初期パラメータ
-CHARACTER_PARAMS = {
-    'PLAYER': {
-        'MAX_HP': 100,
-        'ATTACK_POWER': 15,
-        'GAUGE_SPEED_RANGE': (0.2, 0.6),
-    },
-    'ENEMY': {
-        'MAX_HP': 80,
-        'ATTACK_POWER': 12,
-        'GAUGE_SPEED_RANGE': (0.15, 0.55),
+    'UI': {
+        'BTN_WIDTH': 80,
+        'BTN_HEIGHT': 40,
+        'BTN_PADDING': 10,
+        'BTN_Y_OFFSET': 60,
+        'TURN_TEXT_Y_OFFSET': 100,
+        'NEXT_MSG_X_OFFSET': 250,
+        'NEXT_MSG_Y_OFFSET': 30,
     }
 }

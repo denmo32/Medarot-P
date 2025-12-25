@@ -4,9 +4,8 @@ import json
 from core.ecs import World
 from components.common import NameComponent, PositionComponent
 from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
-                               PartHealthComponent, PartAttackComponent, BattleContextComponent,
-                               PartComponent, HealthComponent, AttackComponent, PartListComponent,
-                               DefeatedComponent)
+                               BattleContextComponent, PartComponent, HealthComponent, 
+                               AttackComponent, PartListComponent, DefeatedComponent)
 from components.input import InputComponent
 
 class BattleEntityFactory:
