@@ -26,9 +26,10 @@ class RenderSystem(System):
         self.renderer.draw_team_titles("プレイヤーチーム", "エネミーチーム")
 
         # キャラクター描画データの準備
+        char_positions = {}
         for eid, comps in self.world.entities.items():
             if all(k in comps for k in ('render', 'position', 'gauge', 'partlist', 'team', 'defeated')):
-                self._process_entity_render(eid, comps)
+                self._process_entity_render(eid, comps, char_positions)
 
         # メッセージウィンドウデータの準備
         logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
@@ -36,7 +37,7 @@ class RenderSystem(System):
 
         # アクションメニューデータの準備
         if context.waiting_for_action and not context.game_over:
-            self._process_action_menu(context)
+            self._process_action_menu(context, char_positions)
 
         # ゲームオーバーデータの準備
         if context.game_over:
@@ -44,7 +45,7 @@ class RenderSystem(System):
 
         self.renderer.present()
 
-    def _process_entity_render(self, eid, comps):
+    def _process_entity_render(self, eid, comps, char_positions):
         if comps['defeated'].is_defeated: return
 
         pos, gauge, team, name = comps['position'], comps['gauge'], comps['team'], comps['name']
@@ -55,6 +56,7 @@ class RenderSystem(System):
 
         # アイコン座標計算
         icon_x = self._calculate_icon_x(pos.x, gauge.status, gauge.progress, team.team_type)
+        char_positions[eid] = {'x': pos.x, 'y': pos.y, 'icon_x': icon_x}
         self.renderer.draw_character_info(pos.x, pos.y, display_name, icon_x, team.team_color)
 
         # HPバーデータ計算
@@ -86,7 +88,7 @@ class RenderSystem(System):
             if status == "cooldown": return (center_x + exec_offset) + (progress / 100.0) * (end_x - (center_x + exec_offset))
             return end_x
 
-    def _process_action_menu(self, context):
+    def _process_action_menu(self, context, char_positions):
         eid = context.current_turn_entity_id
         if eid not in self.world.entities: return
         comps = self.world.entities[eid]
@@ -96,11 +98,16 @@ class RenderSystem(System):
         parts_keys = ['head', 'right_arm', 'left_arm']
         labels = self.parts_manager.get_button_labels() if self.parts_manager else {}
 
+        # フォーカス中のターゲットを取得
+        focused_target = None
+        if context.selected_menu_index < 3:
+            selected_part = parts_keys[context.selected_menu_index]
+            focused_target = gauge_comp.part_targets.get(selected_part)
+
         for key in parts_keys:
             p_id = comps['partlist'].parts.get(key)
             part_name = labels.get(key, key)
             hp = 0
-            target_name = ""
             
             if p_id is not None and p_id in self.world.entities:
                 p_comps = self.world.entities[p_id]
@@ -114,17 +121,10 @@ class RenderSystem(System):
                 h_comp = p_comps.get('health')
                 if h_comp:
                     hp = h_comp.hp
-                
-                # ターゲット名を取得
-                t_eid = gauge_comp.part_targets.get(key)
-                if t_eid and t_eid in self.world.entities:
-                    t_comps = self.world.entities[t_eid]
-                    t_medal = t_comps.get('medal')
-                    target_name = f"-> {t_medal.nickname if t_medal else t_comps['name'].name}"
 
             buttons.append({
                 'label': part_name,
-                'sub_label': target_name, # ターゲット情報を追加
+                'sub_label': "",  # テキスト表示を削除
                 'enabled': hp > 0
             })
         
@@ -133,4 +133,4 @@ class RenderSystem(System):
         # 描画側に渡す
         medal_comp = comps.get('medal')
         turn_name = medal_comp.nickname if medal_comp else comps['name'].name
-        self.renderer.draw_action_menu(turn_name, buttons, context.selected_menu_index)
+        self.renderer.draw_action_menu(turn_name, buttons, context.selected_menu_index, focused_target, char_positions)

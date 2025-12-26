@@ -98,19 +98,21 @@ class InputSystem(System):
         if selected_action:
             gauge_comp.selected_action = selected_action
             gauge_comp.selected_part = selected_part
-            
+
             if selected_part:
                 part_id = part_list.parts.get(selected_part)
                 attack_comp = self.world.entities[part_id].get('attack')
                 if attack_comp:
                     c_t, cd_t = calculate_action_times(attack_comp.attack)
                     gauge_comp.charging_time, gauge_comp.cooldown_time = c_t, cd_t
-            
+
             gauge_comp.status = GaugeComponent.CHARGING
             gauge_comp.progress = 0.0
+            # 決定後にターゲットをクリア
+            gauge_comp.part_targets = {}
             context.current_turn_entity_id = None
             context.waiting_for_action = False
             context.selected_menu_index = 0 # リセット
-            
+
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)

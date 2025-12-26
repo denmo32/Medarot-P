@@ -36,7 +36,11 @@ class GaugeSystem(System):
                 # 行動選択待ち状態になったらキューに追加
                 if entity_id not in context.waiting_queue:
                     context.waiting_queue.append(entity_id)
-            
+                # --- 性格に基づいて各部位のターゲットを事前決定（意志の発生） ---
+                if medal_comp and not gauge_comp.part_targets:
+                    personality = get_personality(medal_comp.personality_id)
+                    gauge_comp.part_targets = personality.select_targets(self.world, entity_id)
+
             elif gauge_comp.status == GaugeComponent.CHARGING:
                 # チャージ中
                 gauge_comp.progress += dt / gauge_comp.charging_time * 100.0
