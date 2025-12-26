@@ -93,6 +93,8 @@ class BattleContextComponent(Component):
 
         # UI状態管理
         self.battle_log: List[str] = []
+        self.pending_logs: List[str] = []          # 分割表示用の保留ログ
+        self.execution_target_id: Optional[int] = None # 実行中のターゲット表示用
         self.waiting_for_input: bool = False       # メッセージ送り待ち
         self.waiting_for_action: bool = False      # 行動選択待ち
         self.selected_menu_index: int = 0          # キーボード選択用

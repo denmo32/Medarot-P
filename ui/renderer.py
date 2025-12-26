@@ -46,6 +46,17 @@ class Renderer:
             pygame.draw.rect(self.screen, data['color'], (bx, by, fill_w, bh))
             pygame.draw.rect(self.screen, COLORS['TEXT'], (bx, by, bw, bh), 1)
 
+    def draw_target_marker(self, focused_target, char_positions):
+        """
+        指定されたターゲットに▼マークを表示
+        """
+        if focused_target in char_positions:
+            pos = char_positions[focused_target]
+            # ▼をアイコンの上に表示
+            marker_text = self.font.render("▼", True, (255, 255, 0))  # 黄色
+            marker_rect = marker_text.get_rect(center=(pos['icon_x'], pos['y'] + 4 - 10))
+            self.screen.blit(marker_text, marker_rect)
+
     def draw_message_window(self, logs, waiting_input):
         wx, wy = 0, GAME_PARAMS['MESSAGE_WINDOW_Y']
         ww, wh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['MESSAGE_WINDOW_HEIGHT']
@@ -62,12 +73,10 @@ class Renderer:
             txt = self.font.render("Zキー or クリックで次に進む", True, COLORS['TEXT'])
             self.screen.blit(txt, (wx + ww - ui_cfg['NEXT_MSG_X_OFFSET'] - 50, wy + wh - ui_cfg['NEXT_MSG_Y_OFFSET']))
 
-    def draw_action_menu(self, turn_name, buttons, selected_index, focused_target, char_positions):
+    def draw_action_menu(self, turn_name, buttons, selected_index):
         """
         buttons: List of dict {'label': str, 'sub_label': str, 'enabled': bool}
         selected_index: int (0-3)
-        focused_target: int or None (ターゲットeid)
-        char_positions: dict {eid: {'x': float, 'y': float, 'icon_x': float}}
         """
         wx, wy = 0, GAME_PARAMS['MESSAGE_WINDOW_Y']
         wh = GAME_PARAMS['MESSAGE_WINDOW_HEIGHT']
@@ -94,14 +103,6 @@ class Renderer:
             
             # パーツ名テキスト
             self.screen.blit(self.font.render(btn['label'], True, COLORS['TEXT']), (bx + 10, btn_y + 5))
-
-        # フォーカス中のターゲットに▼マークを表示
-        if focused_target and focused_target in char_positions:
-            pos = char_positions[focused_target]
-            # ▼をアイコンの上に表示（アイコンに重ならないように）
-            marker_text = self.font.render("▼", True, (255, 255, 0))  # 黄色
-            marker_rect = marker_text.get_rect(center=(pos['icon_x'], pos['y'] + 4 - 10))  # アイコン上部より上に
-            self.screen.blit(marker_text, marker_rect)
 
     def draw_game_over(self, winner_name):
         overlay = pygame.Surface((GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']), pygame.SRCALPHA)

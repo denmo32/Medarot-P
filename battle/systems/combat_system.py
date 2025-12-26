@@ -127,15 +127,24 @@ class CombatSystem(System):
                 target_id = self._get_fallback_target(team_comp.team_type)
 
             if target_id:
-                target_comps = self.world.entities[target_id]
-                damage, t_part_name = self._calculate_and_apply_damage(entity_id, target_id, gauge_comp.selected_part)
-                
                 # ターゲットの表示名（ニックネーム優先）
+                target_comps = self.world.entities[target_id]
                 target_medal = target_comps.get('medal')
                 target_display_name = target_medal.nickname if target_medal else target_comps['name'].name
+
+                # ダメージ計算と適用
+                damage, t_part_name = self._calculate_and_apply_damage(entity_id, target_id, gauge_comp.selected_part)
                 
-                msg = f"{attacker_name}の攻撃！{target_display_name}の{t_part_name}に{damage}のダメージ！"
-                context.battle_log.append(msg)
+                # メッセージ1: 攻撃宣言（特性を含む）
+                trait_str = attack_comp.trait if attack_comp and attack_comp.trait else "攻撃"
+                msg1 = f"{attacker_name}の攻撃！ {trait_str}！"
+                context.battle_log.append(msg1)
+                context.execution_target_id = target_id # マーカー表示用
+                
+                # メッセージ2: ダメージ結果
+                msg2 = f"{target_display_name}の{t_part_name}に{damage}のダメージ！"
+                context.pending_logs.append(msg2)
+                
                 context.waiting_for_input = True # メッセージ確認待ちへ
         
         elif gauge_comp.selected_action == "skip":

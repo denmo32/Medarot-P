@@ -23,8 +23,15 @@ class InputSystem(System):
         # 1. メッセージ送り待ち
         if context.waiting_for_input:
             if input_comp.mouse_clicked or input_comp.key_z:
-                context.waiting_for_input = False
-                context.battle_log.clear()
+                # 保留中のメッセージがある場合は次を表示
+                if context.pending_logs:
+                    context.battle_log.clear()
+                    context.battle_log.append(context.pending_logs.pop(0))
+                else:
+                    # 保留なしなら終了
+                    context.waiting_for_input = False
+                    context.battle_log.clear()
+                    context.execution_target_id = None # ターゲット表示終了
             return
 
         # 2. 行動選択待ち
