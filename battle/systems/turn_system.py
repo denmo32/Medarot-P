@@ -3,17 +3,22 @@
 from core.ecs import System
 from battle.ai.strategy import get_strategy
 from battle.utils import calculate_action_times
+from components.battle_flow import BattleFlowComponent
 
 class TurnSystem(System):
-    """待機キューの先頭を確認し、プレイヤーなら入力待ち、エネミーならAI意思決定を開始する"""
+    """
+    IDLEフェーズにおいて待機キューの先頭を確認し、
+    プレイヤーならINPUTフェーズへ遷移、エネミーならAI意思決定を行ってチャージを開始する。
+    """
 
     def update(self, dt: float):
-        contexts = self.world.get_entities_with_components('battlecontext')
-        if not contexts: return
-        context = contexts[0][1]['battlecontext']
+        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
+        if not entities: return
+        context = entities[0][1]['battlecontext']
+        flow = entities[0][1]['battleflow']
 
-        # 他のイベント処理中はターンを開始しない
-        if context.waiting_for_input or context.waiting_for_action or context.game_over:
+        # IDLEフェーズ以外ではターン処理を行わない
+        if flow.current_phase != BattleFlowComponent.PHASE_IDLE:
             return
 
         if not context.waiting_queue: return
@@ -31,11 +36,11 @@ class TurnSystem(System):
         # 行動選択待ち（ACTION_CHOICE）状態のエンティティがキュー先頭に来た場合
         if gauge.status == gauge.ACTION_CHOICE:
             if team.team_type == "player":
-                # プレイヤー：入力待ち状態へ遷移
+                # プレイヤー：入力待ちフェーズへ遷移
                 context.current_turn_entity_id = eid
-                context.waiting_for_action = True
+                flow.current_phase = BattleFlowComponent.PHASE_INPUT
             else:
-                # エネミー：AIによる意思決定
+                # エネミー：AIによる意思決定（フェーズ遷移はせず、チャージ状態にしてキューから外す）
                 self._execute_ai_decision(eid, gauge, comps, context)
 
     def _execute_ai_decision(self, eid, gauge, comps, context):

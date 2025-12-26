@@ -2,6 +2,7 @@
 
 import pygame
 import sys
+import traceback
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, GAME_PARAMS
 from scenes.title_scene import TitleScene
 from scenes.battle_scene import BattleScene
@@ -59,6 +60,10 @@ def main():
 
     except KeyboardInterrupt:
         pass
+    except Exception:
+        # 予期せぬエラーが発生した場合、スタックトレースを表示して終了
+        print("=== 予期せぬエラーが発生しました ===", file=sys.stderr)
+        traceback.print_exc()
     finally:
         pygame.quit()
         sys.exit()

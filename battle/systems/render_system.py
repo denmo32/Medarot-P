@@ -3,6 +3,7 @@
 from core.ecs import System
 from config import COLORS, GAME_PARAMS
 from battle.utils import calculate_current_x
+from components.battle_flow import BattleFlowComponent
 
 try:
     from data.parts_data_manager import get_parts_manager
@@ -19,9 +20,10 @@ class RenderSystem(System):
         self.parts_manager = get_parts_manager() if PARTS_MANAGER_AVAILABLE else None
 
     def update(self, dt: float):
-        contexts = self.world.get_entities_with_components('battlecontext')
-        if not contexts: return
-        context = contexts[0][1]['battlecontext']
+        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
+        if not entities: return
+        context = entities[0][1]['battlecontext']
+        flow = entities[0][1]['battleflow']
 
         self.renderer.clear()
         self.renderer.draw_team_titles("プレイヤーチーム", "エネミーチーム")
@@ -50,23 +52,30 @@ class RenderSystem(System):
 
         # ターゲット表示
         target_eid = None
-        if context.waiting_for_action:
+        if flow.current_phase == BattleFlowComponent.PHASE_INPUT:
             eid = context.current_turn_entity_id
             if eid in self.world.entities and context.selected_menu_index < 3:
                 target_eid = self.world.entities[eid]['gauge'].part_targets.get(["head", "right_arm", "left_arm"][context.selected_menu_index])
-        elif context.execution_target_id:
-            target_eid = context.execution_target_id
+        
+        # 実行中のイベントターゲット表示
+        elif flow.processing_event_id and flow.processing_event_id in self.world.entities:
+            event = self.world.entities[flow.processing_event_id].get('actionevent')
+            if event:
+                target_eid = event.current_target_id
         
         if target_eid:
             self.renderer.draw_target_marker(target_eid, char_positions)
 
-        self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], context.waiting_for_input)
+        # ログ待ちは「入力待ち」として表示フラグを立てる
+        waiting_for_input = (flow.current_phase == BattleFlowComponent.PHASE_LOG_WAIT)
+        self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], waiting_for_input)
         
-        if context.waiting_for_action and not context.game_over:
+        if flow.current_phase == BattleFlowComponent.PHASE_INPUT:
             self._process_action_menu(context)
 
-        if context.game_over:
-            self.renderer.draw_game_over(context.winner)
+        if flow.current_phase == BattleFlowComponent.PHASE_GAME_OVER:
+            self.renderer.draw_game_over(flow.winner)
+            
         self.renderer.present()
 
     def _process_action_menu(self, context):

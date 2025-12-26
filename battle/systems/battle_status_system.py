@@ -1,16 +1,18 @@
 """バトル状態管理システム（統一された敗北判定システム）"""
 
 from core.ecs import System
+from components.battle_flow import BattleFlowComponent
 
 class BattleStatusSystem(System):
     """バトル状態管理システム（勝敗判定など）"""
     
     def update(self, dt: float = 0.016):
-        contexts = self.world.get_entities_with_components('battlecontext')
-        if not contexts: return
-        context = contexts[0][1]['battlecontext']
+        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
+        if not entities: return
+        context = entities[0][1]['battlecontext']
+        flow = entities[0][1]['battleflow']
 
-        if context.game_over:
+        if flow.current_phase == BattleFlowComponent.PHASE_GAME_OVER:
             return
 
         player_alive = False
@@ -23,7 +25,6 @@ class BattleStatusSystem(System):
             if not team:
                 continue
             
-            # DefeatedComponentがある場合、その状態をチェック
             if defeated and defeated.is_defeated:
                 continue
 
@@ -33,8 +34,8 @@ class BattleStatusSystem(System):
                 enemy_alive = True
 
         if not player_alive:
-            context.winner = "エネミー"
-            context.game_over = True
+            flow.winner = "エネミー"
+            flow.current_phase = BattleFlowComponent.PHASE_GAME_OVER
         elif not enemy_alive:
-            context.winner = "プレイヤー"
-            context.game_over = True
+            flow.winner = "プレイヤー"
+            flow.current_phase = BattleFlowComponent.PHASE_GAME_OVER

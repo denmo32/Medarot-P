@@ -3,41 +3,50 @@
 from core.ecs import System
 from config import GAME_PARAMS
 from battle.utils import calculate_action_times
+from components.battle_flow import BattleFlowComponent
 
 class InputSystem(System):
-    """ユーザー入力を処理し、バトルコンテキストやゲージ状態を更新する"""
+    """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
     
     def update(self, dt: float):
         inputs = self.world.get_entities_with_components('input')
         if not inputs: return
         input_comp = inputs[0][1]['input']
 
-        contexts = self.world.get_entities_with_components('battlecontext')
-        if not contexts: return
-        context = contexts[0][1]['battlecontext']
+        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
+        if not entities: return
+        context = entities[0][1]['battlecontext']
+        flow = entities[0][1]['battleflow']
 
-        if context.game_over: return
+        if flow.current_phase == BattleFlowComponent.PHASE_GAME_OVER:
+            return
 
-        # 1. メッセージ送り待ち
-        if context.waiting_for_input:
+        # 1. ログ送り待ち
+        if flow.current_phase == BattleFlowComponent.PHASE_LOG_WAIT:
             if input_comp.mouse_clicked or input_comp.key_z:
+                # pending_logs機能はDamageSystemで使用（ダメージ詳細など）
+                # 現在のログ（battle_log）をクリアして次へ進む
+                # 簡略化のため、battle_logを全消去してIDLEに戻るトリガーとする
+                # (BattleFlowSystemが空になったことを検知してIDLEに戻す)
+                
+                # DamageSystem等がpending_logsに追加している場合、それをbattle_logに移す
                 if context.pending_logs:
                     context.battle_log.clear()
                     context.battle_log.append(context.pending_logs.pop(0))
                 else:
-                    context.waiting_for_input = False
+                    # ログをクリアして待機終了
                     context.battle_log.clear()
-                    context.execution_target_id = None
             return
 
         # 2. 行動選択待ち
-        if context.waiting_for_action:
-            self._handle_action_selection(context, input_comp)
+        if flow.current_phase == BattleFlowComponent.PHASE_INPUT:
+            self._handle_action_selection(context, flow, input_comp)
 
-    def _handle_action_selection(self, context, input_comp):
+    def _handle_action_selection(self, context, flow, input_comp):
         eid = context.current_turn_entity_id
         if eid is None or eid not in self.world.entities:
-            context.waiting_for_action = False
+            # 異常状態：ターゲットがいないのにInputフェーズ
+            flow.current_phase = BattleFlowComponent.PHASE_IDLE
             return
 
         comps = self.world.entities[eid]
@@ -50,7 +59,7 @@ class InputSystem(System):
         elif input_comp.key_right:
             context.selected_menu_index = (context.selected_menu_index + 1) % 4
 
-        # マウスホバー同期（簡易。本来はRenderSystemのレイアウト情報を参照すべきだが、設定値から計算）
+        # マウスホバー同期
         ui_cfg = GAME_PARAMS['UI']
         button_y = GAME_PARAMS['MESSAGE_WINDOW_Y'] + GAME_PARAMS['MESSAGE_WINDOW_HEIGHT'] - ui_cfg['BTN_Y_OFFSET']
         for i in range(4):
@@ -80,7 +89,15 @@ class InputSystem(System):
                 atk = self.world.entities[p_id]['attack'].attack
                 gauge.charging_time, gauge.cooldown_time = calculate_action_times(atk)
 
+            # チャージ開始（ステータス変更）
             gauge.status, gauge.progress = gauge.CHARGING, 0.0
-            context.current_turn_entity_id, context.waiting_for_action = None, False
+            
+            # ターン終了処理
+            context.current_turn_entity_id = None
+            
+            # フェーズをIDLEに戻す（ゲージ進行再開）
+            flow.current_phase = BattleFlowComponent.PHASE_IDLE
+            
+            # キュー先頭が自分なら削除（Input待ちになった時点で先頭のはず）
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)

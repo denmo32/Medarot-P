@@ -72,18 +72,16 @@ class DefeatedComponent(Component):
         self.is_defeated = False
 
 class BattleContextComponent(Component):
-    """グローバルなバトル状態"""
+    """
+    バトルログや待機列などの共有データ。
+    ※ 状態管理フラグは BattleFlowComponent に移動しました。
+    """
     def __init__(self):
         self.waiting_queue: List[int] = []
         self.current_turn_entity_id: Optional[int] = None
         self.battle_log: List[str] = []
-        self.pending_logs: List[str] = []
-        self.execution_target_id: Optional[int] = None
-        self.waiting_for_input: bool = False
-        self.waiting_for_action: bool = False
+        self.pending_logs: List[str] = [] # ダメージ詳細などの一時バッファ
         self.selected_menu_index: int = 0
-        self.game_over: bool = False
-        self.winner: Optional[str] = None
 
 class DamageEventComponent(Component):
     """ダメージ発生を伝える一時的なコンポーネント"""

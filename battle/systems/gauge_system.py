@@ -1,17 +1,19 @@
 """ATBゲージ更新システム"""
 
 from core.ecs import System
+from components.battle_flow import BattleFlowComponent
 
 class GaugeSystem(System):
     """ATBゲージの進行管理のみを担当"""
     def update(self, dt: float):
-        contexts = self.world.get_entities_with_components('battlecontext')
-        if not contexts: return
-        context = contexts[0][1]['battlecontext']
+        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
+        if not entities: return
+        context = entities[0][1]['battlecontext']
+        flow = entities[0][1]['battleflow']
 
-        # UI操作中やイベント待ちの間はゲージ更新を停止
-        is_paused = len(context.waiting_queue) > 0 or context.waiting_for_input or context.waiting_for_action or context.game_over
-        if is_paused: return
+        # IDLE状態以外（演出中や入力中）はゲージ更新を停止
+        if flow.current_phase != BattleFlowComponent.PHASE_IDLE:
+            return
 
         for eid, comps in self.world.get_entities_with_components('gauge', 'defeated'):
             gauge = comps['gauge']
