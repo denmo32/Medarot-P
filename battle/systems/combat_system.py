@@ -76,19 +76,26 @@ class CombatSystem(System):
         """行動の実行"""
         gauge_comp.status = GaugeComponent.EXECUTING
         
+        # 実行者の表示名（ニックネーム優先）
+        attacker_medal = self.world.entities[entity_id].get('medal')
+        attacker_name = attacker_medal.nickname if attacker_medal else name_comp.name
+
         if gauge_comp.selected_action == "attack":
             target = self._get_random_alive_target(team_comp.team_type)
             if target:
                 target_id, target_comps = target
                 damage, t_part_name = self._calculate_and_apply_damage(entity_id, target_id, gauge_comp.selected_part)
                 
-                target_name = target_comps['name'].name
-                msg = f"{name_comp.name}の攻撃！{target_name}の{t_part_name}に{damage}のダメージ！"
+                # ターゲットの表示名（ニックネーム優先）
+                target_medal = target_comps.get('medal')
+                target_display_name = target_medal.nickname if target_medal else target_comps['name'].name
+                
+                msg = f"{attacker_name}の攻撃！{target_display_name}の{t_part_name}に{damage}のダメージ！"
                 context.battle_log.append(msg)
                 context.waiting_for_input = True # メッセージ確認待ちへ
         
         elif gauge_comp.selected_action == "skip":
-            msg = f"{name_comp.name}は行動をスキップ！"
+            msg = f"{attacker_name}は行動をスキップ！"
             context.battle_log.append(msg)
             context.waiting_for_input = True
 

@@ -1,14 +1,15 @@
-"""パーツデータ管理クラス"""
+"""パーツ・メダルデータ管理クラス"""
 
 import json
 import os
 from typing import Dict, Any, List
 
 class PartsDataManager:
-    """parts_data.jsonからパーツデータを管理するクラス"""
+    """parts_data.jsonからパーツおよびメダルデータを管理するクラス"""
 
-    # 部位の表示名マッピング
+    # 部位・項目の表示名マッピング
     PART_TYPE_LABELS = {
+        'medal': 'メダル',
         'head': '頭部',
         'right_arm': '右腕',
         'left_arm': '左腕',
@@ -16,13 +17,8 @@ class PartsDataManager:
     }
 
     def __init__(self, json_path: str = None):
-        """初期化
-        
-        Args:
-            json_path: parts_data.jsonへのパス（Noneの場合はデフォルトパスを使用）
-        """
+        """初期化"""
         if json_path is None:
-            # 現在のディレクトリ基準でparts_data.jsonのパスを決定
             current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.json_path = os.path.join(current_dir, 'data', 'parts_data.json')
         else:
@@ -43,84 +39,63 @@ class PartsDataManager:
             return {}
 
     def get_part_data(self, part_id: str) -> Dict[str, Any]:
-        """パーツIDからパーツデータを取得
-
-        Args:
-            part_id: パーツのID（例: 'head_001'）
-
-        Returns:
-            パーツのデータ辞書、存在しない場合は空辞書
-        """
+        """パーツIDからパーツデータを取得"""
         parts = self.data.get('parts', {})
         for part_type, part_dict in parts.items():
             if part_id in part_dict:
                 return part_dict[part_id]
         return {}
 
-    def get_part_name(self, part_id: str) -> str:
-        """パーツIDから表示名を取得
+    def get_medal_data(self, medal_id: str) -> Dict[str, Any]:
+        """メダルIDからメダルデータを取得"""
+        return self.data.get('medals', {}).get(medal_id, {})
 
-        Args:
-            part_id: パーツのID
-
-        Returns:
-            パーツの表示名、存在しない場合はID本身
-        """
-        part_data = self.get_part_data(part_id)
-        return part_data.get('name', part_id)
+    def get_part_name(self, item_id: str) -> str:
+        """IDから表示名（パーツ名またはメダル名）を取得"""
+        # パーツから探す
+        data = self.get_part_data(item_id)
+        if not data:
+            # メダルから探す
+            data = self.get_medal_data(item_id)
+            
+        return data.get('name', item_id)
 
     def get_parts_for_part_type(self, part_type: str) -> Dict[str, Dict[str, Any]]:
-        """部位タイプからその部位の全パーツを取得
-
-        Args:
-            part_type: 部位タイプ（'head', 'right_arm', 'left_arm', 'legs'）
-
-        Returns:
-            パーツIDをキーとしたパーツデータ辞書
-        """
+        """部位タイプからその部位の全パーツを取得"""
         parts = self.data.get('parts', {})
         return parts.get(part_type, {})
 
     def get_part_ids_for_type(self, part_type: str) -> List[str]:
-        """部位タイプからパーツIDのリストを取得
-
-        Args:
-            part_type: 部位タイプ
-
-        Returns:
-            パーツIDのリスト
-        """
+        """部位タイプまたはメダルからIDのリストを取得"""
+        if part_type == "medal":
+            return list(self.data.get('medals', {}).keys())
+        
         part_dict = self.get_parts_for_part_type(part_type)
         return list(part_dict.keys())
 
     def get_button_labels(self, is_player: bool = True) -> Dict[str, str]:
-        """ボタン表示用のラベルを取得（部位タイプのラベル）
-
-        Args:
-            is_player: プレイヤーの場合はTrue、エネミーの場合はFalse（互換性のため）
-
-        Returns:
-            ボタン表示用のラベル辞書（部位タイプ -> ラベル）
-        """
+        """ボタン表示用のラベルを取得"""
         return self.PART_TYPE_LABELS
 
-    def get_next_part_id(self, current_part_id: str, direction: int = 1) -> str:
-        """現在のパーツの次または前のパーツIDを取得（左右キー用）"""
-        data = self.get_part_data(current_part_id)
-        if not data: return current_part_id
-        
-        # 部位を特定
-        parts = self.data.get('parts', {})
+    def get_next_part_id(self, current_id: str, direction: int = 1) -> str:
+        """現在選択中のアイテムの次または前のIDを取得"""
+        # まず部位を探す
         target_type = None
+        parts = self.data.get('parts', {})
         for p_type, p_dict in parts.items():
-            if current_part_id in p_dict:
+            if current_id in p_dict:
                 target_type = p_type
                 break
         
-        if not target_type: return current_part_id
+        # パーツに見つからなければメダル
+        if not target_type:
+            if current_id in self.data.get('medals', {}):
+                target_type = "medal"
+
+        if not target_type: return current_id
         
         ids = self.get_part_ids_for_type(target_type)
-        idx = ids.index(current_part_id)
+        idx = ids.index(current_id)
         new_idx = (idx + direction) % len(ids)
         return ids[new_idx]
 
@@ -128,7 +103,7 @@ class PartsDataManager:
         """データを再読み込み"""
         self.data = self._load_data()
 
-# グローバルインスタンス（方便用）
+# グローバルインスタンス
 _parts_manager = None
 
 def get_parts_manager() -> PartsDataManager:

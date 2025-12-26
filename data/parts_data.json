@@ -20,5 +20,17 @@
       "legs_002": { "name": "ソードレッグ", "hp": 70 },
       "legs_003": { "name": "ガトリングレッグ", "hp": 50 }
     }
+  },
+  "medals": {
+    "medal_001": { "name": "カブト", "nickname": "メタビー" },
+    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ" },
+    "medal_003": { "name": "テストメダル3", "nickname": "テスト丸" },
+    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー" },
+    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん" },
+    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ" },
+    "medal_007": { "name": "テストメダル7", "nickname": "ななこ" },
+    "medal_008": { "name": "テストメダル8", "nickname": "はちろー" },
+    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた" },
+    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ" }
   }
 }

@@ -4,7 +4,7 @@ from core.ecs import World
 from components.common import NameComponent, PositionComponent
 from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
                                BattleContextComponent, PartComponent, HealthComponent,
-                               AttackComponent, PartListComponent, DefeatedComponent)
+                               AttackComponent, PartListComponent, MedalComponent, DefeatedComponent)
 from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
@@ -67,6 +67,11 @@ class BattleEntityFactory:
 
             e = world.create_entity()
             world.add_component(e.id, NameComponent(setup["name"]))
+            
+            # メダルコンポーネント付与
+            medal_data = pm.get_medal_data(setup["medal"])
+            world.add_component(e.id, MedalComponent(setup["medal"], medal_data["name"], medal_data["nickname"]))
+            
             world.add_component(e.id, PositionComponent(px, yoff + i * spacing))
             world.add_component(e.id, GaugeComponent(1.0, 0.3, GaugeComponent.ACTION_CHOICE))
             world.add_component(e.id, TeamComponent("player", (0, 100, 200)))
@@ -77,20 +82,26 @@ class BattleEntityFactory:
             part_list.parts = parts
             world.add_component(e.id, part_list)
 
-        # エネミー生成（デフォルトパーツを適当に割り当て）
+        # エネミー生成（適当なメダルを割り当て）
         for i in range(enemy_count):
+            medal_id = pm.get_part_ids_for_type("medal")[(i + 3) % 10]
             enemy_setup = {
                 "parts": {
                     "head": pm.get_part_ids_for_type("head")[2 - (i % 3)],
                     "right_arm": pm.get_part_ids_for_type("right_arm")[2 - (i % 3)],
                     "left_arm": pm.get_part_ids_for_type("left_arm")[2 - (i % 3)],
                     "legs": pm.get_part_ids_for_type("legs")[2 - (i % 3)],
-                }
+                },
+                "medal": medal_id
             }
             parts = BattleEntityFactory.create_medabot_from_setup(world, enemy_setup)
 
             e = world.create_entity()
             world.add_component(e.id, NameComponent(f"敵ロボ{i+1}"))
+            
+            medal_data = pm.get_medal_data(medal_id)
+            world.add_component(e.id, MedalComponent(medal_id, medal_data["name"], medal_data["nickname"]))
+
             world.add_component(e.id, PositionComponent(ex, yoff + i * spacing))
             world.add_component(e.id, GaugeComponent(1.0, 0.25, GaugeComponent.ACTION_CHOICE))
             world.add_component(e.id, TeamComponent("enemy", (200, 0, 0)))

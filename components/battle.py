@@ -58,6 +58,13 @@ class PartListComponent(Component):
     def __init__(self):
         self.parts: Dict[str, int] = {}  # {"head": entity_id, "right_arm": entity_id, ...}
 
+class MedalComponent(Component):
+    """メダルコンポーネント（頭脳の役割、ニックネームを保持）"""
+    def __init__(self, medal_id: str, medal_name: str, nickname: str):
+        self.medal_id = medal_id
+        self.medal_name = medal_name
+        self.nickname = nickname
+
 class DefeatedComponent(Component):
     """統一された敗北状態コンポーネント"""
     def __init__(self):

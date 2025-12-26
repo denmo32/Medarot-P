@@ -15,10 +15,11 @@ class SaveDataManager:
         team = []
         
         # 3機分作成
-        names = ["サイカチス", "ロクショウ", "ドークス"]
+        names = ["機体1", "機体2", "機体3"]
         for i in range(3):
             setup = {
                 "name": names[i] if i < len(names) else f"メダロット{i+1}",
+                "medal": pm.get_part_ids_for_type("medal")[i % 10],
                 "parts": {
                     "head": pm.get_part_ids_for_type("head")[i % 3],
                     "right_arm": pm.get_part_ids_for_type("right_arm")[i % 3],
@@ -30,9 +31,12 @@ class SaveDataManager:
         return team
 
     def update_part(self, machine_idx: int, part_type: str, part_id: str):
-        """指定した機体のパーツを更新"""
+        """指定した機体のパーツ（またはメダル）を更新"""
         if 0 <= machine_idx < len(self.player_team):
-            self.player_team[machine_idx]["parts"][part_type] = part_id
+            if part_type == "medal":
+                self.player_team[machine_idx]["medal"] = part_id
+            else:
+                self.player_team[machine_idx]["parts"][part_type] = part_id
 
     def get_machine_setup(self, machine_idx: int) -> Dict:
         """指定した機体のセットアップを取得"""

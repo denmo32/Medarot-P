@@ -49,9 +49,13 @@ class RenderSystem(System):
 
         pos, gauge, team, name = comps['position'], comps['gauge'], comps['team'], comps['name']
         
+        # 名前表示：メダルのニックネームがあればそれを優先、なければ機体名
+        medal_comp = comps.get('medal')
+        display_name = medal_comp.nickname if medal_comp else name.name
+
         # アイコン座標計算
         icon_x = self._calculate_icon_x(pos.x, gauge.status, gauge.progress, team.team_type)
-        self.renderer.draw_character_info(pos.x, pos.y, name.name, icon_x, team.team_color)
+        self.renderer.draw_character_info(pos.x, pos.y, display_name, icon_x, team.team_color)
 
         # HPバーデータ計算
         hp_data = []
@@ -116,6 +120,7 @@ class RenderSystem(System):
         
         buttons.append({'label': "スキップ", 'enabled': True})
         
-        # 描画側に渡す
-        turn_name = comps['name'].name
+        # 描画側に渡す：ここもメダルニックネーム優先
+        medal_comp = comps.get('medal')
+        turn_name = medal_comp.nickname if medal_comp else comps['name'].name
         self.renderer.draw_action_menu(turn_name, buttons, context.selected_menu_index)
