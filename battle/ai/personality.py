@@ -31,11 +31,27 @@ class RandomPersonality(Personality):
         targets = {}
         valid_targets = self._get_valid_targets(world, entity_id)
         
-        for part in ["head", "right_arm", "left_arm"]:
-            if valid_targets:
-                targets[part] = random.choice(valid_targets)
-            else:
-                targets[part] = None
+        my_comps = world.entities.get(entity_id)
+        part_list = my_comps.get('partlist')
+        if not part_list: return {}
+
+        for part_type in ["head", "right_arm", "left_arm"]:
+            targets[part_type] = None
+            
+            p_id = part_list.parts.get(part_type)
+            if not p_id or not valid_targets:
+                continue
+            
+            # パーツの特性（trait）を確認
+            p_comps = world.entities.get(p_id)
+            attack_comp = p_comps.get('attack') if p_comps else None
+            
+            if attack_comp:
+                # 事前ターゲット武器（ライフル・ガトリング）の場合のみ、事前に選定
+                if attack_comp.trait in ["ライフル", "ガトリング"]:
+                    targets[part_type] = random.choice(valid_targets)
+                # 直前ターゲット武器（ソード・ハンマー）の場合は None のまま（実行時に決定）
+                
         return targets
 
 def get_personality(personality_id: str) -> Personality:

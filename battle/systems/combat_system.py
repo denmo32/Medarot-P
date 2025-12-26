@@ -102,12 +102,25 @@ class CombatSystem(System):
         gauge_comp.status = GaugeComponent.EXECUTING
         
         # 実行者の表示名（ニックネーム優先）
-        attacker_medal = self.world.entities[entity_id].get('medal')
+        attacker_comps = self.world.entities[entity_id]
+        attacker_medal = attacker_comps.get('medal')
         attacker_name = attacker_medal.nickname if attacker_medal else name_comp.name
 
         if gauge_comp.selected_action == "attack":
-            # 事前にメダル（性格）が決めていたターゲットを取得
-            target_id = gauge_comp.part_targets.get(gauge_comp.selected_part)
+            # 使用パーツの特性を確認
+            part_list = attacker_comps.get('partlist')
+            part_id = part_list.parts.get(gauge_comp.selected_part)
+            attack_comp = self.world.entities[part_id].get('attack')
+            
+            target_id = None
+            
+            # 特性に基づいたターゲット選定
+            if attack_comp and attack_comp.trait in ["ソード", "ハンマー"]:
+                # 直前ターゲット: 最も距離（X軸）の近い敵を狙う
+                target_id = self._get_closest_target(entity_id, team_comp.team_type)
+            else:
+                # 事前ターゲット: 性格が事前に決めていたターゲットを取得
+                target_id = gauge_comp.part_targets.get(gauge_comp.selected_part)
             
             # ターゲットが既に倒されている、または存在しない場合は再取得（最低限の救済措置）
             if not target_id or target_id not in self.world.entities or self.world.entities[target_id]['defeated'].is_defeated:
@@ -191,3 +204,20 @@ class CombatSystem(System):
             if comps['team'].team_type == target_team and not comps['defeated'].is_defeated:
                 alive.append(eid)
         return random.choice(alive) if alive else None
+
+    def _get_closest_target(self, my_entity_id: int, my_team_type: str) -> Optional[int]:
+        """X軸基準で最も距離の近い生存ターゲットを取得"""
+        my_pos = self.world.entities[my_entity_id]['position']
+        target_team = "enemy" if my_team_type == "player" else "player"
+        
+        closest_id = None
+        min_dist = float('inf')
+        
+        for eid, comps in self.world.get_entities_with_components('team', 'defeated', 'position'):
+            if comps['team'].team_type == target_team and not comps['defeated'].is_defeated:
+                dist = abs(my_pos.x - comps['position'].x)
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_id = eid
+        
+        return closest_id

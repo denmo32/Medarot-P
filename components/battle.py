@@ -53,8 +53,9 @@ class HealthComponent(Component):
 
 class AttackComponent(Component):
     """個別パーツの攻撃力コンポーネント（脚部以外）"""
-    def __init__(self, attack: int):
+    def __init__(self, attack: int, trait: str = None):
         self.attack = attack
+        self.trait = trait # "ライフル", "ソード", "ガトリング", "ハンマー" 等
 
 class PartListComponent(Component):
     """Medabotが持つパーツのリストコンポーネント"""

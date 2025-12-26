@@ -108,8 +108,6 @@ class InputSystem(System):
 
             gauge_comp.status = GaugeComponent.CHARGING
             gauge_comp.progress = 0.0
-            # 決定後にターゲットをクリア
-            gauge_comp.part_targets = {}
             context.current_turn_entity_id = None
             context.waiting_for_action = False
             context.selected_menu_index = 0 # リセット

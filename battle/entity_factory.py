@@ -13,14 +13,14 @@ class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリクラス"""
 
     @staticmethod
-    def create_part(world: World, part_type: str, name: str, hp: int, attack: int = None) -> int:
+    def create_part(world: World, part_type: str, name: str, hp: int, trait: str = None, attack: int = None) -> int:
         """個別のパーツエンティティを生成"""
         entity = world.create_entity()
         world.add_component(entity.id, NameComponent(name))
         world.add_component(entity.id, PartComponent(part_type))
         world.add_component(entity.id, HealthComponent(hp, hp))
         if attack is not None:  # 脚部以外
-            world.add_component(entity.id, AttackComponent(attack))
+            world.add_component(entity.id, AttackComponent(attack, trait))
         return entity.id
 
     @staticmethod
@@ -34,7 +34,8 @@ class BattleEntityFactory:
             name = part_data.get("name", part_id)
             hp = part_data.get("hp", 0)
             attack = part_data.get("attack")
-            parts[part_type] = BattleEntityFactory.create_part(world, part_type, name, hp, attack)
+            trait = part_data.get("trait") # 特性（ライフル、ソード等）を取得
+            parts[part_type] = BattleEntityFactory.create_part(world, part_type, name, hp, trait, attack)
             
         return parts
 
