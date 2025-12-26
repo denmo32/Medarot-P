@@ -48,7 +48,7 @@ class TitleScene:
                     self.selected_index = (self.selected_index + 1) % len(self.buttons)
                 elif event.key == pygame.K_z:
                     return self.buttons[self.selected_index]['action']
-                elif event.key == pygame.K_x:
+                elif event.key == pygame.K_ESCAPE:
                     return 'quit'
             
             elif event.type == pygame.MOUSEBUTTONDOWN:

@@ -104,6 +104,26 @@ class PartsDataManager:
         """
         return self.PART_TYPE_LABELS
 
+    def get_next_part_id(self, current_part_id: str, direction: int = 1) -> str:
+        """現在のパーツの次または前のパーツIDを取得（左右キー用）"""
+        data = self.get_part_data(current_part_id)
+        if not data: return current_part_id
+        
+        # 部位を特定
+        parts = self.data.get('parts', {})
+        target_type = None
+        for p_type, p_dict in parts.items():
+            if current_part_id in p_dict:
+                target_type = p_type
+                break
+        
+        if not target_type: return current_part_id
+        
+        ids = self.get_part_ids_for_type(target_type)
+        idx = ids.index(current_part_id)
+        new_idx = (idx + direction) % len(ids)
+        return ids[new_idx]
+
     def reload_data(self) -> None:
         """データを再読み込み"""
         self.data = self._load_data()

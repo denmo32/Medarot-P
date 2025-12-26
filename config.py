@@ -22,6 +22,10 @@ COLORS = {
     'BUTTON_BG': (150, 150, 150),    # ボタン背景色
     'BUTTON_DISABLED_BG': (80, 80, 80),  # 無効状態ボタン色
     'BUTTON_BORDER': (0, 0, 0),      # ボタン境界色
+    # カスタマイズ画面用
+    'PANEL_BG': (35, 45, 60),        # パネル背景色
+    'PANEL_BORDER': (60, 70, 90),    # パネル枠線
+    'SELECT_HIGHLIGHT': (0, 150, 255), # 選択ハイライト
 }
 
 # フォント設定
@@ -60,5 +64,13 @@ GAME_PARAMS = {
         'TURN_TEXT_Y_OFFSET': 100,
         'NEXT_MSG_X_OFFSET': 250,
         'NEXT_MSG_Y_OFFSET': 30,
+    },
+    'CUSTOMIZE': {
+        'PANEL_PADDING': 15,
+        'COLUMN_1_WIDTH': 180,
+        'COLUMN_2_WIDTH': 300,
+        'COLUMN_3_WIDTH': 260,
+        'PANEL_Y': 40,
+        'PANEL_HEIGHT': 520,
     }
 }

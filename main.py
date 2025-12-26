@@ -14,11 +14,13 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Medarot-P")
 
-    # 初期シーンをタイトル画面に設定
-    current_scene = 'title'
-    title_scene = TitleScene(screen)
-    battle_scene = BattleScene(screen)
-    customize_scene = CustomizeScene(screen)
+    # シーン管理
+    current_scene_tag = 'title'
+    scenes = {
+        'title': TitleScene(screen),
+        'battle': None,
+        'customize': None
+    }
     
     clock = pygame.time.Clock()
     running = True
@@ -28,43 +30,32 @@ def main():
             # 1. デルタタイム計算
             dt = min(clock.tick(GAME_PARAMS['FPS']) / 1000.0, 1.0 / GAME_PARAMS['FPS'])
 
-            # 2. 現在のシーンに応じてイベント処理
-            if current_scene == 'title':
-                action = title_scene.handle_events()
-                if action == 'battle':
-                    current_scene = 'battle'
-                elif action == 'customize':
-                    current_scene = 'customize'
-                elif action == 'quit':
-                    running = False
-            elif current_scene == 'battle':
-                action = battle_scene.handle_events()
-                if action == 'title':
-                    current_scene = 'title'
-                elif action == 'quit':
-                    running = False
-            elif current_scene == 'customize':
-                action = customize_scene.handle_events()
-                if action == 'title':
-                    current_scene = 'title'
-                elif action == 'quit':
-                    running = False
+            # 2. 現在のシーンの取得と初期化（必要な場合のみ）
+            if scenes[current_scene_tag] is None:
+                if current_scene_tag == 'battle':
+                    scenes['battle'] = BattleScene(screen)
+                elif current_scene_tag == 'customize':
+                    scenes['customize'] = CustomizeScene(screen)
+                elif current_scene_tag == 'title':
+                    scenes['title'] = TitleScene(screen)
 
-            # 3. 現在のシーンの更新
-            if current_scene == 'title':
-                title_scene.update(dt)
-            elif current_scene == 'battle':
-                battle_scene.update(dt)
-            elif current_scene == 'customize':
-                customize_scene.update(dt)
+            scene = scenes[current_scene_tag]
 
-            # 4. 現在のシーンの描画
-            if current_scene == 'title':
-                title_scene.render()
-            elif current_scene == 'battle':
-                battle_scene.render()
-            elif current_scene == 'customize':
-                customize_scene.render()
+            # 3. イベント処理
+            action = scene.handle_events()
+            
+            if action == 'quit':
+                running = False
+            elif action in scenes:
+                # シーン遷移
+                current_scene_tag = action
+                # 遷移先のシーンを一度破棄して再生成させる（最新データを反映するため）
+                scenes[action] = None 
+            
+            # 4. 更新と描画
+            if running and scene:
+                scene.update(dt)
+                scene.render()
 
     except KeyboardInterrupt:
         pass

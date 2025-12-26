@@ -1,6 +1,5 @@
 """エンティティ生成ファクトリ"""
 
-import json
 from core.ecs import World
 from components.common import NameComponent, PositionComponent
 from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
@@ -8,6 +7,7 @@ from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
                                AttackComponent, PartListComponent, DefeatedComponent)
 from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
+from data.save_data_manager import get_save_manager
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリクラス"""
@@ -24,28 +24,18 @@ class BattleEntityFactory:
         return entity.id
 
     @staticmethod
-    def create_medabot_parts(world: World) -> dict:
-        """Medabotのパーツ一式を生成（デフォルトパーツを使用）"""
-        parts_manager = get_parts_manager()
-
+    def create_medabot_from_setup(world: World, setup: dict) -> dict:
+        """セットアップデータからMedabotのパーツ一式を生成"""
+        pm = get_parts_manager()
         parts = {}
-        part_types = ['head', 'right_arm', 'left_arm', 'legs']
-
-        for part_type in part_types:
-            # 各部位の最初のIDを取得（デフォルトパーツ）
-            part_ids = parts_manager.get_part_ids_for_type(part_type)
-            if not part_ids:
-                continue  # パーツがない場合はスキップ
-            default_part_id = part_ids[0]  # 最初のIDを使用
-
-            # パーツデータを取得
-            part_data = parts_manager.get_part_data(default_part_id)
-            name = part_data.get("name", default_part_id)
+        
+        for part_type, part_id in setup["parts"].items():
+            part_data = pm.get_part_data(part_id)
+            name = part_data.get("name", part_id)
             hp = part_data.get("hp", 0)
-            attack = part_data.get("attack")  # 脚部にはattackがない場合None
-
+            attack = part_data.get("attack")
             parts[part_type] = BattleEntityFactory.create_part(world, part_type, name, hp, attack)
-
+            
         return parts
 
     @staticmethod
@@ -67,32 +57,38 @@ class BattleEntityFactory:
                      px: int, ex: int, yoff: int, spacing: int,
                      gw: int, gh: int):
         """プレイヤーとエネミーのチームを生成"""
+        save_mgr = get_save_manager()
+        pm = get_parts_manager()
 
-        # プレイヤー生成
+        # プレイヤー生成（SaveDataManagerのデータを使用）
         for i in range(player_count):
-            # パーツエンティティの作成
-            parts = BattleEntityFactory.create_medabot_parts(world)
+            setup = save_mgr.get_machine_setup(i)
+            parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
 
-            # Medabotエンティティの作成
             e = world.create_entity()
-            world.add_component(e.id, NameComponent(f"ロボ{i+1}"))
+            world.add_component(e.id, NameComponent(setup["name"]))
             world.add_component(e.id, PositionComponent(px, yoff + i * spacing))
             world.add_component(e.id, GaugeComponent(1.0, 0.3, GaugeComponent.ACTION_CHOICE))
             world.add_component(e.id, TeamComponent("player", (0, 100, 200)))
             world.add_component(e.id, RenderComponent(30, 15, gw, gh))
             world.add_component(e.id, DefeatedComponent())
 
-            # パーツリストの追加
             part_list = PartListComponent()
             part_list.parts = parts
             world.add_component(e.id, part_list)
 
-        # エネミー生成
+        # エネミー生成（デフォルトパーツを適当に割り当て）
         for i in range(enemy_count):
-            # パーツエンティティの作成
-            parts = BattleEntityFactory.create_medabot_parts(world)
+            enemy_setup = {
+                "parts": {
+                    "head": pm.get_part_ids_for_type("head")[2 - (i % 3)],
+                    "right_arm": pm.get_part_ids_for_type("right_arm")[2 - (i % 3)],
+                    "left_arm": pm.get_part_ids_for_type("left_arm")[2 - (i % 3)],
+                    "legs": pm.get_part_ids_for_type("legs")[2 - (i % 3)],
+                }
+            }
+            parts = BattleEntityFactory.create_medabot_from_setup(world, enemy_setup)
 
-            # Medabotエンティティの作成
             e = world.create_entity()
             world.add_component(e.id, NameComponent(f"敵ロボ{i+1}"))
             world.add_component(e.id, PositionComponent(ex, yoff + i * spacing))
@@ -101,7 +97,6 @@ class BattleEntityFactory:
             world.add_component(e.id, RenderComponent(30, 15, gw, gh))
             world.add_component(e.id, DefeatedComponent())
 
-            # パーツリストの追加
             part_list = PartListComponent()
             part_list.parts = parts
             world.add_component(e.id, part_list)
