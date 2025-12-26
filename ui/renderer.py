@@ -9,6 +9,7 @@ class Renderer:
     def __init__(self, screen):
         self.screen = screen
         self.font = pygame.font.SysFont(FONT_NAMES, 24)
+        self.small_font = pygame.font.SysFont(FONT_NAMES, 16) # ターゲット表示用
         self.title_font = pygame.font.SysFont(FONT_NAMES, 32)
         self.notice_font = pygame.font.SysFont(FONT_NAMES, 36)
         self.icon_radius = 16
@@ -63,7 +64,7 @@ class Renderer:
 
     def draw_action_menu(self, turn_name, buttons, selected_index):
         """
-        buttons: List of dict {'label': str, 'enabled': bool}
+        buttons: List of dict {'label': str, 'sub_label': str, 'enabled': bool}
         selected_index: int (0-3)
         """
         wx, wy = 0, GAME_PARAMS['MESSAGE_WINDOW_Y']
@@ -89,8 +90,13 @@ class Renderer:
             border_width = 3 if i == selected_index else 2
             pygame.draw.rect(self.screen, border_color, (bx, btn_y, btn_w, btn_h), border_width)
             
-            # テキスト
-            self.screen.blit(self.font.render(btn['label'], True, COLORS['TEXT']), (bx + 10, btn_y + 10))
+            # パーツ名テキスト
+            self.screen.blit(self.font.render(btn['label'], True, COLORS['TEXT']), (bx + 10, btn_y + 5))
+            
+            # ターゲット名（サブテキスト）表示
+            if btn.get('sub_label'):
+                t_txt = self.small_font.render(btn['sub_label'], True, (200, 200, 200))
+                self.screen.blit(t_txt, (bx + 10, btn_y + 25))
 
     def draw_game_over(self, winner_name):
         overlay = pygame.Surface((GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']), pygame.SRCALPHA)

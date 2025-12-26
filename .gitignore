@@ -26,3 +26,5 @@ scenes/__pycache__/customize_scene.cpython-313.pyc
 ui/__pycache__/customize_renderer.cpython-313.pyc
 customize/__pycache__/manager.cpython-313.pyc
 data/__pycache__/save_data_manager.cpython-313.pyc
+battle/ai/__pycache__/strategy.cpython-313.pyc
+battle/ai/__pycache__/personality.cpython-313.pyc

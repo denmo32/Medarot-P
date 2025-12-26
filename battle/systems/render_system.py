@@ -90,6 +90,7 @@ class RenderSystem(System):
         eid = context.current_turn_entity_id
         if eid not in self.world.entities: return
         comps = self.world.entities[eid]
+        gauge_comp = comps.get('gauge')
         
         buttons = []
         parts_keys = ['head', 'right_arm', 'left_arm']
@@ -97,13 +98,14 @@ class RenderSystem(System):
 
         for key in parts_keys:
             p_id = comps['partlist'].parts.get(key)
-            part_name = labels.get(key, key) # デフォルトは部位種別名(頭部など)
+            part_name = labels.get(key, key)
             hp = 0
+            target_name = ""
             
             if p_id is not None and p_id in self.world.entities:
                 p_comps = self.world.entities[p_id]
                 
-                # 名称コンポーネントから実際の名前(ヘッドライフル等)を取得
+                # 名称コンポーネントから実際の名前を取得
                 name_comp = p_comps.get('name')
                 if name_comp:
                     part_name = name_comp.name
@@ -112,15 +114,23 @@ class RenderSystem(System):
                 h_comp = p_comps.get('health')
                 if h_comp:
                     hp = h_comp.hp
+                
+                # ターゲット名を取得
+                t_eid = gauge_comp.part_targets.get(key)
+                if t_eid and t_eid in self.world.entities:
+                    t_comps = self.world.entities[t_eid]
+                    t_medal = t_comps.get('medal')
+                    target_name = f"-> {t_medal.nickname if t_medal else t_comps['name'].name}"
 
             buttons.append({
                 'label': part_name,
+                'sub_label': target_name, # ターゲット情報を追加
                 'enabled': hp > 0
             })
         
-        buttons.append({'label': "スキップ", 'enabled': True})
+        buttons.append({'label': "スキップ", 'sub_label': "", 'enabled': True})
         
-        # 描画側に渡す：ここもメダルニックネーム優先
+        # 描画側に渡す
         medal_comp = comps.get('medal')
         turn_name = medal_comp.nickname if medal_comp else comps['name'].name
         self.renderer.draw_action_menu(turn_name, buttons, context.selected_menu_index)

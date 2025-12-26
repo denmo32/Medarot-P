@@ -1,7 +1,8 @@
-"""ATBゲージ更新システム（統一された敗北判定システム）"""
+"""ATBゲージ更新システム"""
 
 from core.ecs import System
 from components.battle import GaugeComponent
+from battle.ai.personality import get_personality
 
 class GaugeSystem(System):
     """ATBゲージ更新システム"""
@@ -17,10 +18,11 @@ class GaugeSystem(System):
         if is_paused:
             return
 
-        # GaugeComponentとDefeatedComponentを持つエンティティを更新（統一システム）
+        # GaugeComponentとDefeatedComponentを持つエンティティを更新
         for entity_id, components in self.world.entities.items():
             gauge_comp = components.get('gauge')
             defeated = components.get('defeated')
+            medal_comp = components.get('medal')
 
             if not gauge_comp:
                 continue
@@ -50,6 +52,12 @@ class GaugeSystem(System):
                 if gauge_comp.progress >= 100.0:
                     gauge_comp.progress = 0.0
                     gauge_comp.status = GaugeComponent.ACTION_CHOICE
+                    
+                    # --- 性格に基づいて各部位のターゲットを事前決定（意志の発生） ---
+                    if medal_comp:
+                        personality = get_personality(medal_comp.personality_id)
+                        gauge_comp.part_targets = personality.select_targets(self.world, entity_id)
+                    
                     # クールダウン完了で行動選択待ちへ
                     if entity_id not in context.waiting_queue:
                         context.waiting_queue.append(entity_id)

@@ -18,6 +18,9 @@ class GaugeComponent(Component):
         self.progress = 0.0
         self.selected_action: Optional[str] = None  # "attack", "skip"
         self.selected_part: Optional[str] = None    # "head", "right_arm", "left_arm"
+        # メダロットの意志（性格によって事前に決まるターゲット）
+        self.part_targets: Dict[str, Optional[int]] = {} # {"head": target_eid, ...}
+        
         self.action_choice_time = 3.0
         self.charging_time = 2.0
         self.executing_time = 1.0
@@ -60,10 +63,11 @@ class PartListComponent(Component):
 
 class MedalComponent(Component):
     """メダルコンポーネント（頭脳の役割、ニックネームを保持）"""
-    def __init__(self, medal_id: str, medal_name: str, nickname: str):
+    def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random"):
         self.medal_id = medal_id
         self.medal_name = medal_name
         self.nickname = nickname
+        self.personality_id = personality_id # 性格ID
 
 class DefeatedComponent(Component):
     """統一された敗北状態コンポーネント"""

@@ -68,9 +68,9 @@ class BattleEntityFactory:
             e = world.create_entity()
             world.add_component(e.id, NameComponent(setup["name"]))
             
-            # メダルコンポーネント付与
+            # メダルコンポーネント付与 (デフォルト性格: random)
             medal_data = pm.get_medal_data(setup["medal"])
-            world.add_component(e.id, MedalComponent(setup["medal"], medal_data["name"], medal_data["nickname"]))
+            world.add_component(e.id, MedalComponent(setup["medal"], medal_data["name"], medal_data["nickname"], "random"))
             
             world.add_component(e.id, PositionComponent(px, yoff + i * spacing))
             world.add_component(e.id, GaugeComponent(1.0, 0.3, GaugeComponent.ACTION_CHOICE))
@@ -100,7 +100,7 @@ class BattleEntityFactory:
             world.add_component(e.id, NameComponent(f"敵ロボ{i+1}"))
             
             medal_data = pm.get_medal_data(medal_id)
-            world.add_component(e.id, MedalComponent(medal_id, medal_data["name"], medal_data["nickname"]))
+            world.add_component(e.id, MedalComponent(medal_id, medal_data["name"], medal_data["nickname"], "random"))
 
             world.add_component(e.id, PositionComponent(ex, yoff + i * spacing))
             world.add_component(e.id, GaugeComponent(1.0, 0.25, GaugeComponent.ACTION_CHOICE))

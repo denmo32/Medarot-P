@@ -1,9 +1,11 @@
 """戦闘システム"""
 
 import random
+from typing import Optional
 from core.ecs import System
-from components.battle import GaugeComponent, PartListComponent, HealthComponent, AttackComponent, DefeatedComponent
+from components.battle import GaugeComponent
 from battle.utils import calculate_action_times
+from battle.ai.strategy import get_strategy
 
 class CombatSystem(System):
     """戦闘システム：AI思考と攻撃実行を担当"""
@@ -66,11 +68,34 @@ class CombatSystem(System):
                 # プレイヤーなら入力待ちへ
                 context.waiting_for_action = True
             else:
-                # エネミーならAI思考
-                self._handle_enemy_ai(entity_id)
-                # AI決定後はチャージ中(CHARGING)になるため、キューから外す
+                # エネミーならコマンダーAI（方針）に従って行動決定
+                # 現在は一律 "random" 方針
+                strategy = get_strategy("random")
+                action, part = strategy.decide_action(self.world, entity_id)
+                
+                self._set_selected_action(entity_id, gauge_comp, action, part)
+                
+                # 意志決定後はチャージ中(CHARGING)になるため、キューから外す
                 if context.waiting_queue and context.waiting_queue[0] == entity_id:
                     context.waiting_queue.pop(0)
+
+    def _set_selected_action(self, entity_id, gauge_comp, action, part):
+        """行動の選択を反映し、チャージフェーズへ移行させる"""
+        gauge_comp.selected_action = action
+        gauge_comp.selected_part = part
+        
+        if action == "attack" and part:
+            comps = self.world.entities[entity_id]
+            part_list = comps.get('partlist')
+            part_id = part_list.parts.get(part)
+            attack_comp = self.world.entities[part_id].get('attack')
+            if attack_comp:
+                charging_time, cooldown_time = calculate_action_times(attack_comp.attack)
+                gauge_comp.charging_time = charging_time
+                gauge_comp.cooldown_time = cooldown_time
+        
+        gauge_comp.status = GaugeComponent.CHARGING
+        gauge_comp.progress = 0.0
 
     def _execute_action(self, entity_id, context, gauge_comp, name_comp, team_comp):
         """行動の実行"""
@@ -81,9 +106,15 @@ class CombatSystem(System):
         attacker_name = attacker_medal.nickname if attacker_medal else name_comp.name
 
         if gauge_comp.selected_action == "attack":
-            target = self._get_random_alive_target(team_comp.team_type)
-            if target:
-                target_id, target_comps = target
+            # 事前にメダル（性格）が決めていたターゲットを取得
+            target_id = gauge_comp.part_targets.get(gauge_comp.selected_part)
+            
+            # ターゲットが既に倒されている、または存在しない場合は再取得（最低限の救済措置）
+            if not target_id or target_id not in self.world.entities or self.world.entities[target_id]['defeated'].is_defeated:
+                target_id = self._get_fallback_target(team_comp.team_type)
+
+            if target_id:
+                target_comps = self.world.entities[target_id]
                 damage, t_part_name = self._calculate_and_apply_damage(entity_id, target_id, gauge_comp.selected_part)
                 
                 # ターゲットの表示名（ニックネーム優先）
@@ -148,52 +179,15 @@ class CombatSystem(System):
             if target_defeated_comp:
                 target_defeated_comp.is_defeated = True
 
-        # 部位名の日本語化（簡易）
+        # 部位名の日本語化
         names = {"head": "頭部", "right_arm": "右腕", "left_arm": "左腕", "legs": "脚部"}
         return damage, names.get(t_part, t_part)
 
-    def _get_random_alive_target(self, my_team: str):
+    def _get_fallback_target(self, my_team: str) -> Optional[int]:
+        """本来のターゲットが失われた場合の代替ターゲット取得"""
         target_team = "enemy" if my_team == "player" else "player"
         alive = []
-        for eid, comps in self.world.entities.items():
-            team = comps.get('team')
-            defeated = comps.get('defeated')
-            if team and team.team_type == target_team:
-                if not defeated or not defeated.is_defeated:
-                    alive.append((eid, comps))
+        for eid, comps in self.world.get_entities_with_components('team', 'defeated'):
+            if comps['team'].team_type == target_team and not comps['defeated'].is_defeated:
+                alive.append(eid)
         return random.choice(alive) if alive else None
-
-    def _handle_enemy_ai(self, entity_id):
-        comps = self.world.entities[entity_id]
-        part_list_comp = comps.get('partlist')
-        gauge_comp = comps.get('gauge')
-
-        if not part_list_comp or not gauge_comp: return
-
-        # 使用可能なパーツを確認（HPがあり、攻撃力のあるパーツ）
-        available = []
-        for part_type, part_id in part_list_comp.parts.items():
-            if part_type == "legs": continue  # 脚部は攻撃に使わない
-            part_comps = self.world.entities.get(part_id)
-            if part_comps:
-                health = part_comps.get('health')
-                if health and health.hp > 0:
-                    available.append(part_type)
-
-        if available:
-            gauge_comp.selected_part = random.choice(available)
-            gauge_comp.selected_action = "attack"
-            
-            selected_part_id = part_list_comp.parts.get(gauge_comp.selected_part)
-            selected_part_comps = self.world.entities.get(selected_part_id)
-            attack_comp = selected_part_comps.get('attack')
-            if attack_comp:
-                charging_time, cooldown_time = calculate_action_times(attack_comp.attack)
-                gauge_comp.charging_time = charging_time
-                gauge_comp.cooldown_time = cooldown_time
-        else:
-            gauge_comp.selected_action = "skip"
-
-        # 状態遷移
-        gauge_comp.status = GaugeComponent.CHARGING
-        gauge_comp.progress = 0.0
