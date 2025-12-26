@@ -1,11 +1,10 @@
-"""バトル固有のECSコンポーネント定義"""
+"""バトル固有のECSコンポーネント定義（純粋データ構造）"""
 
 from typing import List, Optional, Dict
 from core.ecs import Component
 
 class GaugeComponent(Component):
-    """ATBゲージコンポーネント（純粋データ）"""
-    # 行動状態の定義
+    """ATBゲージコンポーネント"""
     ACTION_CHOICE = "action_choice"
     CHARGING = "charging"
     EXECUTING = "executing"
@@ -16,24 +15,21 @@ class GaugeComponent(Component):
         self.speed = speed
         self.status = status or self.ACTION_CHOICE
         self.progress = 0.0
-        self.selected_action: Optional[str] = None  # "attack", "skip"
-        self.selected_part: Optional[str] = None    # "head", "right_arm", "left_arm"
-        # メダロットの意志（性格によって事前に決まるターゲット）
-        self.part_targets: Dict[str, Optional[int]] = {} # {"head": target_eid, ...}
+        self.selected_action: Optional[str] = None
+        self.selected_part: Optional[str] = None
+        self.part_targets: Dict[str, Optional[int]] = {}
         
-        self.action_choice_time = 3.0
         self.charging_time = 2.0
-        self.executing_time = 1.0
         self.cooldown_time = 2.0
 
 class TeamComponent(Component):
-    """チームコンポーネント（純粋データ）"""
+    """チーム属性"""
     def __init__(self, team_type: str, team_color: tuple):
-        self.team_type = team_type # "player" or "enemy"
+        self.team_type = team_type # "player", "enemy"
         self.team_color = team_color
 
 class RenderComponent(Component):
-    """描画用コンポーネント（純粋データ）"""
+    """描画サイズ情報"""
     def __init__(self, width: int, height: int, gauge_width: int, gauge_height: int):
         self.width = width
         self.height = height
@@ -41,62 +37,58 @@ class RenderComponent(Component):
         self.gauge_height = gauge_height
 
 class PartComponent(Component):
-    """パーツコンポーネント（パーツの種類を指定）"""
+    """パーツの種類"""
     def __init__(self, part_type: str):
-        self.part_type = part_type  # "head", "right_arm", "left_arm", "leg"
+        self.part_type = part_type # "head", "right_arm", "left_arm", "legs"
 
 class HealthComponent(Component):
-    """個別パーツのHPコンポーネント"""
+    """HPデータ"""
     def __init__(self, hp: int, max_hp: int):
         self.hp = hp
         self.max_hp = max_hp
 
 class AttackComponent(Component):
-    """個別パーツの攻撃力コンポーネント（脚部以外）"""
+    """攻撃性能（脚部以外）"""
     def __init__(self, attack: int, trait: str = None):
         self.attack = attack
-        self.trait = trait # "ライフル", "ソード", "ガトリング", "ハンマー" 等
+        self.trait = trait # "ライフル", "ソード" 等
 
 class PartListComponent(Component):
-    """Medabotが持つパーツのリストコンポーネント"""
+    """機体が構成するパーツエンティティIDの辞書"""
     def __init__(self):
-        self.parts: Dict[str, int] = {}  # {"head": entity_id, "right_arm": entity_id, ...}
+        self.parts: Dict[str, int] = {} 
 
 class MedalComponent(Component):
-    """メダルコンポーネント（頭脳の役割、ニックネームを保持）"""
+    """メダル（頭脳）データ"""
     def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random"):
         self.medal_id = medal_id
         self.medal_name = medal_name
         self.nickname = nickname
-        self.personality_id = personality_id # 性格ID
+        self.personality_id = personality_id
 
 class DefeatedComponent(Component):
-    """統一された敗北状態コンポーネント"""
+    """敗北フラグ"""
     def __init__(self):
         self.is_defeated = False
 
-class PartParametersComponent(Component):
-    """パーツパラメータコンポーネント（将来の拡張用）"""
-    def __init__(self, base_stats: dict, custom_mods: dict = None):
-        self.base_stats = base_stats  # 基本パラメータ
-        self.custom_mods = custom_mods or {}  # カスタマイズMOD
-        self.is_customized = bool(custom_mods)
-
 class BattleContextComponent(Component):
-    """
-    バトル全体のグローバルな状態を保持するコンポーネント。
-    """
+    """グローバルなバトル状態"""
     def __init__(self):
-        # バトル進行管理
         self.waiting_queue: List[int] = []
         self.current_turn_entity_id: Optional[int] = None
-
-        # UI状態管理
         self.battle_log: List[str] = []
-        self.pending_logs: List[str] = []          # 分割表示用の保留ログ
-        self.execution_target_id: Optional[int] = None # 実行中のターゲット表示用
-        self.waiting_for_input: bool = False       # メッセージ送り待ち
-        self.waiting_for_action: bool = False      # 行動選択待ち
-        self.selected_menu_index: int = 0          # キーボード選択用
+        self.pending_logs: List[str] = []
+        self.execution_target_id: Optional[int] = None
+        self.waiting_for_input: bool = False
+        self.waiting_for_action: bool = False
+        self.selected_menu_index: int = 0
         self.game_over: bool = False
         self.winner: Optional[str] = None
+
+class DamageEventComponent(Component):
+    """ダメージ発生を伝える一時的なコンポーネント"""
+    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str):
+        self.attacker_id = attacker_id
+        self.attacker_part = attacker_part
+        self.damage = damage
+        self.target_part = target_part

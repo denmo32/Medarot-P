@@ -2,11 +2,6 @@
 
 from typing import Dict, Any, List, Optional
 
-class Entity:
-    """エンティティ：ゲーム内のオブジェクトを識別するID"""
-    def __init__(self, entity_id: int):
-        self.id = entity_id
-
 class Component:
     """コンポーネント：データのみを持つ基底クラス"""
     pass
@@ -23,22 +18,22 @@ class System:
 class World:
     """ECSのワールド：エンティティとコンポーネントの管理を行う"""
     def __init__(self):
+        # Dict[entity_id, Dict[component_name, Component]]
         self.entities: Dict[int, Dict[str, Component]] = {}
         self.next_entity_id = 0
 
-    def create_entity(self) -> Entity:
-        """新しいエンティティを作成"""
-        entity = Entity(self.next_entity_id)
-        self.entities[entity.id] = {}
+    def create_entity(self) -> int:
+        """新しいエンティティ（ID）を作成"""
+        eid = self.next_entity_id
+        self.entities[eid] = {}
         self.next_entity_id += 1
-        return entity
+        return eid
 
     def add_component(self, entity_id: int, component: Component, component_name: Optional[str] = None) -> None:
         """エンティティにコンポーネントを追加"""
         if entity_id not in self.entities:
             raise ValueError(f"Entity with id {entity_id} does not exist")
 
-        # コンポーネント名が指定されていない場合はクラス名を使用
         if component_name is None:
             component_name = component.__class__.__name__.lower().replace('component', '')
 
@@ -61,15 +56,9 @@ class World:
             del self.entities[entity_id]
 
     def get_entities_with_components(self, *component_names: str) -> List[tuple]:
-        """指定されたコンポーネントを持つすべてのエンティティを取得"""
+        """指定されたコンポーネントをすべて持つエンティティIDとそのコンポーネントDictのリストを取得"""
         result = []
         for entity_id, components in self.entities.items():
-            has_all_components = True
-            for name in component_names:
-                if name not in components:
-                    has_all_components = False
-                    break
-            if has_all_components:
+            if all(name in components for name in component_names):
                 result.append((entity_id, components))
         return result
-
