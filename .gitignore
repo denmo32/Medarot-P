@@ -37,3 +37,4 @@ battle/systems/__pycache__/battle_flow_system.cpython-313.pyc
 battle/systems/__pycache__/action_pipeline_systems.cpython-313.pyc
 components/__pycache__/action_event.cpython-313.pyc
 components/__pycache__/battle_flow.cpython-313.pyc
+plan.txt

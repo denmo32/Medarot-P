@@ -15,15 +15,31 @@ class GaugeSystem(System):
         if flow.current_phase != BattleFlowComponent.PHASE_IDLE:
             return
 
-        for eid, comps in self.world.get_entities_with_components('gauge', 'defeated'):
-            gauge = comps['gauge']
+        gauge_entities = self.world.get_entities_with_components('gauge', 'defeated')
+
+        # 1. まず行動選択待ち（ACTION_CHOICE）状態のエンティティを確実に待機列に追加
+        # これにより、未処理の行動選択待ちがいる場合は時間を進めないようにする
+        for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
-                
+            gauge = comps['gauge']
+            
             if gauge.status == gauge.ACTION_CHOICE:
                 if eid not in context.waiting_queue:
                     context.waiting_queue.append(eid)
 
-            elif gauge.status == gauge.CHARGING:
+        # 2. 待機列に誰かいる場合（行動選択待ち、またはチャージ完了待ち）は
+        # 他の機体のゲージ進行を停止する（ウェイト式）
+        if context.waiting_queue:
+            return
+
+        # 3. ゲージ進行処理
+        for eid, comps in gauge_entities:
+            if comps['defeated'].is_defeated: continue
+            gauge = comps['gauge']
+            
+            # ACTION_CHOICEはパス1で処理済み
+            
+            if gauge.status == gauge.CHARGING:
                 gauge.progress += dt / gauge.charging_time * 100.0
                 if gauge.progress >= 100.0:
                     gauge.progress = 100.0
@@ -36,3 +52,7 @@ class GaugeSystem(System):
                     gauge.progress = 0.0
                     gauge.status = gauge.ACTION_CHOICE
                     gauge.part_targets = {} # ターゲット選定をリセット
+                    
+                    # クールダウン完了で即座に待機列へ（同フレーム内のTurnSystemで処理可能にする）
+                    if eid not in context.waiting_queue:
+                        context.waiting_queue.append(eid)
