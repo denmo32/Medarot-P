@@ -41,3 +41,63 @@ def calculate_current_x(base_x: int, status: str, progress: float, team_type: st
         if status == "cooldown":
             return target_x + (progress / 100.0) * (start_x - target_x)
         return start_x
+
+def get_closest_target_by_gauge(world, my_team_type: str):
+    """
+    現在のゲージ位置に基づき、最も「中央（敵陣側）」に近い敵対エンティティのIDを返す。
+    格闘攻撃などで、目の前の敵を殴るロジックに使用。
+    """
+    from battle.constants import TeamType
+    
+    target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
+    best_target = None
+    
+    # プレイヤー視点：敵の中でX座標が最小（左側＝中央寄り）のものが一番近い
+    # エネミー視点：プレイヤーの中でX座標が最大（右側＝中央寄り）のものが一番近い
+    extreme_x = float('inf') if my_team_type == TeamType.PLAYER else float('-inf')
+    
+    # 必要なコンポーネントを持つエンティティを検索
+    # 注意: world.get_entities_with_components はタプル (eid, comps) を返すリストを生成
+    candidates = world.get_entities_with_components('team', 'defeated', 'position', 'gauge')
+    
+    for teid, tcomps in candidates:
+        if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated:
+            cur_x = calculate_current_x(
+                tcomps['position'].x, 
+                tcomps['gauge'].status, 
+                tcomps['gauge'].progress, 
+                tcomps['team'].team_type
+            )
+            
+            if my_team_type == TeamType.PLAYER:
+                # 敵(右側)の中で、Xが小さいほど中央に近い
+                if cur_x < extreme_x:
+                    extreme_x = cur_x
+                    best_target = teid
+            else:
+                # 味方(左側)の中で、Xが大きいほど中央に近い
+                if cur_x > extreme_x:
+                    extreme_x = cur_x
+                    best_target = teid
+                    
+    return best_target
+
+def calculate_action_menu_layout(button_count: int = 4):
+    """
+    アクションメニューのボタン配置を計算し、各ボタンの矩形情報を返す。
+    return: List of dict {'x': int, 'y': int, 'w': int, 'h': int}
+    """
+    wx, wy = 0, GAME_PARAMS['MESSAGE_WINDOW_Y']
+    wh = GAME_PARAMS['MESSAGE_WINDOW_HEIGHT']
+    pad = GAME_PARAMS['MESSAGE_WINDOW_PADDING']
+    ui_cfg = GAME_PARAMS['UI']
+
+    btn_y = wy + wh - ui_cfg['BTN_Y_OFFSET']
+    btn_w, btn_h, btn_pad = ui_cfg['BTN_WIDTH'], ui_cfg['BTN_HEIGHT'], ui_cfg['BTN_PADDING']
+    
+    layout = []
+    for i in range(button_count):
+        bx = wx + pad + i * (btn_w + btn_pad)
+        layout.append({'x': bx, 'y': btn_y, 'w': btn_w, 'h': btn_h})
+        
+    return layout

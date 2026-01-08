@@ -5,7 +5,8 @@ from battle.entity_factory import BattleEntityFactory
 from battle.systems.gauge_system import GaugeSystem
 from battle.systems.target_selection_system import TargetSelectionSystem
 from battle.systems.turn_system import TurnSystem
-from battle.systems.action_pipeline_systems import ActionInitiationSystem, ActionResolutionSystem
+from battle.systems.action_initiation_system import ActionInitiationSystem
+from battle.systems.action_resolution_system import ActionResolutionSystem
 from battle.systems.battle_flow_system import BattleFlowSystem
 from battle.systems.damage_system import DamageSystem
 from battle.systems.battle_status_system import BattleStatusSystem
