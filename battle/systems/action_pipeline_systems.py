@@ -171,14 +171,22 @@ class ActionResolutionSystem(System):
             target_id = event.current_target_id
             
             if target_id and target_id in self.world.entities:
-                # ダメージ計算
-                damage, target_part = self._calculate_damage(target_id, attack_comp)
-                
-                # ダメージイベント発行（DamageSystemで処理）
-                self.world.add_component(target_id, DamageEventComponent(attacker_id, event.part_type, damage, target_part))
-
                 # ログ
                 context.battle_log.append(f"{attacker_name}の攻撃！ {attack_comp.trait}！")
+                
+                # 命中・ダメージ計算
+                hit_result = self._calculate_hit_and_damage(target_id, attack_comp)
+                is_hit, is_defense, damage, target_part = hit_result
+                
+                if not is_hit:
+                    context.pending_logs.append("攻撃を回避された！")
+                else:
+                    if is_defense:
+                        context.pending_logs.append("防御判定に成功！(ダメージ軽減未実装)")
+                    
+                    # ダメージイベント発行
+                    self.world.add_component(target_id, DamageEventComponent(attacker_id, event.part_type, damage, target_part))
+
                 flow.current_phase = BattleFlowComponent.PHASE_LOG_WAIT
             else:
                 context.battle_log.append(f"{attacker_name}の攻撃！ しかし対象がいない！")
@@ -202,11 +210,59 @@ class ActionResolutionSystem(System):
         gauge.selected_action = None
         gauge.selected_part = None
 
-    def _calculate_damage(self, target_id, attack_comp):
+    def _calculate_hit_and_damage(self, target_id, attack_comp):
+        """
+        命中判定、防御判定、ダメージ計算を行い結果を返す
+        return: (is_hit, is_defense, damage, target_part)
+        """
         target_comps = self.world.entities[target_id]
+        
+        # 1. パラメータ取得
+        success = attack_comp.success # 成功度
+        
+        # 回避度（脚部）
+        legs_id = target_comps['partlist'].parts.get('legs')
+        mobility = 0
+        if legs_id and legs_id in self.world.entities:
+            mob_comp = self.world.entities[legs_id].get('mobility')
+            if mob_comp:
+                mobility = mob_comp.mobility
+
+        # 防御度（威力平均）
+        total_attack = 0
+        count = 0
+        for p_key in ['head', 'right_arm', 'left_arm']:
+            pid = target_comps['partlist'].parts.get(p_key)
+            if pid and pid in self.world.entities:
+                # 破壊されていても計算に含める
+                ac = self.world.entities[pid].get('attack')
+                if ac:
+                    total_attack += ac.attack
+                    count += 1
+        defense = total_attack / count if count > 0 else 0
+
+        # 2. 回避判定
+        # 命中率 = 成功度 / (成功度 + 回避度 * 係数)
+        mobility_weight = 0.25
+        hit_prob = success / (success + (mobility * mobility_weight)) if (success + (mobility * mobility_weight)) > 0 else 1.0
+        is_hit = random.random() < hit_prob
+
+        if not is_hit:
+            return False, False, 0, None
+
+        # 3. 防御判定
+        # 防御成功率 = 防御度 / (成功度 + 防御度)
+        defend_prob = defense / (success + defense) if (success + defense) > 0 else 0.0
+        is_defense = random.random() < defend_prob
+        
+        # 4. ターゲット部位決定（既存ロジック）
         alive_parts = [p for p, pid in target_comps['partlist'].parts.items() 
                        if self.world.entities[pid]['health'].hp > 0]
-        
-        t_part = random.choice(alive_parts) if alive_parts else "head"
-        damage = random.randint(int(attack_comp.attack * 0.8), int(attack_comp.attack * 1.2))
-        return damage, t_part
+        target_part = random.choice(alive_parts) if alive_parts else "head"
+
+        # 5. ダメージ計算
+        # ダメージ = 基本威力 + max(0, 成功度 - 回避度/2 - 防御度/2)
+        bonus = max(0, success - (mobility / 2) - (defense / 2))
+        damage = int(attack_comp.attack + bonus)
+
+        return True, is_defense, damage, target_part

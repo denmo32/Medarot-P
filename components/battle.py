@@ -49,9 +49,15 @@ class HealthComponent(Component):
 
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
-    def __init__(self, attack: int, trait: str = None):
+    def __init__(self, attack: int, trait: str = None, success: int = 0):
         self.attack = attack
         self.trait = trait # "ライフル", "ソード" 等
+        self.success = success # 成功度
+
+class MobilityComponent(Component):
+    """機動性能（脚部）"""
+    def __init__(self, mobility: int):
+        self.mobility = mobility
 
 class PartListComponent(Component):
     """機体が構成するパーツエンティティIDの辞書"""
