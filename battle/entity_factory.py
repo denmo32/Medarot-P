@@ -16,7 +16,7 @@ class BattleEntityFactory:
 
     @staticmethod
     def create_part(world: World, part_type: str, name: str, hp: int, trait: str = None, 
-                    attack: int = None, success: int = 0, mobility: int = 0) -> int:
+                    attack: int = None, success: int = 0, mobility: int = 0, defense: int = 0) -> int:
         eid = world.create_entity()
         world.add_component(eid, NameComponent(name))
         world.add_component(eid, PartComponent(part_type))
@@ -26,7 +26,7 @@ class BattleEntityFactory:
             world.add_component(eid, AttackComponent(attack, trait, success))
         
         if part_type == "legs":
-            world.add_component(eid, MobilityComponent(mobility))
+            world.add_component(eid, MobilityComponent(mobility, defense))
             
         return eid
 
@@ -44,7 +44,8 @@ class BattleEntityFactory:
                 data.get("trait"), 
                 data.get("attack"),
                 data.get("success", 0),
-                data.get("mobility", 0)
+                data.get("mobility", 0),
+                data.get("defense", 0)
             )
         return parts
 

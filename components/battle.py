@@ -55,9 +55,10 @@ class AttackComponent(Component):
         self.success = success # 成功度
 
 class MobilityComponent(Component):
-    """機動性能（脚部）"""
-    def __init__(self, mobility: int):
+    """機動・防御性能（脚部）"""
+    def __init__(self, mobility: int, defense: int = 0):
         self.mobility = mobility
+        self.defense = defense
 
 class PartListComponent(Component):
     """機体が構成するパーツエンティティIDの辞書"""

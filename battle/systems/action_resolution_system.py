@@ -117,26 +117,16 @@ class ActionResolutionSystem(System):
         # 1. パラメータ取得
         success = attack_comp.success # 成功度
         
-        # 回避度（脚部）
+        # 回避度・防御度（脚部）
         legs_id = target_comps['partlist'].parts.get(PartType.LEGS)
         mobility = 0
+        defense = 0
+        
         if legs_id and legs_id in self.world.entities:
             mob_comp = self.world.entities[legs_id].get('mobility')
             if mob_comp:
                 mobility = mob_comp.mobility
-
-        # 防御度（威力平均）
-        total_attack = 0
-        count = 0
-        for p_key in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
-            pid = target_comps['partlist'].parts.get(p_key)
-            if pid and pid in self.world.entities:
-                # 破壊されていても計算に含める
-                ac = self.world.entities[pid].get('attack')
-                if ac:
-                    total_attack += ac.attack
-                    count += 1
-        defense = total_attack / count if count > 0 else 0
+                defense = mob_comp.defense
 
         # 2. 回避判定
         hit_prob = calculate_hit_probability(success, mobility)

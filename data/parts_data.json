@@ -19,10 +19,10 @@
       "larm_004": { "name": "レフトハンマー", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22 }
     },
     "legs": {
-      "legs_001": { "name": "ライフルレッグ", "hp": 60, "mobility": 35 },
-      "legs_002": { "name": "ソードレッグ", "hp": 70, "mobility": 45 },
-      "legs_003": { "name": "ガトリングレッグ", "hp": 50, "mobility": 25 },
-      "legs_004": { "name": "ハンマーレッグ", "hp": 50, "mobility": 20 }
+      "legs_001": { "name": "ライフルレッグ", "hp": 60, "mobility": 35, "defense": 25 },
+      "legs_002": { "name": "ソードレッグ", "hp": 70, "mobility": 45, "defense": 30 },
+      "legs_003": { "name": "ガトリングレッグ", "hp": 50, "mobility": 25, "defense": 40 },
+      "legs_004": { "name": "ハンマーレッグ", "hp": 50, "mobility": 20, "defense": 45 }
     }
   },
   "medals": {
