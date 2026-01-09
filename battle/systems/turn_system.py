@@ -4,6 +4,7 @@ from core.ecs import System
 from battle.ai.strategy import get_strategy
 from battle.utils import calculate_action_times
 from components.battle_flow import BattleFlowComponent
+from battle.constants import TeamType, GaugeStatus, BattlePhase, ActionType
 
 class TurnSystem(System):
     """
@@ -18,7 +19,7 @@ class TurnSystem(System):
         flow = entities[0][1]['battleflow']
 
         # IDLEフェーズ以外ではターン処理を行わない
-        if flow.current_phase != BattleFlowComponent.PHASE_IDLE:
+        if flow.current_phase != BattlePhase.IDLE:
             return
 
         if not context.waiting_queue: return
@@ -34,11 +35,11 @@ class TurnSystem(System):
         team = comps['team']
 
         # 行動選択待ち（ACTION_CHOICE）状態のエンティティがキュー先頭に来た場合
-        if gauge.status == gauge.ACTION_CHOICE:
-            if team.team_type == "player":
+        if gauge.status == GaugeStatus.ACTION_CHOICE:
+            if team.team_type == TeamType.PLAYER:
                 # プレイヤー：入力待ちフェーズへ遷移
                 context.current_turn_entity_id = eid
-                flow.current_phase = BattleFlowComponent.PHASE_INPUT
+                flow.current_phase = BattlePhase.INPUT
             else:
                 # エネミー：AIによる意思決定（フェーズ遷移はせず、チャージ状態にしてキューから外す）
                 self._execute_ai_decision(eid, gauge, comps, context)
@@ -51,7 +52,7 @@ class TurnSystem(System):
         gauge.selected_action = action
         gauge.selected_part = part
         
-        if action == "attack" and part:
+        if action == ActionType.ATTACK and part:
             part_id = comps['partlist'].parts.get(part)
             attack_comp = self.world.entities[part_id].get('attack')
             if attack_comp:
@@ -60,7 +61,7 @@ class TurnSystem(System):
                 gauge.cooldown_time = cd_t
 
         # チャージフェーズへ移行させ、キューから外す
-        gauge.status = gauge.CHARGING
+        gauge.status = GaugeStatus.CHARGING
         gauge.progress = 0.0
         if context.waiting_queue and context.waiting_queue[0] == eid:
             context.waiting_queue.pop(0)

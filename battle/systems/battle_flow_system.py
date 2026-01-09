@@ -2,6 +2,7 @@
 
 from core.ecs import System
 from components.battle_flow import BattleFlowComponent
+from battle.constants import BattlePhase
 
 class BattleFlowSystem(System):
     """
@@ -20,7 +21,7 @@ class BattleFlowSystem(System):
         
         # ログ待ち状態でログが空になったらIDLEに戻る
         # (入力処理はInputSystemが行い、ログ送りをする。ここでは結果としての状態遷移を行う)
-        if flow.current_phase == flow.PHASE_LOG_WAIT:
+        if flow.current_phase == BattlePhase.LOG_WAIT:
             if not context.battle_log:
-                flow.current_phase = flow.PHASE_IDLE
+                flow.current_phase = BattlePhase.IDLE
                 flow.processing_event_id = None

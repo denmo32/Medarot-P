@@ -2,6 +2,7 @@
 
 import pygame
 from config import COLORS, FONT_NAMES, GAME_PARAMS
+from battle.utils import calculate_action_menu_layout
 
 class Renderer:
     """ECSの状態を一切知らず、受け取った値の描画のみを行うクラス"""
@@ -86,23 +87,22 @@ class Renderer:
         turn_text = self.font.render(f"{turn_name}のターン", True, COLORS['TEXT'])
         self.screen.blit(turn_text, (wx + pad, wy + wh - ui_cfg['TURN_TEXT_Y_OFFSET']))
 
-        btn_y = wy + wh - ui_cfg['BTN_Y_OFFSET']
-        btn_w, btn_h, btn_pad = ui_cfg['BTN_WIDTH'], ui_cfg['BTN_HEIGHT'], ui_cfg['BTN_PADDING']
+        button_layout = calculate_action_menu_layout(len(buttons))
 
-        for i, btn in enumerate(buttons):
-            bx = wx + pad + i * (btn_w + btn_pad)
+        for i, (btn, rect) in enumerate(zip(buttons, button_layout)):
+            bx, by, bw, bh = rect['x'], rect['y'], rect['w'], rect['h']
             
             # 背景色
             bg = COLORS['BUTTON_BG'] if btn['enabled'] else COLORS['BUTTON_DISABLED_BG']
-            pygame.draw.rect(self.screen, bg, (bx, btn_y, btn_w, btn_h))
+            pygame.draw.rect(self.screen, bg, (bx, by, bw, bh))
             
             # 枠線（選択中は黄色、通常は黒）
             border_color = (255, 255, 0) if i == selected_index else COLORS['BUTTON_BORDER']
             border_width = 3 if i == selected_index else 2
-            pygame.draw.rect(self.screen, border_color, (bx, btn_y, btn_w, btn_h), border_width)
+            pygame.draw.rect(self.screen, border_color, (bx, by, bw, bh), border_width)
             
             # パーツ名テキスト
-            self.screen.blit(self.font.render(btn['label'], True, COLORS['TEXT']), (bx + 10, btn_y + 5))
+            self.screen.blit(self.font.render(btn['label'], True, COLORS['TEXT']), (bx + 10, by + 5))
 
     def draw_game_over(self, winner_name):
         overlay = pygame.Surface((GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']), pygame.SRCALPHA)

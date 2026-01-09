@@ -49,9 +49,16 @@ class HealthComponent(Component):
 
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
-    def __init__(self, attack: int, trait: str = None):
+    def __init__(self, attack: int, trait: str = None, success: int = 0):
         self.attack = attack
         self.trait = trait # "ライフル", "ソード" 等
+        self.success = success # 成功度
+
+class MobilityComponent(Component):
+    """機動・防御性能（脚部）"""
+    def __init__(self, mobility: int, defense: int = 0):
+        self.mobility = mobility
+        self.defense = defense
 
 class PartListComponent(Component):
     """機体が構成するパーツエンティティIDの辞書"""
@@ -85,8 +92,9 @@ class BattleContextComponent(Component):
 
 class DamageEventComponent(Component):
     """ダメージ発生を伝える一時的なコンポーネント"""
-    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str):
+    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str, is_critical: bool = False):
         self.attacker_id = attacker_id
         self.attacker_part = attacker_part
         self.damage = damage
         self.target_part = target_part
+        self.is_critical = is_critical

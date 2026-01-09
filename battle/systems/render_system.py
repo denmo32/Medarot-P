@@ -4,6 +4,7 @@ from core.ecs import System
 from config import COLORS, GAME_PARAMS
 from battle.utils import calculate_current_x
 from components.battle_flow import BattleFlowComponent
+from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType
 
 try:
     from data.parts_data_manager import get_parts_manager
@@ -42,7 +43,7 @@ class RenderSystem(System):
 
             # HPバー
             hp_data = []
-            for p_key, p_color in zip(['head', 'right_arm', 'left_arm', 'legs'], 
+            for p_key, p_color in zip([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS], 
                                      [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]):
                 p_id = comps['partlist'].parts.get(p_key)
                 if p_id:
@@ -52,10 +53,10 @@ class RenderSystem(System):
 
         # ターゲット表示
         target_eid = None
-        if flow.current_phase == BattleFlowComponent.PHASE_INPUT:
+        if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid in self.world.entities and context.selected_menu_index < 3:
-                target_eid = self.world.entities[eid]['gauge'].part_targets.get(["head", "right_arm", "left_arm"][context.selected_menu_index])
+                target_eid = self.world.entities[eid]['gauge'].part_targets.get([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM][context.selected_menu_index])
         
         # 実行中のイベントターゲット表示
         elif flow.processing_event_id and flow.processing_event_id in self.world.entities:
@@ -67,13 +68,13 @@ class RenderSystem(System):
             self.renderer.draw_target_marker(target_eid, char_positions)
 
         # ログ待ちは「入力待ち」として表示フラグを立てる
-        waiting_for_input = (flow.current_phase == BattleFlowComponent.PHASE_LOG_WAIT)
+        waiting_for_input = (flow.current_phase == BattlePhase.LOG_WAIT)
         self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], waiting_for_input)
         
-        if flow.current_phase == BattleFlowComponent.PHASE_INPUT:
+        if flow.current_phase == BattlePhase.INPUT:
             self._process_action_menu(context)
 
-        if flow.current_phase == BattleFlowComponent.PHASE_GAME_OVER:
+        if flow.current_phase == BattlePhase.GAME_OVER:
             self.renderer.draw_game_over(flow.winner)
             
         self.renderer.present()
@@ -82,7 +83,7 @@ class RenderSystem(System):
         eid = context.current_turn_entity_id
         comps = self.world.entities[eid]
         buttons = []
-        for key in ['head', 'right_arm', 'left_arm']:
+        for key in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
             p_id = comps['partlist'].parts.get(key)
             p_comps = self.world.entities[p_id]
             buttons.append({'label': p_comps['name'].name, 'enabled': p_comps['health'].hp > 0})

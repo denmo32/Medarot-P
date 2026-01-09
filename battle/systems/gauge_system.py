@@ -2,6 +2,7 @@
 
 from core.ecs import System
 from components.battle_flow import BattleFlowComponent
+from battle.constants import GaugeStatus, BattlePhase
 
 class GaugeSystem(System):
     """ATBゲージの進行管理のみを担当"""
@@ -12,7 +13,7 @@ class GaugeSystem(System):
         flow = entities[0][1]['battleflow']
 
         # IDLE状態以外（演出中や入力中）はゲージ更新を停止
-        if flow.current_phase != BattleFlowComponent.PHASE_IDLE:
+        if flow.current_phase != BattlePhase.IDLE:
             return
 
         gauge_entities = self.world.get_entities_with_components('gauge', 'defeated')
@@ -23,7 +24,7 @@ class GaugeSystem(System):
             if comps['defeated'].is_defeated: continue
             gauge = comps['gauge']
             
-            if gauge.status == gauge.ACTION_CHOICE:
+            if gauge.status == GaugeStatus.ACTION_CHOICE:
                 if eid not in context.waiting_queue:
                     context.waiting_queue.append(eid)
 
@@ -39,18 +40,18 @@ class GaugeSystem(System):
             
             # ACTION_CHOICEはパス1で処理済み
             
-            if gauge.status == gauge.CHARGING:
+            if gauge.status == GaugeStatus.CHARGING:
                 gauge.progress += dt / gauge.charging_time * 100.0
                 if gauge.progress >= 100.0:
                     gauge.progress = 100.0
                     if eid not in context.waiting_queue:
                         context.waiting_queue.append(eid)
             
-            elif gauge.status == gauge.COOLDOWN:
+            elif gauge.status == GaugeStatus.COOLDOWN:
                 gauge.progress += dt / gauge.cooldown_time * 100.0
                 if gauge.progress >= 100.0:
                     gauge.progress = 0.0
-                    gauge.status = gauge.ACTION_CHOICE
+                    gauge.status = GaugeStatus.ACTION_CHOICE
                     gauge.part_targets = {} # ターゲット選定をリセット
                     
                     # クールダウン完了で即座に待機列へ（同フレーム内のTurnSystemで処理可能にする）

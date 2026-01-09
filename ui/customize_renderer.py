@@ -47,7 +47,6 @@ class CustomizeRenderer:
         """機体選択"""
         self._draw_panel(self.col1_x, self.col1_w, "機体選択")
         
-        # 指示に従い「機体1〜3」と表示
         names = ["機体1", "機体2", "機体3"]
         for i, name in enumerate(names):
             bx = self.col1_x + 10
@@ -150,13 +149,12 @@ class CustomizeRenderer:
             ]
         else:
             # パーツの詳細表示
+            # 脚部以外ではmobility/defenseは存在しないので、getで対応
             stats = [
                 ("装甲", fd.get('hp', 0)),
                 ("威力", fd.get('attack', '---')),
-                ("推進", "--- (未実装)"),
-                ("機動", "--- (未実装)"),
-                ("防御", "--- (未実装)"),
-                ("安定", "--- (未実装)")
+                ("機動", fd.get('mobility', '---')),
+                ("耐久", fd.get('defense', '---')),
             ]
         
         for i, (label, val) in enumerate(stats):
