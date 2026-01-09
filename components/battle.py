@@ -92,8 +92,9 @@ class BattleContextComponent(Component):
 
 class DamageEventComponent(Component):
     """ダメージ発生を伝える一時的なコンポーネント"""
-    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str):
+    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str, is_critical: bool = False):
         self.attacker_id = attacker_id
         self.attacker_part = attacker_part
         self.damage = damage
         self.target_part = target_part
+        self.is_critical = is_critical

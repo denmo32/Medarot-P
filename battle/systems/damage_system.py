@@ -29,7 +29,9 @@ class DamageSystem(System):
                     PartType.LEGS: "脚部"
                 }
                 target_name = self.world.entities[target_id]['medal'].nickname
-                msg = f"{target_name}の{names.get(event.target_part, '不明な部位')}に{event.damage}のダメージ！"
+                
+                crit_text = " (クリティカル!)" if event.is_critical else ""
+                msg = f"{target_name}の{names.get(event.target_part, '不明な部位')}に{event.damage}のダメージ！{crit_text}"
                 
                 # 詳細ログは一時保存（次のログ送りで表示）
                 context.pending_logs.append(msg)

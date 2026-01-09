@@ -21,10 +21,19 @@ def calculate_defense_probability(success: int, defense: float) -> float:
         return 0.0
     return defense / denominator
 
-def calculate_damage(base_attack: int, success: int, mobility: int, defense: float) -> int:
+def calculate_damage(base_attack: int, success: int, mobility: int, defense: float, is_critical: bool = False) -> int:
     """
     ダメージを計算する
     ダメージ = 基本威力 + max(0, 成功度 - 回避度/2 - 防御度/2)
+    
+    is_critical=Trueの場合:
+        - 回避度と防御度を0として計算（防御・回避不能ダメージ）
     """
-    bonus = max(0, success - (mobility / 2) - (defense / 2))
-    return int(base_attack + bonus)
+    # クリティカル時は相手の防御・回避を無視
+    mob_val = 0 if is_critical else mobility
+    def_val = 0 if is_critical else defense
+    
+    bonus = max(0, success - (mob_val / 2) - (def_val / 2))
+    damage = int(base_attack + bonus)
+    
+    return damage
