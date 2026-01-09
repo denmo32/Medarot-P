@@ -19,7 +19,6 @@ class GaugeSystem(System):
         gauge_entities = self.world.get_entities_with_components('gauge', 'defeated')
 
         # 1. まず行動選択待ち（ACTION_CHOICE）状態のエンティティを確実に待機列に追加
-        # これにより、未処理の行動選択待ちがいる場合は時間を進めないようにする
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
             gauge = comps['gauge']
@@ -38,7 +37,10 @@ class GaugeSystem(System):
             if comps['defeated'].is_defeated: continue
             gauge = comps['gauge']
             
-            # ACTION_CHOICEはパス1で処理済み
+            # 状態異常：停止の処理
+            if gauge.stop_timer > 0:
+                gauge.stop_timer = max(0.0, gauge.stop_timer - dt)
+                continue # 停止中はゲージが一切進まない
             
             if gauge.status == GaugeStatus.CHARGING:
                 gauge.progress += dt / gauge.charging_time * 100.0
@@ -52,8 +54,7 @@ class GaugeSystem(System):
                 if gauge.progress >= 100.0:
                     gauge.progress = 0.0
                     gauge.status = GaugeStatus.ACTION_CHOICE
-                    gauge.part_targets = {} # ターゲット選定をリセット
+                    gauge.part_targets = {} 
                     
-                    # クールダウン完了で即座に待機列へ（同フレーム内のTurnSystemで処理可能にする）
                     if eid not in context.waiting_queue:
                         context.waiting_queue.append(eid)

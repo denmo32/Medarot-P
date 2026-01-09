@@ -21,6 +21,9 @@ class GaugeComponent(Component):
         
         self.charging_time = 2.0
         self.cooldown_time = 2.0
+        
+        # 状態異常：停止用タイマー（秒）
+        self.stop_timer = 0.0
 
 class TeamComponent(Component):
     """チーム属性"""
@@ -51,7 +54,7 @@ class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
     def __init__(self, attack: int, trait: str = None, success: int = 0):
         self.attack = attack
-        self.trait = trait # "ライフル", "ソード" 等
+        self.trait = trait # "ライフル", "ソード", "サンダー" 等
         self.success = success # 成功度
 
 class MobilityComponent(Component):
@@ -92,9 +95,10 @@ class BattleContextComponent(Component):
 
 class DamageEventComponent(Component):
     """ダメージ発生を伝える一時的なコンポーネント"""
-    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str, is_critical: bool = False):
+    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str, is_critical: bool = False, stop_duration: float = 0.0):
         self.attacker_id = attacker_id
         self.attacker_part = attacker_part
         self.damage = damage
         self.target_part = target_part
         self.is_critical = is_critical
+        self.stop_duration = stop_duration # 停止させる時間

@@ -67,8 +67,8 @@ class ActionInitiationSystem(System):
 
     def _determine_target(self, eid, comps, gauge, attack_comp):
         target_id = None
-        # TODO: 攻撃特性判定も定数あるいはデータ駆動にするのが望ましいが、一旦文字列判定のまま維持
-        if attack_comp and attack_comp.trait in [TraitType.SWORD, TraitType.HAMMER]:
+        # 近接攻撃特性の判定（サンダーを追加）
+        if attack_comp and attack_comp.trait in [TraitType.SWORD, TraitType.HAMMER, TraitType.THUNDER]:
             # 直前ターゲット：現在のアイコン座標が最も中央に近い敵を狙う
             target_id = get_closest_target_by_gauge(self.world, comps['team'].team_type)
         else:
