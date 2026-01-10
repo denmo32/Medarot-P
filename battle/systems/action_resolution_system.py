@@ -76,7 +76,7 @@ class ActionResolutionSystem(System):
                     elif is_defense:
                         context.pending_logs.append("攻撃を防御！")
                     else:
-                        context.pending_logs.append("ノーマルヒット！")
+                        context.pending_logs.append("防御突破！クリーンヒット！")
                     
                     # ダメージイベント発行
                     self.world.add_component(target_id, DamageEventComponent(
@@ -189,8 +189,8 @@ class ActionResolutionSystem(System):
             else:
                 target_part = random.choice(alive_keys)
 
-        # 7. ダメージ計算
-        damage = calculate_damage(attack_comp.attack, success, mobility, defense, is_critical)
+        # 7. ダメージ計算 (is_defenseを渡すように修正)
+        damage = calculate_damage(attack_comp.attack, success, mobility, defense, is_critical, is_defense)
 
         # 8. 状態異常
         stop_duration = 0.0
