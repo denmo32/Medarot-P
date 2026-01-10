@@ -41,12 +41,13 @@ class ActionInitiationSystem(System):
     def _initiate_action(self, actor_eid, actor_comps, gauge, flow, context):
         # ターゲット確定
         target_id = None
+        target_part = None
         
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
             part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
             if part_id and part_id in self.world.entities:
                 attack_comp = self.world.entities[part_id].get('attack')
-                target_id = self._determine_target(actor_eid, actor_comps, gauge, attack_comp)
+                target_id, target_part = self._determine_target(actor_eid, actor_comps, gauge, attack_comp)
         
         # ActionEventエンティティ生成
         event_eid = self.world.create_entity()
@@ -54,7 +55,8 @@ class ActionInitiationSystem(System):
             attacker_id=actor_eid,
             action_type=gauge.selected_action,
             part_type=gauge.selected_part,
-            target_id=target_id
+            target_id=target_id,
+            target_part=target_part
         ))
         
         # フェーズ移行
@@ -67,22 +69,45 @@ class ActionInitiationSystem(System):
 
     def _determine_target(self, eid, comps, gauge, attack_comp):
         target_id = None
+        target_part = None
+
         # 近接攻撃特性の判定（サンダーを追加）
         if attack_comp and attack_comp.trait in [TraitType.SWORD, TraitType.HAMMER, TraitType.THUNDER]:
             # 直前ターゲット：現在のアイコン座標が最も中央に近い敵を狙う
             target_id = get_closest_target_by_gauge(self.world, comps['team'].team_type)
+            # 直前ターゲットの場合、この時点で狙う部位を決定する（ランダム）
+            if target_id:
+                target_part = self._select_random_alive_part(target_id)
         else:
-            # 事前ターゲット
+            # 事前ターゲット（Personalityによって設定されたもの）
             if gauge.selected_part:
-                target_id = gauge.part_targets.get(gauge.selected_part)
+                target_data = gauge.part_targets.get(gauge.selected_part)
+                if target_data:
+                    target_id, target_part = target_data
         
         # 救済措置（対象が既に倒れている、または見つからない場合）
         if not target_id or target_id not in self.world.entities or self.world.entities[target_id]['defeated'].is_defeated:
-            target_id = self._get_fallback_target(comps['team'].team_type)
-        return target_id
+            target_id = self._get_fallback_target_id(comps['team'].team_type)
+            if target_id:
+                target_part = self._select_random_alive_part(target_id)
 
-    def _get_fallback_target(self, my_team):
+        return target_id, target_part
+
+    def _get_fallback_target_id(self, my_team):
         target_team = TeamType.ENEMY if my_team == TeamType.PLAYER else TeamType.PLAYER
         alive = [teid for teid, tcomps in self.world.get_entities_with_components('team', 'defeated') 
                  if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated]
         return random.choice(alive) if alive else None
+
+    def _select_random_alive_part(self, target_id):
+        """対象の生存パーツからランダムに1つ選ぶ"""
+        if target_id not in self.world.entities:
+            return None
+        
+        t_comps = self.world.entities[target_id]
+        alive_parts = []
+        for p_type, p_id in t_comps['partlist'].parts.items():
+            if self.world.entities[p_id]['health'].hp > 0:
+                alive_parts.append(p_type)
+        
+        return random.choice(alive_parts) if alive_parts else PartType.HEAD

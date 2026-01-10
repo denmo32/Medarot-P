@@ -56,7 +56,10 @@ class RenderSystem(System):
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid in self.world.entities and context.selected_menu_index < 3:
-                target_eid = self.world.entities[eid]['gauge'].part_targets.get([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM][context.selected_menu_index])
+                # ターゲットデータは (target_id, target_part) のタプルになっている
+                target_data = self.world.entities[eid]['gauge'].part_targets.get([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM][context.selected_menu_index])
+                if target_data:
+                    target_eid = target_data[0]
         
         # 実行中のイベントターゲット表示
         elif flow.processing_event_id and flow.processing_event_id in self.world.entities:

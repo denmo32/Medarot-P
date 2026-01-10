@@ -64,8 +64,8 @@ class ActionResolutionSystem(System):
             if target_id and target_id in self.world.entities:
                 context.battle_log.append(f"{attacker_name}の攻撃！ {attack_comp.trait}！")
                 
-                # 命中・防御・クリティカル判定
-                hit_result = self._process_attack_logic(target_id, attack_comp)
+                # 命中・防御・クリティカル判定（部位指定を含む）
+                hit_result = self._process_attack_logic(target_id, attack_comp, event.desired_target_part)
                 is_hit, is_defense, is_critical, damage, target_part, stop_duration = hit_result
                 
                 if not is_hit:
@@ -104,10 +104,9 @@ class ActionResolutionSystem(System):
         gauge.selected_action = None
         gauge.selected_part = None
 
-    def _process_attack_logic(self, target_id, attack_comp):
+    def _process_attack_logic(self, target_id, attack_comp, desired_part):
         """
         命中判定、防御判定、クリティカル判定、ダメージ計算、状態異常計算を行う
-        return: (is_hit, is_defense, is_critical, damage, target_part, stop_duration)
         """
         target_comps = self.world.entities[target_id]
         
@@ -150,26 +149,52 @@ class ActionResolutionSystem(System):
         if margin_break < 0:
             # 防御発生 (Guard) - 突破失敗
             is_defense = True
-            # 防御された場合はクリティカルなし
         else:
             # 防御突破 (Clean Hit)
-            # クリティカル判定: 両方の余剰の合計が一定値を超えた場合
-            # (例: 閾値0.5)
             if (margin_hit + margin_break) > 0.5:
                 is_critical = True
 
-        # 6. ターゲット部位決定
-        alive_parts = [p for p, pid in target_comps['partlist'].parts.items() 
-                       if self.world.entities[pid]['health'].hp > 0]
-        target_part = random.choice(alive_parts) if alive_parts else PartType.HEAD
+        # 6. ターゲット部位決定ロジック
+        
+        # 生存パーツ情報の収集
+        alive_parts_data = []
+        for p_type, p_id in target_comps['partlist'].parts.items():
+            if p_id in self.world.entities:
+                h = self.world.entities[p_id].get('health')
+                if h and h.hp > 0:
+                    alive_parts_data.append((p_type, h.hp))
+        
+        target_part = PartType.HEAD
+        
+        if not alive_parts_data:
+            # 生存パーツなし（理論上ありえないが）
+            target_part = PartType.HEAD
+            
+        elif is_defense:
+            # 防御成功時: 頭部以外でHP最大のパーツを選択
+            non_head_parts = [p for p in alive_parts_data if p[0] != PartType.HEAD]
+            if non_head_parts:
+                # HP降順でソートして先頭を取得
+                non_head_parts.sort(key=lambda x: x[1], reverse=True)
+                target_part = non_head_parts[0][0]
+            else:
+                # 頭部しか残っていない場合は頭部
+                target_part = PartType.HEAD
+        else:
+            # 防御失敗（通常ヒット/クリティカル）: 
+            # 狙った部位が生存していればそれ。なければ生存パーツからランダム。
+            alive_keys = [p[0] for p in alive_parts_data]
+            if desired_part and desired_part in alive_keys:
+                target_part = desired_part
+            else:
+                target_part = random.choice(alive_keys)
 
         # 7. ダメージ計算
         damage = calculate_damage(attack_comp.attack, success, mobility, defense, is_critical)
 
-        # 8. 状態異常：サンダーによる「停止」
+        # 8. 状態異常
         stop_duration = 0.0
         if attack_comp.trait == TraitType.THUNDER:
-            # 停止時間 = (攻撃成功度 - 相手機動) * 係数（最低でもわずかに停止する）
             stop_duration = max(0.5, (success - mobility) * 0.5)
 
         return True, is_defense, is_critical, damage, target_part, stop_duration
