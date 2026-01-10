@@ -30,15 +30,15 @@
     }
   },
   "medals": {
-    "medal_001": { "name": "カブト", "nickname": "メタビー" },
-    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ" },
-    "medal_003": { "name": "テストメダル3", "nickname": "テストさん" },
-    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー" },
-    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん" },
-    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ" },
-    "medal_007": { "name": "テストメダル7", "nickname": "ななこ" },
-    "medal_008": { "name": "テストメダル8", "nickname": "はちろー" },
-    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた" },
-    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ" }
+    "medal_001": { "name": "カブト", "nickname": "メタビー", "personality": "random" },
+    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ", "personality": "random" },
+    "medal_003": { "name": "テストメダル3", "nickname": "テストさん", "personality": "random" },
+    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー", "personality": "random" },
+    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "random" },
+    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ", "personality": "random" },
+    "medal_007": { "name": "テストメダル7", "nickname": "ななこ", "personality": "random" },
+    "medal_008": { "name": "テストメダル8", "nickname": "はちろー", "personality": "random" },
+    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた", "personality": "random" },
+    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "random" }
   }
 }
