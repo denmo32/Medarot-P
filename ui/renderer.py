@@ -13,7 +13,7 @@ class Renderer:
         self.small_font = pygame.font.SysFont(FONT_NAMES, 14) # 小さめのフォント
         self.title_font = pygame.font.SysFont(FONT_NAMES, 32)
         self.notice_font = pygame.font.SysFont(FONT_NAMES, 36)
-        self.icon_radius = 16
+        self.icon_radius = 14 # 縁取りを考慮して少し縮小 (16 -> 14)
 
     def clear(self):
         self.screen.fill(COLORS['BACKGROUND'])
@@ -37,13 +37,18 @@ class Renderer:
 
     def draw_home_marker(self, x, y):
         """ホームポジションを示すマーカー（丸印）を描画"""
-        # アイコンの待機位置と同じ座標に薄い円を描画
-        pygame.draw.circle(self.screen, COLORS['HOME_MARKER'], (int(x), int(y + 20)), 12, 2)
+        # アイコン（縁取り含め半径18）より大きい半径22で描画し、重なっても外周が見えるようにする
+        pygame.draw.circle(self.screen, COLORS['HOME_MARKER'], (int(x), int(y + 20)), 22, 2)
 
-    def draw_character_info(self, x, y, name, icon_x, team_color):
+    def draw_character_info(self, x, y, name, icon_x, team_color, border_color=None):
         """名前とATBアイコンを描画"""
-        # アイコン
+        # 縁取りの描画（指定がある場合）
+        if border_color:
+            pygame.draw.circle(self.screen, border_color, (int(icon_x), int(y + 20)), self.icon_radius + 4)
+
+        # アイコン本体
         pygame.draw.circle(self.screen, team_color, (int(icon_x), int(y + 20)), self.icon_radius)
+        
         # 名前（少し上に表示）
         name_txt = self.font.render(name, True, COLORS['TEXT'])
         self.screen.blit(name_txt, (x - 20, y - 25))

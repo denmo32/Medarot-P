@@ -58,8 +58,21 @@ class RenderSystem(System):
             
             self.renderer.draw_home_marker(marker_x, pos.y)
             
+            # 縁取り色の決定
+            border_color = None
+            
+            # 白色（実行中、実行待ち、コマンド入力待ち）
+            if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
+                border_color = COLORS.get('BORDER_WAIT')
+            # オレンジ色（チャージ中）
+            elif gauge.status == GaugeStatus.CHARGING:
+                border_color = COLORS.get('BORDER_CHARGE')
+            # 水色（クールダウン中）
+            elif gauge.status == GaugeStatus.COOLDOWN:
+                border_color = COLORS.get('BORDER_COOLDOWN')
+
             # キャラ情報（名前とアイコン）
-            self.renderer.draw_character_info(pos.x, pos.y, medal.nickname, icon_x, team.team_color)
+            self.renderer.draw_character_info(pos.x, pos.y, medal.nickname, icon_x, team.team_color, border_color)
 
             # HPバーデータの構築
             hp_data = []

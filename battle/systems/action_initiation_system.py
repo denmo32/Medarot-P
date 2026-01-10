@@ -39,6 +39,9 @@ class ActionInitiationSystem(System):
             self._initiate_action(actor_eid, actor_comps, gauge, flow, context)
 
     def _initiate_action(self, actor_eid, actor_comps, gauge, flow, context):
+        # アクティブな行動者を設定
+        flow.active_actor_id = actor_eid
+
         # ターゲット確定
         target_id = None
         target_part = None
