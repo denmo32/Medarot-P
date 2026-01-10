@@ -5,7 +5,7 @@ from core.ecs import System
 from components.battle_flow import BattleFlowComponent
 from components.battle import DamageEventComponent
 from battle.constants import ActionType, GaugeStatus, BattlePhase, PartType, TraitType
-from battle.calculator import calculate_hit_probability, calculate_defense_probability, calculate_damage
+from battle.calculator import calculate_hit_probability, calculate_break_probability, calculate_damage
 
 class ActionResolutionSystem(System):
     """
@@ -69,12 +69,14 @@ class ActionResolutionSystem(System):
                 is_hit, is_defense, is_critical, damage, target_part, stop_duration = hit_result
                 
                 if not is_hit:
-                    context.pending_logs.append("攻撃を回避された！")
+                    context.pending_logs.append("攻撃を回避！")
                 else:
                     if is_critical:
-                        context.pending_logs.append("クリティカルヒット！ 防御不能！")
+                        context.pending_logs.append("クリティカルヒット！")
                     elif is_defense:
-                        context.pending_logs.append("防御判定に成功！(ダメージ軽減未実装)")
+                        context.pending_logs.append("攻撃を防御！")
+                    else:
+                        context.pending_logs.append("ノーマルヒット！")
                     
                     # ダメージイベント発行
                     self.world.add_component(target_id, DamageEventComponent(
@@ -122,43 +124,52 @@ class ActionResolutionSystem(System):
                 mobility = mob_comp.mobility
                 defense = mob_comp.defense
 
-        # 2. 命中判定
+        # 2. 確率計算 (命中率 & 防御突破率)
         hit_prob = calculate_hit_probability(success, mobility)
+        break_prob = calculate_break_probability(success, defense)
+
+        # 3. 乱数生成
         rnd_hit = random.random()
-        is_hit = rnd_hit < hit_prob
+        rnd_break = random.random()
 
-        if not is_hit:
-            return False, False, False, 0, None, 0.0
+        # 4. 余剰計算
+        margin_hit = hit_prob - rnd_hit
+        margin_break = break_prob - rnd_break
 
-        # 3. 防御判定用乱数
-        rnd_def = random.random()
-
-        # 4. クリティカル判定
-        base_crit_threshold = hit_prob * 0.2
-        crit_threshold = base_crit_threshold * (1.0 + rnd_def)
-        
-        is_critical = rnd_hit < crit_threshold
+        is_hit = False
         is_defense = False
+        is_critical = False
 
-        if is_critical:
-            is_defense = False
+        # 5. 判定ロジック
+        if margin_hit < 0:
+            # 回避成功 (Miss)
+            return False, False, False, 0, None, 0.0
+        
+        is_hit = True
+
+        if margin_break < 0:
+            # 防御発生 (Guard) - 突破失敗
+            is_defense = True
+            # 防御された場合はクリティカルなし
         else:
-            defend_prob = calculate_defense_probability(success, defense)
-            is_defense = rnd_def < defend_prob
+            # 防御突破 (Clean Hit)
+            # クリティカル判定: 両方の余剰の合計が一定値を超えた場合
+            # (例: 閾値0.5)
+            if (margin_hit + margin_break) > 0.5:
+                is_critical = True
 
-        # 5. ターゲット部位決定
+        # 6. ターゲット部位決定
         alive_parts = [p for p, pid in target_comps['partlist'].parts.items() 
                        if self.world.entities[pid]['health'].hp > 0]
         target_part = random.choice(alive_parts) if alive_parts else PartType.HEAD
 
-        # 6. ダメージ計算
+        # 7. ダメージ計算
         damage = calculate_damage(attack_comp.attack, success, mobility, defense, is_critical)
 
-        # 7. 状態異常：サンダーによる「停止」
+        # 8. 状態異常：サンダーによる「停止」
         stop_duration = 0.0
         if attack_comp.trait == TraitType.THUNDER:
             # 停止時間 = (攻撃成功度 - 相手機動) * 係数（最低でもわずかに停止する）
-            # 係数 0.05 なら、差が 20 あれば 1秒 停止する計算
             stop_duration = max(0.5, (success - mobility) * 0.5)
 
         return True, is_defense, is_critical, damage, target_part, stop_duration
