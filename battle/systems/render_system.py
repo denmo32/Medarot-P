@@ -19,6 +19,14 @@ class RenderSystem(System):
         super().__init__(world)
         self.renderer = renderer
         self.parts_manager = get_parts_manager() if PARTS_MANAGER_AVAILABLE else None
+        # HPバーの表示用ラベルと順序
+        self.part_labels = {
+            PartType.HEAD: "頭部",
+            PartType.RIGHT_ARM: "右腕",
+            PartType.LEFT_ARM: "左腕",
+            PartType.LEGS: "脚部"
+        }
+        self.part_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -27,11 +35,13 @@ class RenderSystem(System):
         flow = entities[0][1]['battleflow']
 
         self.renderer.clear()
-        self.renderer.draw_team_titles("プレイヤーチーム", "エネミーチーム")
+        
+        # ガイドライン（実行ライン）の描画
+        self.renderer.draw_field_guides()
 
         char_positions = {}
         for eid, comps in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'defeated', 'medal'):
-            if comps['defeated'].is_defeated: continue
+            # 敗北しても表示を残すため、defeatedチェックを削除
             
             pos, gauge, team, medal = comps['position'], comps['gauge'], comps['team'], comps['medal']
             
@@ -39,16 +49,43 @@ class RenderSystem(System):
             icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
             
             char_positions[eid] = {'x': pos.x, 'y': pos.y, 'icon_x': icon_x}
-            self.renderer.draw_character_info(pos.x, pos.y, medal.nickname, icon_x, team.team_color)
+            
+            # 初期位置マーカー
+            # エネミーの場合は右端（基準X + ゲージ幅）がホームポジション
+            marker_x = pos.x
+            if team.team_type == TeamType.ENEMY:
+                marker_x = pos.x + GAME_PARAMS['GAUGE_WIDTH']
+            
+            self.renderer.draw_home_marker(marker_x, pos.y)
+            
+            # 縁取り色の決定
+            border_color = None
+            
+            # 白色（実行中、実行待ち、コマンド入力待ち）
+            if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
+                border_color = COLORS.get('BORDER_WAIT')
+            # オレンジ色（チャージ中）
+            elif gauge.status == GaugeStatus.CHARGING:
+                border_color = COLORS.get('BORDER_CHARGE')
+            # 水色（クールダウン中）
+            elif gauge.status == GaugeStatus.COOLDOWN:
+                border_color = COLORS.get('BORDER_COOLDOWN')
 
-            # HPバー
+            # キャラ情報（名前とアイコン）
+            self.renderer.draw_character_info(pos.x, pos.y, medal.nickname, icon_x, team.team_color, border_color)
+
+            # HPバーデータの構築
             hp_data = []
-            for p_key, p_color in zip([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS], 
-                                     [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]):
+            for p_key in self.part_order:
                 p_id = comps['partlist'].parts.get(p_key)
                 if p_id:
                     h = self.world.entities[p_id]['health']
-                    hp_data.append({'ratio': h.hp / h.max_hp, 'color': p_color})
+                    hp_data.append({
+                        'label': self.part_labels.get(p_key, ""),
+                        'current': h.hp,
+                        'max': h.max_hp,
+                        'ratio': h.hp / h.max_hp if h.max_hp > 0 else 0
+                    })
             self.renderer.draw_hp_bars(pos.x, pos.y, hp_data)
 
         # ターゲット表示
@@ -56,7 +93,10 @@ class RenderSystem(System):
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid in self.world.entities and context.selected_menu_index < 3:
-                target_eid = self.world.entities[eid]['gauge'].part_targets.get([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM][context.selected_menu_index])
+                # ターゲットデータは (target_id, target_part) のタプルになっている
+                target_data = self.world.entities[eid]['gauge'].part_targets.get([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM][context.selected_menu_index])
+                if target_data:
+                    target_eid = target_data[0]
         
         # 実行中のイベントターゲット表示
         elif flow.processing_event_id and flow.processing_event_id in self.world.entities:

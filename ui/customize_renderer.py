@@ -140,12 +140,16 @@ class CustomizeRenderer:
         
         if data['slot_idx'] == 0:
             # メダルの詳細表示
+            personality_id = fd.get('personality', 'random')
+            personality_map = {"random": "ランダム"}
+            personality_label = personality_map.get(personality_id, personality_id)
+
             stats = [
                 ("ニックネーム", fd.get('nickname', '---')),
                 ("熟練度1", "--- (未実装)"),
                 ("熟練度2", "--- (未実装)"),
                 ("熟練度3", "--- (未実装)"),
-                ("性格", "--- (未実装)")
+                ("性格", personality_label)
             ]
         else:
             # パーツの詳細表示

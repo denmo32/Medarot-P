@@ -15,4 +15,5 @@ class BattleFlowComponent(Component):
     def __init__(self):
         self.current_phase = self.PHASE_IDLE
         self.processing_event_id = None # 現在処理中のActionEventエンティティID
+        self.active_actor_id = None     # 現在アクション実行中（またはログ表示中）の機体ID
         self.winner = None              # 勝者（game_over時）

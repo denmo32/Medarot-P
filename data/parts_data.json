@@ -4,37 +4,41 @@
       "head_001": { "name": "ヘッドライフル", "trait": "ライフル", "hp": 40, "attack": 15, "success": 30 },
       "head_002": { "name": "ヘッドソード", "trait": "ソード", "hp": 50, "attack": 10, "success": 40 },
       "head_003": { "name": "ヘッドガトリング", "trait": "ガトリング", "hp": 35, "attack": 12, "success": 25 },
-      "head_004": { "name": "ヘッドハンマー", "trait": "ハンマー", "hp": 35, "attack": 12, "success": 20 }
+      "head_004": { "name": "ヘッドハンマー", "trait": "ハンマー", "hp": 35, "attack": 12, "success": 20 },
+      "head_005": { "name": "ヘッドサンダー", "trait": "サンダー", "hp": 40, "attack": 8, "success": 35 }
     },
     "right_arm": {
       "rarm_001": { "name": "ライトライフル", "trait": "ライフル", "hp": 50, "attack": 25, "success": 35 },
       "rarm_002": { "name": "ライトソード", "trait": "ソード", "hp": 50, "attack": 30, "success": 45 },
       "rarm_003": { "name": "ライトガトリング", "trait": "ガトリング", "hp": 45, "attack": 20, "success": 30 },
-      "rarm_004": { "name": "ライトハンマー", "trait": "ハンマー", "hp": 45, "attack": 20, "success": 25 }
+      "rarm_004": { "name": "ライトハンマー", "trait": "ハンマー", "hp": 45, "attack": 20, "success": 25 },
+      "rarm_005": { "name": "ライトサンダー", "trait": "サンダー", "hp": 45, "attack": 18, "success": 40 }
     },
     "left_arm": {
       "larm_001": { "name": "レフトライフル", "trait": "ライフル", "hp": 50, "attack": 22, "success": 32 },
       "larm_002": { "name": "レフトソード", "trait": "ソード", "hp": 50, "attack": 35, "success": 42 },
       "larm_003": { "name": "レフトガトリング", "trait": "ガトリング", "hp": 45, "attack": 28, "success": 28 },
-      "larm_004": { "name": "レフトハンマー", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22 }
+      "larm_004": { "name": "レフトハンマー", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22 },
+      "larm_005": { "name": "レフトサンダー", "trait": "サンダー", "hp": 45, "attack": 16, "success": 38 }
     },
     "legs": {
       "legs_001": { "name": "ライフルレッグ", "hp": 60, "mobility": 35, "defense": 25 },
       "legs_002": { "name": "ソードレッグ", "hp": 70, "mobility": 45, "defense": 30 },
       "legs_003": { "name": "ガトリングレッグ", "hp": 50, "mobility": 25, "defense": 40 },
-      "legs_004": { "name": "ハンマーレッグ", "hp": 50, "mobility": 20, "defense": 45 }
+      "legs_004": { "name": "ハンマーレッグ", "hp": 50, "mobility": 20, "defense": 45 },
+      "legs_005": { "name": "サンダーレッグ", "hp": 55, "mobility": 30, "defense": 30 }
     }
   },
   "medals": {
-    "medal_001": { "name": "カブト", "nickname": "メタビー" },
-    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ" },
-    "medal_003": { "name": "テストメダル3", "nickname": "テスト丸" },
-    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー" },
-    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん" },
-    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ" },
-    "medal_007": { "name": "テストメダル7", "nickname": "ななこ" },
-    "medal_008": { "name": "テストメダル8", "nickname": "はちろー" },
-    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた" },
-    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ" }
+    "medal_001": { "name": "カブト", "nickname": "メタビー", "personality": "random" },
+    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ", "personality": "random" },
+    "medal_003": { "name": "テストメダル3", "nickname": "テストさん", "personality": "random" },
+    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー", "personality": "random" },
+    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "random" },
+    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ", "personality": "random" },
+    "medal_007": { "name": "テストメダル7", "nickname": "ななこ", "personality": "random" },
+    "medal_008": { "name": "テストメダル8", "nickname": "はちろー", "personality": "random" },
+    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた", "personality": "random" },
+    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "random" }
   }
 }

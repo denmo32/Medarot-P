@@ -25,3 +25,4 @@ class BattleFlowSystem(System):
             if not context.battle_log:
                 flow.current_phase = BattlePhase.IDLE
                 flow.processing_event_id = None
+                flow.active_actor_id = None # アクション終了

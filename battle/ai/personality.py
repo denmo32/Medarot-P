@@ -2,13 +2,13 @@
 
 import random
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 
 class Personality(ABC):
     """性格の基底クラス"""
     @abstractmethod
-    def select_targets(self, world, entity_id: int) -> Dict[str, Optional[int]]:
-        """各パーツ（head, right_arm, left_arm）のターゲットを決定して返す"""
+    def select_targets(self, world, entity_id: int) -> Dict[str, Optional[Tuple[int, str]]]:
+        """各パーツ（head, right_arm, left_arm）のターゲット(機体ID, 部位名)を決定して返す"""
         pass
 
     def _get_valid_targets(self, world, my_entity_id: int) -> List[int]:
@@ -26,8 +26,8 @@ class Personality(ABC):
         return valid_targets
 
 class RandomPersonality(Personality):
-    """ランダム：各パーツが独立してランダムにターゲットを選ぶ性格"""
-    def select_targets(self, world, entity_id: int) -> Dict[str, Optional[int]]:
+    """ランダム：各パーツが独立してランダムにターゲット（機体と部位）を選ぶ性格"""
+    def select_targets(self, world, entity_id: int) -> Dict[str, Optional[Tuple[int, str]]]:
         targets = {}
         valid_targets = self._get_valid_targets(world, entity_id)
         
@@ -49,7 +49,19 @@ class RandomPersonality(Personality):
             if attack_comp:
                 # 事前ターゲット武器（ライフル・ガトリング）の場合のみ、事前に選定
                 if attack_comp.trait in ["ライフル", "ガトリング"]:
-                    targets[part_type] = random.choice(valid_targets)
+                    target_eid = random.choice(valid_targets)
+                    
+                    # ターゲット機体の生存部位からランダムに選択
+                    t_comps = world.entities.get(target_eid)
+                    alive_parts = []
+                    if t_comps:
+                        for pt, pid in t_comps['partlist'].parts.items():
+                            if world.entities[pid]['health'].hp > 0:
+                                alive_parts.append(pt)
+                    
+                    if alive_parts:
+                        targets[part_type] = (target_eid, random.choice(alive_parts))
+                
                 # 直前ターゲット武器（ソード・ハンマー）の場合は None のまま（実行時に決定）
                 
         return targets

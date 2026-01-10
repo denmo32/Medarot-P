@@ -72,10 +72,18 @@ class BattleEntityFactory:
             parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
             eid = world.create_entity()
             medal_data = pm.get_medal_data(setup["medal"])
-            world.add_component(eid, MedalComponent(setup["medal"], medal_data["name"], medal_data["nickname"]))
+            # personality情報をデータから取得して渡す
+            world.add_component(eid, MedalComponent(
+                setup["medal"], 
+                medal_data["name"], 
+                medal_data["nickname"],
+                medal_data.get("personality", "random")
+            ))
             world.add_component(eid, PositionComponent(px, yoff + i * spacing))
             world.add_component(eid, GaugeComponent(1.0, 0.3, GaugeComponent.ACTION_CHOICE))
-            world.add_component(eid, TeamComponent("player", (0, 100, 200)))
+            # 1機目をリーダーに設定
+            is_leader = (i == 0)
+            world.add_component(eid, TeamComponent("player", (0, 100, 200), is_leader=is_leader))
             world.add_component(eid, RenderComponent(30, 15, gw, gh))
             world.add_component(eid, DefeatedComponent())
             plist = PartListComponent()
@@ -88,10 +96,18 @@ class BattleEntityFactory:
             parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
             eid = world.create_entity()
             medal_data = pm.get_medal_data(medal_id)
-            world.add_component(eid, MedalComponent(medal_id, medal_data["name"], medal_data["nickname"]))
+            # personality情報をデータから取得して渡す
+            world.add_component(eid, MedalComponent(
+                medal_id, 
+                medal_data["name"], 
+                medal_data["nickname"],
+                medal_data.get("personality", "random")
+            ))
             world.add_component(eid, PositionComponent(ex, yoff + i * spacing))
             world.add_component(eid, GaugeComponent(1.0, 0.25, GaugeComponent.ACTION_CHOICE))
-            world.add_component(eid, TeamComponent("enemy", (200, 0, 0)))
+            # 1機目をリーダーに設定
+            is_leader = (i == 0)
+            world.add_component(eid, TeamComponent("enemy", (200, 0, 0), is_leader=is_leader))
             world.add_component(eid, RenderComponent(30, 15, gw, gh))
             world.add_component(eid, DefeatedComponent())
             plist = PartListComponent()

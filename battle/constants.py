@@ -13,6 +13,7 @@ class PartType:
 class TraitType:
     SWORD = "ソード"
     HAMMER = "ハンマー"
+    THUNDER = "サンダー"
 
 class ActionType:
     ATTACK = "attack"
