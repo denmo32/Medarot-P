@@ -16,27 +16,27 @@ class BattleStatusSystem(System):
         if flow.current_phase == BattlePhase.GAME_OVER:
             return
 
-        player_alive = False
-        enemy_alive = False
+        # リーダーの生存確認
+        player_leader_alive = False
+        enemy_leader_alive = False
 
         for _, components in self.world.entities.items():
             team = components.get('team')
             defeated = components.get('defeated')
-            # チーム情報があり、敗北していない場合は生存扱い
-            if not team:
-                continue
             
-            if defeated and defeated.is_defeated:
-                continue
+            # リーダーである機体のみをチェック
+            if team and team.is_leader:
+                is_alive = not (defeated and defeated.is_defeated)
+                
+                if team.team_type == TeamType.PLAYER:
+                    player_leader_alive = is_alive
+                elif team.team_type == TeamType.ENEMY:
+                    enemy_leader_alive = is_alive
 
-            if team.team_type == TeamType.PLAYER:
-                player_alive = True
-            elif team.team_type == TeamType.ENEMY:
-                enemy_alive = True
-
-        if not player_alive:
+        # リーダーが倒れたら勝敗決定
+        if not player_leader_alive:
             flow.winner = "エネミー"
             flow.current_phase = BattlePhase.GAME_OVER
-        elif not enemy_alive:
+        elif not enemy_leader_alive:
             flow.winner = "プレイヤー"
             flow.current_phase = BattlePhase.GAME_OVER

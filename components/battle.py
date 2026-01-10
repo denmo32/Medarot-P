@@ -27,9 +27,10 @@ class GaugeComponent(Component):
 
 class TeamComponent(Component):
     """チーム属性"""
-    def __init__(self, team_type: str, team_color: tuple):
+    def __init__(self, team_type: str, team_color: tuple, is_leader: bool = False):
         self.team_type = team_type # "player", "enemy"
         self.team_color = team_color
+        self.is_leader = is_leader
 
 class RenderComponent(Component):
     """描画サイズ情報"""
