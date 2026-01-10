@@ -19,6 +19,14 @@ class RenderSystem(System):
         super().__init__(world)
         self.renderer = renderer
         self.parts_manager = get_parts_manager() if PARTS_MANAGER_AVAILABLE else None
+        # HPバーの表示用ラベルと順序
+        self.part_labels = {
+            PartType.HEAD: "頭部",
+            PartType.RIGHT_ARM: "右腕",
+            PartType.LEFT_ARM: "左腕",
+            PartType.LEGS: "脚部"
+        }
+        self.part_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -27,11 +35,13 @@ class RenderSystem(System):
         flow = entities[0][1]['battleflow']
 
         self.renderer.clear()
-        self.renderer.draw_team_titles("プレイヤーチーム", "エネミーチーム")
+        
+        # ガイドライン（実行ライン）の描画
+        self.renderer.draw_field_guides()
 
         char_positions = {}
         for eid, comps in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'defeated', 'medal'):
-            if comps['defeated'].is_defeated: continue
+            # 敗北しても表示を残すため、defeatedチェックを削除
             
             pos, gauge, team, medal = comps['position'], comps['gauge'], comps['team'], comps['medal']
             
@@ -39,16 +49,30 @@ class RenderSystem(System):
             icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
             
             char_positions[eid] = {'x': pos.x, 'y': pos.y, 'icon_x': icon_x}
+            
+            # 初期位置マーカー
+            # エネミーの場合は右端（基準X + ゲージ幅）がホームポジション
+            marker_x = pos.x
+            if team.team_type == TeamType.ENEMY:
+                marker_x = pos.x + GAME_PARAMS['GAUGE_WIDTH']
+            
+            self.renderer.draw_home_marker(marker_x, pos.y)
+            
+            # キャラ情報（名前とアイコン）
             self.renderer.draw_character_info(pos.x, pos.y, medal.nickname, icon_x, team.team_color)
 
-            # HPバー
+            # HPバーデータの構築
             hp_data = []
-            for p_key, p_color in zip([PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS], 
-                                     [COLORS['HP_HEAD'], COLORS['HP_RIGHT_ARM'], COLORS['HP_LEFT_ARM'], COLORS['HP_LEG']]):
+            for p_key in self.part_order:
                 p_id = comps['partlist'].parts.get(p_key)
                 if p_id:
                     h = self.world.entities[p_id]['health']
-                    hp_data.append({'ratio': h.hp / h.max_hp, 'color': p_color})
+                    hp_data.append({
+                        'label': self.part_labels.get(p_key, ""),
+                        'current': h.hp,
+                        'max': h.max_hp,
+                        'ratio': h.hp / h.max_hp if h.max_hp > 0 else 0
+                    })
             self.renderer.draw_hp_bars(pos.x, pos.y, hp_data)
 
         # ターゲット表示

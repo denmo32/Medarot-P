@@ -10,7 +10,7 @@ class Renderer:
     def __init__(self, screen):
         self.screen = screen
         self.font = pygame.font.SysFont(FONT_NAMES, 24)
-        self.small_font = pygame.font.SysFont(FONT_NAMES, 16) # ターゲット表示用
+        self.small_font = pygame.font.SysFont(FONT_NAMES, 14) # 小さめのフォント
         self.title_font = pygame.font.SysFont(FONT_NAMES, 32)
         self.notice_font = pygame.font.SysFont(FONT_NAMES, 36)
         self.icon_radius = 16
@@ -21,31 +21,64 @@ class Renderer:
     def present(self):
         pygame.display.flip()
 
-    def draw_team_titles(self, player_title: str, enemy_title: str):
-        self.screen.blit(self.title_font.render(player_title, True, COLORS['PLAYER']), (50, 50))
-        self.screen.blit(self.title_font.render(enemy_title, True, COLORS['ENEMY']), (450, 50))
+    def draw_field_guides(self):
+        """行動実行ラインなどのガイドを描画"""
+        center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
+        offset = 40
+        h = GAME_PARAMS['SCREEN_HEIGHT']
+        
+        # プレイヤー側ライン
+        p_line_x = center_x - offset
+        pygame.draw.line(self.screen, COLORS['GUIDE_LINE'], (p_line_x, 0), (p_line_x, h), 1)
+        
+        # エネミー側ライン
+        e_line_x = center_x + offset
+        pygame.draw.line(self.screen, COLORS['GUIDE_LINE'], (e_line_x, 0), (e_line_x, h), 1)
+
+    def draw_home_marker(self, x, y):
+        """ホームポジションを示すマーカー（丸印）を描画"""
+        # アイコンの待機位置と同じ座標に薄い円を描画
+        pygame.draw.circle(self.screen, COLORS['HOME_MARKER'], (int(x), int(y + 20)), 12, 2)
 
     def draw_character_info(self, x, y, name, icon_x, team_color):
         """名前とATBアイコンを描画"""
         # アイコン
         pygame.draw.circle(self.screen, team_color, (int(icon_x), int(y + 20)), self.icon_radius)
-        # 名前
+        # 名前（少し上に表示）
         name_txt = self.font.render(name, True, COLORS['TEXT'])
-        self.screen.blit(name_txt, (x, y - 25))
+        self.screen.blit(name_txt, (x - 20, y - 25))
 
     def draw_hp_bars(self, x, y, hp_data_list):
         """
-        hp_data_list: List of dict {'ratio': float, 'color': tuple}
+        各パーツのHP情報を描画
+        hp_data_list: List of dict {'label': str, 'current': int, 'max': int, 'ratio': float}
         """
+        start_y = y + 45
+        bar_width = 80
+        bar_height = 10
+        row_height = 16
+        
         for i, data in enumerate(hp_data_list):
-            bx = x + i * (GAME_PARAMS['HP_BAR_WIDTH'] + 5)
-            by = y + GAME_PARAMS['HP_BAR_Y_OFFSET']
-            bw, bh = GAME_PARAMS['HP_BAR_WIDTH'], GAME_PARAMS['HP_BAR_HEIGHT']
-
-            pygame.draw.rect(self.screen, COLORS['HP_BG'], (bx, by, bw, bh))
-            fill_w = int(bw * max(0, min(1.0, data['ratio'])))
-            pygame.draw.rect(self.screen, data['color'], (bx, by, fill_w, bh))
-            pygame.draw.rect(self.screen, COLORS['TEXT'], (bx, by, bw, bh), 1)
+            row_y = start_y + i * row_height
+            
+            # 部位名 (頭部: )
+            label_surf = self.small_font.render(f"{data['label']}:", True, (200, 200, 200))
+            self.screen.blit(label_surf, (x - 45, row_y - 2))
+            
+            # バー背景
+            pygame.draw.rect(self.screen, COLORS['HP_BG'], (x, row_y, bar_width, bar_height))
+            
+            # バー中身（統一色）
+            fill_w = int(bar_width * max(0, min(1.0, data['ratio'])))
+            pygame.draw.rect(self.screen, COLORS['HP_GAUGE'], (x, row_y, fill_w, bar_height))
+            
+            # 枠線
+            pygame.draw.rect(self.screen, (150, 150, 150), (x, row_y, bar_width, bar_height), 1)
+            
+            # 数値 (50/50)
+            val_text = f"{data['current']}/{data['max']}"
+            val_surf = self.small_font.render(val_text, True, COLORS['TEXT'])
+            self.screen.blit(val_surf, (x + bar_width + 5, row_y - 2))
 
     def draw_target_marker(self, focused_target, char_positions):
         """
