@@ -49,6 +49,14 @@ class ActionInitiationSystem(System):
                 attack_comp = self.world.entities[part_id].get('attack')
                 target_id, target_part = self._determine_target(actor_eid, actor_comps, gauge, attack_comp)
         
+        # ターゲットが取得できなかった場合はターゲットロストとして中断
+        if gauge.selected_action == ActionType.ATTACK and not target_id:
+            actor_name = actor_comps['medal'].nickname
+            context.battle_log.append(f"{actor_name}はターゲットロストした！")
+            flow.current_phase = BattlePhase.LOG_WAIT
+            self._reset_to_cooldown(gauge, context, actor_eid)
+            return
+
         # ActionEventエンティティ生成
         event_eid = self.world.create_entity()
         self.world.add_component(event_eid, ActionEventComponent(
@@ -71,43 +79,49 @@ class ActionInitiationSystem(System):
         target_id = None
         target_part = None
 
-        # 近接攻撃特性の判定（サンダーを追加）
+        # 近接攻撃特性の判定
         if attack_comp and attack_comp.trait in [TraitType.SWORD, TraitType.HAMMER, TraitType.THUNDER]:
-            # 直前ターゲット：現在のアイコン座標が最も中央に近い敵を狙う
             target_id = get_closest_target_by_gauge(self.world, comps['team'].team_type)
-            # 直前ターゲットの場合、この時点で狙う部位を決定する（ランダム）
             if target_id:
                 target_part = self._select_random_alive_part(target_id)
         else:
-            # 事前ターゲット（Personalityによって設定されたもの）
+            # 事前ターゲット
             if gauge.selected_part:
                 target_data = gauge.part_targets.get(gauge.selected_part)
                 if target_data:
-                    target_id, target_part = target_data
+                    tid, tpart = target_data
+                    if self._is_target_valid(tid, tpart):
+                        target_id, target_part = tid, tpart
         
-        # 救済措置（対象が既に倒れている、または見つからない場合）
-        if not target_id or target_id not in self.world.entities or self.world.entities[target_id]['defeated'].is_defeated:
-            target_id = self._get_fallback_target_id(comps['team'].team_type)
-            if target_id:
-                target_part = self._select_random_alive_part(target_id)
-
         return target_id, target_part
 
-    def _get_fallback_target_id(self, my_team):
-        target_team = TeamType.ENEMY if my_team == TeamType.PLAYER else TeamType.PLAYER
-        alive = [teid for teid, tcomps in self.world.get_entities_with_components('team', 'defeated') 
-                 if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated]
-        return random.choice(alive) if alive else None
+    def _is_target_valid(self, target_id, target_part):
+        if not target_id or target_id not in self.world.entities:
+            return False
+        t_comps = self.world.entities[target_id]
+        if t_comps['defeated'].is_defeated:
+            return False
+        p_id = t_comps['partlist'].parts.get(target_part)
+        if not p_id or self.world.entities[p_id]['health'].hp <= 0:
+            return False
+        return True
 
     def _select_random_alive_part(self, target_id):
-        """対象の生存パーツからランダムに1つ選ぶ"""
         if target_id not in self.world.entities:
             return None
-        
         t_comps = self.world.entities[target_id]
-        alive_parts = []
-        for p_type, p_id in t_comps['partlist'].parts.items():
-            if self.world.entities[p_id]['health'].hp > 0:
-                alive_parts.append(p_type)
-        
-        return random.choice(alive_parts) if alive_parts else PartType.HEAD
+        alive_parts = [pt for pt, pid in t_comps['partlist'].parts.items() 
+                       if self.world.entities[pid]['health'].hp > 0]
+        return random.choice(alive_parts) if alive_parts else None
+
+    def _reset_to_cooldown(self, gauge, context, eid):
+        """
+        アクションを中断してその地点からクールダウンへ移行。
+        実行ライン(100%)での中断なので、progressを0(実行ライン地点)にする。
+        """
+        gauge.status = GaugeStatus.COOLDOWN
+        gauge.progress = 0.0
+        gauge.selected_action = None
+        gauge.selected_part = None
+        if context.waiting_queue and context.waiting_queue[0] == eid:
+            context.waiting_queue.pop(0)
