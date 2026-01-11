@@ -44,7 +44,6 @@ class CustomizeManager:
         elif input_comp.key_z:
             self.state = self.STATE_SLOT_SELECT
         elif input_comp.key_x or input_comp.escape_pressed:
-            # タイトルへ戻る
             return "title"
         return None
 
@@ -58,13 +57,7 @@ class CustomizeManager:
         elif input_comp.key_left or input_comp.key_right:
             direction = 1 if input_comp.key_right else -1
             slot_name = self.slots[self.selected_slot_idx]
-            current_setup = self.save_data.get_machine_setup(self.selected_machine_idx)
-            
-            # ID取得
-            if slot_name == "medal":
-                current_id = current_setup["medal"]
-            else:
-                current_id = current_setup["parts"][slot_name]
+            current_id = self._get_current_part_id(slot_name)
             
             new_id = self.parts_manager.get_next_part_id(current_id, direction)
             self.save_data.update_part(self.selected_machine_idx, slot_name, new_id)
@@ -73,12 +66,7 @@ class CustomizeManager:
             # リスト選択へ
             slot_name = self.slots[self.selected_slot_idx]
             available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
-            current_setup = self.save_data.get_machine_setup(self.selected_machine_idx)
-            
-            if slot_name == "medal":
-                current_id = current_setup["medal"]
-            else:
-                current_id = current_setup["parts"][slot_name]
+            current_id = self._get_current_part_id(slot_name)
                 
             self.selected_part_list_idx = available_ids.index(current_id) if current_id in available_ids else 0
             self.state = self.STATE_PART_LIST_SELECT
@@ -96,7 +84,6 @@ class CustomizeManager:
         elif input_comp.key_down:
             self.selected_part_list_idx = (self.selected_part_list_idx + 1) % len(available_ids)
         elif input_comp.key_z:
-            # アイテム決定
             new_id = available_ids[self.selected_part_list_idx]
             self.save_data.update_part(self.selected_machine_idx, slot_name, new_id)
             self.state = self.STATE_SLOT_SELECT
@@ -104,20 +91,25 @@ class CustomizeManager:
             self.state = self.STATE_SLOT_SELECT
         return None
 
+    def _get_current_part_id(self, slot_name):
+        """現在の選択機体の指定スロットのパーツIDを取得"""
+        current_setup = self.save_data.get_machine_setup(self.selected_machine_idx)
+        if slot_name == "medal":
+            return current_setup["medal"]
+        else:
+            return current_setup["parts"][slot_name]
+
     def get_ui_data(self):
         """描画に必要な現在のデータを整理して返す"""
         setup = self.save_data.get_machine_setup(self.selected_machine_idx)
         slot_name = self.slots[self.selected_slot_idx]
         
-        if slot_name == "medal":
-            focused_id = setup["medal"]
-        else:
-            focused_id = setup["parts"][slot_name]
-        
-        # リスト選択中の場合はリストのものをフォーカス
+        # フォーカスされているID（リスト選択中はリストのID、それ以外は装備中のID）
         if self.state == self.STATE_PART_LIST_SELECT:
             available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
             focused_id = available_ids[self.selected_part_list_idx]
+        else:
+            focused_id = self._get_current_part_id(slot_name)
 
         # 詳細データ取得（メダルかパーツか）
         focused_data = self.parts_manager.get_part_data(focused_id)

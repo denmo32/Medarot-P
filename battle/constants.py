@@ -31,3 +31,11 @@ class BattlePhase:
     EXECUTING = "executing"
     LOG_WAIT = "log_wait"
     GAME_OVER = "game_over"
+
+# UI表示用の部位名称マップ
+PART_LABELS = {
+    PartType.HEAD: "頭部",
+    PartType.RIGHT_ARM: "右腕",
+    PartType.LEFT_ARM: "左腕",
+    PartType.LEGS: "脚部"
+}

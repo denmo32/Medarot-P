@@ -2,6 +2,7 @@
 
 import math
 from config import GAME_PARAMS
+from battle.constants import GaugeStatus, TeamType
 
 def calculate_action_times(attack_power: int) -> tuple:
     """攻撃力に基づいてチャージ時間とクールダウン時間を計算（対数スケール）"""
@@ -18,15 +19,15 @@ def calculate_current_x(base_x: int, status: str, progress: float, team_type: st
     center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
     offset = 40 # 実行地点のセンターからのオフセット
     
-    if team_type == "player":
+    if team_type == TeamType.PLAYER:
         # プレイヤー側：右（中央）に向かって進む
         # 待機位置: base_x, 実行位置: center_x - offset
         target_x = center_x - offset
-        if status == "charging":
+        if status == GaugeStatus.CHARGING:
             return base_x + (progress / 100.0) * (target_x - base_x)
-        if status == "executing":
+        if status == GaugeStatus.EXECUTING:
             return target_x
-        if status == "cooldown":
+        if status == GaugeStatus.COOLDOWN:
             return target_x - (progress / 100.0) * (target_x - base_x)
         return base_x
     else:
@@ -34,21 +35,18 @@ def calculate_current_x(base_x: int, status: str, progress: float, team_type: st
         # 待機位置: base_x + gauge_width, 実行位置: center_x + offset
         start_x = base_x + GAME_PARAMS['GAUGE_WIDTH']
         target_x = center_x + offset
-        if status == "charging":
+        if status == GaugeStatus.CHARGING:
             return start_x - (progress / 100.0) * (start_x - target_x)
-        if status == "executing":
+        if status == GaugeStatus.EXECUTING:
             return target_x
-        if status == "cooldown":
+        if status == GaugeStatus.COOLDOWN:
             return target_x + (progress / 100.0) * (start_x - target_x)
         return start_x
 
 def get_closest_target_by_gauge(world, my_team_type: str):
     """
     現在のゲージ位置に基づき、最も「中央（敵陣側）」に近い敵対エンティティのIDを返す。
-    格闘攻撃などで、目の前の敵を殴るロジックに使用。
     """
-    from battle.constants import TeamType
-    
     target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
     best_target = None
     
@@ -56,8 +54,6 @@ def get_closest_target_by_gauge(world, my_team_type: str):
     # エネミー視点：プレイヤーの中でX座標が最大（右側＝中央寄り）のものが一番近い
     extreme_x = float('inf') if my_team_type == TeamType.PLAYER else float('-inf')
     
-    # 必要なコンポーネントを持つエンティティを検索
-    # 注意: world.get_entities_with_components はタプル (eid, comps) を返すリストを生成
     candidates = world.get_entities_with_components('team', 'defeated', 'position', 'gauge')
     
     for teid, tcomps in candidates:
@@ -70,12 +66,10 @@ def get_closest_target_by_gauge(world, my_team_type: str):
             )
             
             if my_team_type == TeamType.PLAYER:
-                # 敵(右側)の中で、Xが小さいほど中央に近い
                 if cur_x < extreme_x:
                     extreme_x = cur_x
                     best_target = teid
             else:
-                # 味方(左側)の中で、Xが大きいほど中央に近い
                 if cur_x > extreme_x:
                     extreme_x = cur_x
                     best_target = teid
@@ -83,10 +77,7 @@ def get_closest_target_by_gauge(world, my_team_type: str):
     return best_target
 
 def calculate_action_menu_layout(button_count: int = 4):
-    """
-    アクションメニューのボタン配置を計算し、各ボタンの矩形情報を返す。
-    return: List of dict {'x': int, 'y': int, 'w': int, 'h': int}
-    """
+    """アクションメニューのボタン配置を計算し、各ボタンの矩形情報を返す"""
     wx, wy = 0, GAME_PARAMS['MESSAGE_WINDOW_Y']
     wh = GAME_PARAMS['MESSAGE_WINDOW_HEIGHT']
     pad = GAME_PARAMS['MESSAGE_WINDOW_PADDING']
@@ -101,3 +92,22 @@ def calculate_action_menu_layout(button_count: int = 4):
         layout.append({'x': bx, 'y': btn_y, 'w': btn_w, 'h': btn_h})
         
     return layout
+
+def reset_gauge_to_cooldown(gauge):
+    """ゲージをクールダウン開始状態（実行ライン地点）にリセットする"""
+    gauge.status = GaugeStatus.COOLDOWN
+    gauge.progress = 0.0
+    gauge.selected_action = None
+    gauge.selected_part = None
+
+def interrupt_gauge_return_home(gauge):
+    """
+    アクションを中断し、現在地点からホームへ戻るクールダウンを開始する。
+    チャージ進行度(0->100)を、同じ位置に対応するクールダウン進行度へ変換する。
+    """
+    current_p = gauge.progress
+    gauge.status = GaugeStatus.COOLDOWN
+    # チャージPとクールダウンQが同じ位置になる条件: Q = 100 - P
+    gauge.progress = max(0.0, 100.0 - current_p)
+    gauge.selected_action = None
+    gauge.selected_part = None
