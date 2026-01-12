@@ -66,8 +66,68 @@ class RandomPersonality(Personality):
                 
         return targets
 
+class WeightedHPPersonality(Personality):
+    """HPに基づいた重み付き選択を行う性格の基底クラス"""
+    def __init__(self, reverse_sort: bool):
+        self.reverse_sort = reverse_sort
+
+    def select_targets(self, world, entity_id: int) -> Dict[str, Optional[Tuple[int, str]]]:
+        targets = {}
+        valid_enemy_ids = self._get_valid_targets(world, entity_id)
+        
+        my_comps = world.entities.get(entity_id)
+        part_list = my_comps.get('partlist')
+        if not part_list: return {}
+
+        # 全敵機体の生存パーツをリストアップ
+        candidates = []
+        for eid in valid_enemy_ids:
+            t_comps = world.entities.get(eid)
+            for pt, pid in t_comps['partlist'].parts.items():
+                hp = world.entities[pid]['health'].hp
+                if hp > 0:
+                    candidates.append((eid, pt, hp))
+        
+        if not candidates:
+            return {pt: None for pt in ["head", "right_arm", "left_arm"]}
+
+        # HPでソート（reverse_sort=Trueなら降順、Falseなら昇順）
+        candidates.sort(key=lambda x: x[2], reverse=self.reverse_sort)
+
+        # 各パーツのターゲットを決定
+        for part_type in ["head", "right_arm", "left_arm"]:
+            targets[part_type] = None
+            p_id = part_list.parts.get(part_type)
+            if not p_id: continue
+            
+            p_comps = world.entities.get(p_id)
+            attack_comp = p_comps.get('attack') if p_comps else None
+            
+            # 事前ターゲット武器のみ決定
+            if attack_comp and attack_comp.trait in ["ライフル", "ガトリング"]:
+                # 上位3つを取得し、6:3:1の確率で選択
+                top_n = candidates[:3]
+                weights = [0.6, 0.3, 0.1][:len(top_n)]
+                
+                choice = random.choices(top_n, weights=weights, k=1)[0]
+                targets[part_type] = (choice[0], choice[1])
+        
+        return targets
+
+class ChallengerPersonality(WeightedHPPersonality):
+    """チャレンジャー：残りHPの最も高いパーツを優先"""
+    def __init__(self):
+        super().__init__(reverse_sort=True)
+
+class AssassinPersonality(WeightedHPPersonality):
+    """アサシン：残りHPの最も低いパーツを優先"""
+    def __init__(self):
+        super().__init__(reverse_sort=False)
+
 def get_personality(personality_id: str) -> Personality:
-    """IDに応じた性格インスタンスを返す（現在はrandomのみ）"""
-    if personality_id == "random":
-        return RandomPersonality()
+    """IDに応じた性格インスタンスを返す"""
+    if personality_id == "challenger":
+        return ChallengerPersonality()
+    if personality_id == "assassin":
+        return AssassinPersonality()
     return RandomPersonality()
