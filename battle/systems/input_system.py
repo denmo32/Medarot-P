@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.utils import calculate_action_times, calculate_action_menu_layout
-from battle.constants import BattlePhase, ActionType, PartType, GaugeStatus
+from battle.constants import BattlePhase, ActionType, GaugeStatus, MENU_PART_ORDER
 
 class InputSystem(System):
     """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
@@ -41,22 +41,25 @@ class InputSystem(System):
             flow.current_phase = BattlePhase.IDLE
             return
 
+        # メニュー項目数 = パーツ数 + スキップボタン(1)
+        menu_items_count = len(MENU_PART_ORDER) + 1
+
         # キー操作によるメニュー移動
-        self._process_menu_navigation(input_comp, context)
+        self._process_menu_navigation(input_comp, context, menu_items_count)
 
         # 決定キーまたはクリック時の処理
         if input_comp.key_z or input_comp.mouse_clicked:
             self._confirm_action(eid, context, flow)
 
-    def _process_menu_navigation(self, input_comp, context):
+    def _process_menu_navigation(self, input_comp, context, item_count):
         # キーボード
         if input_comp.key_left:
-            context.selected_menu_index = (context.selected_menu_index - 1) % 4
+            context.selected_menu_index = (context.selected_menu_index - 1) % item_count
         elif input_comp.key_right:
-            context.selected_menu_index = (context.selected_menu_index + 1) % 4
+            context.selected_menu_index = (context.selected_menu_index + 1) % item_count
 
         # マウスホバー
-        button_layout = calculate_action_menu_layout(4)
+        button_layout = calculate_action_menu_layout(item_count)
         for i, rect in enumerate(button_layout):
             if rect['x'] <= input_comp.mouse_x <= rect['x'] + rect['w'] and \
                rect['y'] <= input_comp.mouse_y <= rect['y'] + rect['h']:
@@ -69,14 +72,16 @@ class InputSystem(System):
 
         action, part = None, None
         idx = context.selected_menu_index
-        parts_keys = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]
         
-        if idx < 3:
-            p_type = parts_keys[idx]
+        # 選択インデックスに応じたアクション決定
+        if idx < len(MENU_PART_ORDER):
+            p_type = MENU_PART_ORDER[idx]
             p_id = part_list.parts.get(p_type)
+            # パーツが存在し、かつ破壊されていない場合のみ選択可能
             if p_id and self.world.entities[p_id]['health'].hp > 0:
                 action, part = ActionType.ATTACK, p_type
         else:
+            # 最後の項目はスキップ
             action = ActionType.SKIP
 
         if action:

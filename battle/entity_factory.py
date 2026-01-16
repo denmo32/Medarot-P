@@ -10,6 +10,7 @@ from components.battle_flow import BattleFlowComponent
 from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
+from battle.constants import TEAM_SETTINGS
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -103,19 +104,14 @@ class BattleEntityFactory:
         
         world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))
         
-        # チームごとのパラメータ設定
-        if team_type == "player":
-            gauge_speed = 0.3
-            color = (0, 100, 200)
-        else:
-            gauge_speed = 0.25
-            color = (200, 0, 0)
-
-        world.add_component(eid, GaugeComponent(1.0, gauge_speed, GaugeComponent.ACTION_CHOICE))
+        # チームごとのパラメータ設定（定数から取得）
+        settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS["enemy"])
+        
+        world.add_component(eid, GaugeComponent(1.0, settings['gauge_speed'], GaugeComponent.ACTION_CHOICE))
         
         # 1機目をリーダーに設定
         is_leader = (index == 0)
-        world.add_component(eid, TeamComponent(team_type, color, is_leader=is_leader))
+        world.add_component(eid, TeamComponent(team_type, settings['color'], is_leader=is_leader))
         
         world.add_component(eid, RenderComponent(30, 15, gw, gh))
         world.add_component(eid, DefeatedComponent())

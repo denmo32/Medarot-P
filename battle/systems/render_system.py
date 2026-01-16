@@ -4,7 +4,7 @@ from core.ecs import System
 from config import COLORS, GAME_PARAMS
 from battle.utils import calculate_current_x
 from components.battle_flow import BattleFlowComponent
-from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType, PART_LABELS
+from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType, PART_LABELS, MENU_PART_ORDER
 
 try:
     from data.parts_data_manager import get_parts_manager
@@ -19,7 +19,8 @@ class RenderSystem(System):
         super().__init__(world)
         self.renderer = renderer
         self.parts_manager = get_parts_manager() if PARTS_MANAGER_AVAILABLE else None
-        self.part_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
+        # HPバーの表示順序（脚部を含む）
+        self.hp_bar_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -87,7 +88,7 @@ class RenderSystem(System):
     def _build_hp_data(self, part_list_comp):
         """HPバー表示用のデータを構築"""
         hp_data = []
-        for p_key in self.part_order:
+        for p_key in self.hp_bar_order:
             p_id = part_list_comp.parts.get(p_key)
             if p_id:
                 h = self.world.entities[p_id]['health']
@@ -107,10 +108,9 @@ class RenderSystem(System):
         # 入力フェーズ：選択中のターゲット
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
-            if eid in self.world.entities and context.selected_menu_index < 3:
-                # ターゲットデータは (target_id, target_part)
-                # selected_menu_index: 0=Head, 1=Right, 2=Left
-                target_key = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM][context.selected_menu_index]
+            if eid in self.world.entities and context.selected_menu_index < len(MENU_PART_ORDER):
+                # 選択中のパーツに対応するターゲットを取得
+                target_key = MENU_PART_ORDER[context.selected_menu_index]
                 target_data = self.world.entities[eid]['gauge'].part_targets.get(target_key)
                 if target_data:
                     target_eid = target_data[0]
@@ -126,7 +126,6 @@ class RenderSystem(System):
 
     def _draw_ui(self, context, flow):
         """ログウィンドウ、アクションメニュー、ゲームオーバー画面の描画"""
-        # ログ待ちは「入力待ち」として表示フラグを立てる
         waiting_for_input = (flow.current_phase == BattlePhase.LOG_WAIT)
         self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], waiting_for_input)
         
@@ -142,8 +141,8 @@ class RenderSystem(System):
         comps = self.world.entities[eid]
         buttons = []
         
-        # 各パーツボタン
-        for key in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
+        # 定義された順序でパーツボタンを追加
+        for key in MENU_PART_ORDER:
             p_id = comps['partlist'].parts.get(key)
             p_comps = self.world.entities[p_id]
             buttons.append({'label': p_comps['name'].name, 'enabled': p_comps['health'].hp > 0})

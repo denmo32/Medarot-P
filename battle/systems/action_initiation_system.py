@@ -9,7 +9,7 @@ from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType
 class ActionInitiationSystem(System):
     """
     1. 行動開始の起案システム
-    チャージ完了したエンティティがあれば、ActionEventを生成してフェーズをEXECUTINGに移行する。
+    チャージ完了したエンティティに対し、ターゲットを確定し、ActionEventを生成する。
     """
     def update(self, dt: float):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -17,10 +17,8 @@ class ActionInitiationSystem(System):
         context = entities[0][1]['battlecontext']
         flow = entities[0][1]['battleflow']
 
-        if flow.current_phase != BattlePhase.IDLE:
-            return
-        
-        if not context.waiting_queue:
+        # IDLEフェーズかつ待機列がある場合のみ処理
+        if flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
 
         actor_eid = context.waiting_queue[0]
@@ -38,19 +36,12 @@ class ActionInitiationSystem(System):
     def _initiate_action(self, actor_eid, actor_comps, gauge, flow, context):
         flow.active_actor_id = actor_eid
 
-        # ターゲット確定
+        # ターゲットの最終決定
         target_id, target_part = self._resolve_target(actor_eid, actor_comps, gauge)
         
-        # 攻撃アクションでターゲット不在の場合は中断
+        # 攻撃アクションを選んだのにターゲットが見つからない場合（全滅やロスト）
         if gauge.selected_action == ActionType.ATTACK and not target_id:
-            actor_name = actor_comps['medal'].nickname
-            context.battle_log.append(f"{actor_name}はターゲットロストした！")
-            flow.current_phase = BattlePhase.LOG_WAIT
-            
-            # クールダウンへ移行（実行ラインからの帰還）
-            reset_gauge_to_cooldown(gauge)
-            if context.waiting_queue and context.waiting_queue[0] == actor_eid:
-                context.waiting_queue.pop(0)
+            self._handle_target_loss(actor_eid, actor_comps, gauge, flow, context)
             return
 
         # ActionEventエンティティ生成
@@ -63,7 +54,7 @@ class ActionInitiationSystem(System):
             target_part=target_part
         ))
         
-        # フェーズ移行
+        # フェーズ移行: IDLE -> EXECUTING
         flow.current_phase = BattlePhase.EXECUTING
         flow.processing_event_id = event_eid
         
@@ -71,52 +62,73 @@ class ActionInitiationSystem(System):
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)
 
+    def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
+        """ターゲットが見つからなかった場合の中断処理"""
+        actor_name = actor_comps['medal'].nickname
+        context.battle_log.append(f"{actor_name}はターゲットロストした！")
+        flow.current_phase = BattlePhase.LOG_WAIT
+        
+        # クールダウンへ移行（実行ラインからの帰還扱い）
+        reset_gauge_to_cooldown(gauge)
+        
+        if context.waiting_queue and context.waiting_queue[0] == actor_eid:
+            context.waiting_queue.pop(0)
+
     def _resolve_target(self, actor_eid, actor_comps, gauge):
-        """アクションタイプに応じてターゲットを決定する"""
-        target_id = None
-        target_part = None
-        
-        if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
-            if part_id and part_id in self.world.entities:
-                attack_comp = self.world.entities[part_id].get('attack')
-                target_id, target_part = self._determine_target(actor_eid, actor_comps, gauge, attack_comp)
-        
-        return target_id, target_part
+        """アクションタイプと武器特性に応じてターゲットを決定する"""
+        if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
+            return None, None
 
-    def _determine_target(self, eid, comps, gauge, attack_comp):
-        target_id = None
-        target_part = None
+        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
+        if not part_id or part_id not in self.world.entities:
+            return None, None
 
-        # 近接攻撃特性の判定（一番近い敵を狙う）
-        if attack_comp and attack_comp.trait in [TraitType.SWORD, TraitType.HAMMER, TraitType.THUNDER]:
-            target_id = get_closest_target_by_gauge(self.world, comps['team'].team_type)
-            if target_id:
-                target_part = self._select_random_alive_part(target_id)
+        attack_comp = self.world.entities[part_id].get('attack')
+        if not attack_comp:
+            return None, None
+
+        # 武器特性によるターゲット分岐
+        if attack_comp.trait in TraitType.MELEE_TRAITS:
+            return self._resolve_melee_target(actor_comps)
         else:
-            # 事前ターゲット（射撃系）
-            if gauge.selected_part:
-                target_data = gauge.part_targets.get(gauge.selected_part)
-                if target_data:
-                    tid, tpart = target_data
-                    if self._is_target_valid(tid, tpart):
-                        target_id, target_part = tid, tpart
-        
+            return self._resolve_shooting_target(gauge)
+
+    def _resolve_melee_target(self, actor_comps):
+        """格闘攻撃：その時点で最も中央に近い敵を狙う"""
+        target_id = get_closest_target_by_gauge(self.world, actor_comps['team'].team_type)
+        target_part = self._select_random_alive_part(target_id)
         return target_id, target_part
+
+    def _resolve_shooting_target(self, gauge):
+        """射撃攻撃：チャージ開始時に予約していたターゲットを狙う"""
+        if not gauge.selected_part:
+            return None, None
+            
+        target_data = gauge.part_targets.get(gauge.selected_part)
+        if target_data:
+            tid, tpart = target_data
+            # ターゲットがまだ有効か確認
+            if self._is_target_valid(tid, tpart):
+                return tid, tpart
+        return None, None
 
     def _is_target_valid(self, target_id, target_part):
+        """ターゲット機体および部位が生存しているか"""
         if not target_id or target_id not in self.world.entities:
             return False
+        
         t_comps = self.world.entities[target_id]
         if t_comps['defeated'].is_defeated:
             return False
+            
         p_id = t_comps['partlist'].parts.get(target_part)
         if not p_id or self.world.entities[p_id]['health'].hp <= 0:
             return False
+            
         return True
 
     def _select_random_alive_part(self, target_id):
-        if target_id not in self.world.entities:
+        if not target_id or target_id not in self.world.entities:
             return None
         t_comps = self.world.entities[target_id]
         alive_parts = [pt for pt, pid in t_comps['partlist'].parts.items() 

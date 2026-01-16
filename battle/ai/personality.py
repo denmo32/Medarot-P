@@ -3,6 +3,7 @@
 import random
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List, Tuple
+from battle.constants import TraitType
 
 class Personality(ABC):
     """性格の基底クラス"""
@@ -25,6 +26,18 @@ class Personality(ABC):
                 valid_targets.append(eid)
         return valid_targets
 
+    def _get_random_alive_part(self, world, target_eid: int) -> Optional[str]:
+        """指定したターゲット機体の、生存しているパーツからランダムに1つ返す"""
+        t_comps = world.entities.get(target_eid)
+        if not t_comps: return None
+        
+        alive_parts = []
+        for pt, pid in t_comps['partlist'].parts.items():
+            if world.entities[pid]['health'].hp > 0:
+                alive_parts.append(pt)
+        
+        return random.choice(alive_parts) if alive_parts else None
+
 class RandomPersonality(Personality):
     """ランダム：各パーツが独立してランダムにターゲット（機体と部位）を選ぶ性格"""
     def select_targets(self, world, entity_id: int) -> Dict[str, Optional[Tuple[int, str]]]:
@@ -33,36 +46,28 @@ class RandomPersonality(Personality):
         
         my_comps = world.entities.get(entity_id)
         part_list = my_comps.get('partlist')
-        if not part_list: return {}
+        if not part_list or not valid_targets: return {}
 
         for part_type in ["head", "right_arm", "left_arm"]:
             targets[part_type] = None
             
             p_id = part_list.parts.get(part_type)
-            if not p_id or not valid_targets:
-                continue
+            if not p_id: continue
             
-            # パーツの特性（trait）を確認
             p_comps = world.entities.get(p_id)
             attack_comp = p_comps.get('attack') if p_comps else None
             
-            if attack_comp:
-                # 事前ターゲット武器（ライフル・ガトリング）の場合のみ、事前に選定
-                if attack_comp.trait in ["ライフル", "ガトリング"]:
-                    target_eid = random.choice(valid_targets)
-                    
-                    # ターゲット機体の生存部位からランダムに選択
-                    t_comps = world.entities.get(target_eid)
-                    alive_parts = []
-                    if t_comps:
-                        for pt, pid in t_comps['partlist'].parts.items():
-                            if world.entities[pid]['health'].hp > 0:
-                                alive_parts.append(pt)
-                    
-                    if alive_parts:
-                        targets[part_type] = (target_eid, random.choice(alive_parts))
+            if not attack_comp: continue
+
+            # 射撃系（ライフル・ガトリング）の場合のみ、事前にターゲットを固定する
+            if attack_comp.trait in TraitType.SHOOTING_TRAITS:
+                target_eid = random.choice(valid_targets)
+                target_part = self._get_random_alive_part(world, target_eid)
                 
-                # 直前ターゲット武器（ソード・ハンマー）の場合は None のまま（実行時に決定）
+                if target_part:
+                    targets[part_type] = (target_eid, target_part)
+            
+            # 格闘系（ソード・ハンマー）は、実行時に「一番近い敵」を狙うためここではNone
                 
         return targets
 
@@ -79,7 +84,7 @@ class WeightedHPPersonality(Personality):
         part_list = my_comps.get('partlist')
         if not part_list: return {}
 
-        # 全敵機体の生存パーツをリストアップ
+        # 全敵機体の生存パーツをリストアップ: (機体ID, 部位名, HP)
         candidates = []
         for eid in valid_enemy_ids:
             t_comps = world.entities.get(eid)
@@ -91,10 +96,9 @@ class WeightedHPPersonality(Personality):
         if not candidates:
             return {pt: None for pt in ["head", "right_arm", "left_arm"]}
 
-        # HPでソート（reverse_sort=Trueなら降順、Falseなら昇順）
+        # HPでソート（reverse_sort=TrueならHP高い順、Falseなら低い順）
         candidates.sort(key=lambda x: x[2], reverse=self.reverse_sort)
 
-        # 各パーツのターゲットを決定
         for part_type in ["head", "right_arm", "left_arm"]:
             targets[part_type] = None
             p_id = part_list.parts.get(part_type)
@@ -103,9 +107,8 @@ class WeightedHPPersonality(Personality):
             p_comps = world.entities.get(p_id)
             attack_comp = p_comps.get('attack') if p_comps else None
             
-            # 事前ターゲット武器のみ決定
-            if attack_comp and attack_comp.trait in ["ライフル", "ガトリング"]:
-                # 上位3つを取得し、6:3:1の確率で選択
+            if attack_comp and attack_comp.trait in TraitType.SHOOTING_TRAITS:
+                # 上位3つを取得し、重み付け抽選 (60%, 30%, 10%)
                 top_n = candidates[:3]
                 weights = [0.6, 0.3, 0.1][:len(top_n)]
                 
