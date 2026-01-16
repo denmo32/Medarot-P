@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase, ActionType
-from battle.utils import interrupt_gauge_return_home
+from battle.utils import interrupt_gauge_return_home, is_target_valid
 
 class GaugeSystem(System):
     """ATBゲージの進行管理、およびチャージ中のアクション有効性監視を担当"""
@@ -40,10 +40,10 @@ class GaugeSystem(System):
         """チャージ中の継続条件をチェックし、満たさない場合は中断させる"""
         actor_name = comps['medal'].nickname
         
-        # 1. 自身の予約パーツが破壊されたか
+        # 1. 自身の予約パーツが破壊されたか (自分自身、対象パーツ=selected_part)
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            p_id = comps['partlist'].parts.get(gauge.selected_part)
-            if not p_id or self.world.entities[p_id]['health'].hp <= 0:
+            # 自分自身(eid)の、selected_partが有効かチェック
+            if not is_target_valid(self.world, eid, gauge.selected_part):
                 self._interrupt(eid, gauge, context, flow, f"{actor_name}の予約パーツは破壊された！")
                 return
 
@@ -51,16 +51,9 @@ class GaugeSystem(System):
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             target_id, target_part_type = target_data
-            lost = False
             
-            if target_id not in self.world.entities or self.world.entities[target_id]['defeated'].is_defeated:
-                lost = True
-            else:
-                t_part_id = self.world.entities[target_id]['partlist'].parts.get(target_part_type)
-                if not t_part_id or self.world.entities[t_part_id]['health'].hp <= 0:
-                    lost = True
-            
-            if lost:
+            # ターゲットの有効性チェック (共通関数を利用)
+            if not is_target_valid(self.world, target_id, target_part_type):
                 self._interrupt(eid, gauge, context, flow, f"{actor_name}はターゲットロストした！")
                 return
 

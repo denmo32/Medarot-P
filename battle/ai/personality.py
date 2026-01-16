@@ -3,7 +3,7 @@
 import random
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List, Tuple
-from battle.constants import TraitType
+from battle.constants import TraitType, TeamType, PartType
 
 class Personality(ABC):
     """性格の基底クラス"""
@@ -14,11 +14,11 @@ class Personality(ABC):
 
     def _get_valid_targets(self, world, my_entity_id: int) -> List[int]:
         """攻撃可能な敵対エンティティIDのリストを取得"""
-        my_comps = world.entities.get(my_entity_id)
+        my_comps = world.try_get_entity(my_entity_id)
         if not my_comps: return []
         
         my_team = my_comps.get('team').team_type
-        target_team_type = "enemy" if my_team == "player" else "player"
+        target_team_type = TeamType.ENEMY if my_team == TeamType.PLAYER else TeamType.PLAYER
         
         valid_targets = []
         for eid, comps in world.get_entities_with_components('team', 'defeated'):
@@ -28,7 +28,7 @@ class Personality(ABC):
 
     def _get_random_alive_part(self, world, target_eid: int) -> Optional[str]:
         """指定したターゲット機体の、生存しているパーツからランダムに1つ返す"""
-        t_comps = world.entities.get(target_eid)
+        t_comps = world.try_get_entity(target_eid)
         if not t_comps: return None
         
         alive_parts = []
@@ -44,17 +44,17 @@ class RandomPersonality(Personality):
         targets = {}
         valid_targets = self._get_valid_targets(world, entity_id)
         
-        my_comps = world.entities.get(entity_id)
+        my_comps = world.try_get_entity(entity_id)
         part_list = my_comps.get('partlist')
         if not part_list or not valid_targets: return {}
 
-        for part_type in ["head", "right_arm", "left_arm"]:
+        for part_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
             targets[part_type] = None
             
             p_id = part_list.parts.get(part_type)
             if not p_id: continue
             
-            p_comps = world.entities.get(p_id)
+            p_comps = world.try_get_entity(p_id)
             attack_comp = p_comps.get('attack') if p_comps else None
             
             if not attack_comp: continue
@@ -80,31 +80,31 @@ class WeightedHPPersonality(Personality):
         targets = {}
         valid_enemy_ids = self._get_valid_targets(world, entity_id)
         
-        my_comps = world.entities.get(entity_id)
+        my_comps = world.try_get_entity(entity_id)
         part_list = my_comps.get('partlist')
         if not part_list: return {}
 
         # 全敵機体の生存パーツをリストアップ: (機体ID, 部位名, HP)
         candidates = []
         for eid in valid_enemy_ids:
-            t_comps = world.entities.get(eid)
+            t_comps = world.try_get_entity(eid)
             for pt, pid in t_comps['partlist'].parts.items():
                 hp = world.entities[pid]['health'].hp
                 if hp > 0:
                     candidates.append((eid, pt, hp))
         
         if not candidates:
-            return {pt: None for pt in ["head", "right_arm", "left_arm"]}
+            return {pt: None for pt in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]}
 
         # HPでソート（reverse_sort=TrueならHP高い順、Falseなら低い順）
         candidates.sort(key=lambda x: x[2], reverse=self.reverse_sort)
 
-        for part_type in ["head", "right_arm", "left_arm"]:
+        for part_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
             targets[part_type] = None
             p_id = part_list.parts.get(part_type)
             if not p_id: continue
             
-            p_comps = world.entities.get(p_id)
+            p_comps = world.try_get_entity(p_id)
             attack_comp = p_comps.get('attack') if p_comps else None
             
             if attack_comp and attack_comp.trait in TraitType.SHOOTING_TRAITS:

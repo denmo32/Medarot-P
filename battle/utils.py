@@ -1,6 +1,7 @@
 """バトル関連のユーティリティ関数"""
 
 import math
+from typing import Optional
 from config import GAME_PARAMS
 from battle.constants import GaugeStatus, TeamType
 
@@ -111,3 +112,44 @@ def interrupt_gauge_return_home(gauge):
     gauge.progress = max(0.0, 100.0 - current_p)
     gauge.selected_action = None
     gauge.selected_part = None
+
+def is_target_valid(world, target_id: Optional[int], target_part: Optional[str] = None) -> bool:
+    """
+    ターゲット機体および部位が生存しているか検証する共通関数
+    
+    Args:
+        world: ECS World
+        target_id: 対象エンティティID
+        target_part: (Option) 対象パーツ名 (e.g., PartType.HEAD)
+        
+    Returns:
+        bool: ターゲットが有効（生存）ならTrue
+    """
+    if target_id is None:
+        return False
+        
+    t_comps = world.try_get_entity(target_id)
+    if not t_comps:
+        return False
+    
+    # 機体が敗北していないか
+    if 'defeated' in t_comps and t_comps['defeated'].is_defeated:
+        return False
+        
+    # 部位指定がある場合、その部位が破壊されていないか
+    if target_part:
+        if 'partlist' not in t_comps:
+            return False
+            
+        p_id = t_comps['partlist'].parts.get(target_part)
+        if not p_id:
+            return False
+            
+        p_comps = world.try_get_entity(p_id)
+        if not p_comps or 'health' not in p_comps:
+            return False
+            
+        if p_comps['health'].hp <= 0:
+            return False
+            
+    return True

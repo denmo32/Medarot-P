@@ -52,6 +52,7 @@ class RenderSystem(System):
         """全キャラクターの描画を行い、現在の表示座標リストを返す"""
         char_positions = {}
         
+        # 描画対象エンティティの取得
         for eid, comps in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'defeated', 'medal'):
             pos, gauge, team, medal = comps['position'], comps['gauge'], comps['team'], comps['medal']
             
@@ -90,15 +91,17 @@ class RenderSystem(System):
         hp_data = []
         for p_key in self.hp_bar_order:
             p_id = part_list_comp.parts.get(p_key)
-            if p_id:
-                h = self.world.entities[p_id]['health']
-                # 真値 (h.hp) ではなく、アニメーション中の表示値 (h.display_hp) を使用
-                hp_data.append({
-                    'label': PART_LABELS.get(p_key, ""),
-                    'current': int(h.display_hp),
-                    'max': h.max_hp,
-                    'ratio': h.display_hp / h.max_hp if h.max_hp > 0 else 0
-                })
+            if p_id is not None:
+                p_comps = self.world.try_get_entity(p_id)
+                if p_comps and 'health' in p_comps:
+                    h = p_comps['health']
+                    # 真値 (h.hp) ではなく、アニメーション中の表示値 (h.display_hp) を使用
+                    hp_data.append({
+                        'label': PART_LABELS.get(p_key, ""),
+                        'current': int(h.display_hp),
+                        'max': h.max_hp,
+                        'ratio': h.display_hp / h.max_hp if h.max_hp > 0 else 0
+                    })
         return hp_data
 
     def _draw_target_marker(self, context, flow, char_positions):
@@ -108,20 +111,23 @@ class RenderSystem(System):
         # 入力フェーズ：選択中のターゲット
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
-            if eid in self.world.entities and context.selected_menu_index < len(MENU_PART_ORDER):
-                # 選択中のパーツに対応するターゲットを取得
-                target_key = MENU_PART_ORDER[context.selected_menu_index]
-                target_data = self.world.entities[eid]['gauge'].part_targets.get(target_key)
-                if target_data:
-                    target_eid = target_data[0]
+            if eid is not None:
+                actor_comps = self.world.try_get_entity(eid)
+                if actor_comps and context.selected_menu_index < len(MENU_PART_ORDER):
+                    # 選択中のパーツに対応するターゲットを取得
+                    target_key = MENU_PART_ORDER[context.selected_menu_index]
+                    target_data = actor_comps['gauge'].part_targets.get(target_key)
+                    if target_data:
+                        target_eid = target_data[0]
         
         # 実行フェーズ：イベントのターゲット
-        elif flow.processing_event_id and flow.processing_event_id in self.world.entities:
-            event = self.world.entities[flow.processing_event_id].get('actionevent')
-            if event:
+        elif flow.processing_event_id is not None:
+            event_comps = self.world.try_get_entity(flow.processing_event_id)
+            if event_comps and 'actionevent' in event_comps:
+                event = event_comps['actionevent']
                 target_eid = event.current_target_id
         
-        if target_eid:
+        if target_eid is not None:
             self.renderer.draw_target_marker(target_eid, char_positions)
 
     def _draw_ui(self, context, flow):
@@ -138,14 +144,23 @@ class RenderSystem(System):
     def _process_action_menu(self, context):
         """アクションメニューの内容を構築して描画"""
         eid = context.current_turn_entity_id
-        comps = self.world.entities[eid]
+        if eid is None: return
+        
+        comps = self.world.try_get_entity(eid)
+        if not comps: return
+
         buttons = []
         
         # 定義された順序でパーツボタンを追加
         for key in MENU_PART_ORDER:
             p_id = comps['partlist'].parts.get(key)
-            p_comps = self.world.entities[p_id]
-            buttons.append({'label': p_comps['name'].name, 'enabled': p_comps['health'].hp > 0})
+            if p_id is not None:
+                p_comps = self.world.try_get_entity(p_id)
+                if p_comps:
+                    buttons.append({
+                        'label': p_comps['name'].name, 
+                        'enabled': p_comps['health'].hp > 0
+                    })
         
         # スキップボタン
         buttons.append({'label': "スキップ", 'enabled': True})

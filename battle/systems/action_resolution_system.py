@@ -28,12 +28,15 @@ class ActionResolutionSystem(System):
             return
         
         event_eid = flow.processing_event_id
-        if not event_eid or event_eid not in self.world.entities:
+        # 安全な取得
+        event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
+        
+        if not event_comps or 'actionevent' not in event_comps:
             flow.current_phase = BattlePhase.IDLE
             flow.processing_event_id = None
             return
 
-        event = self.world.entities[event_eid]['actionevent']
+        event = event_comps['actionevent']
         
         # アクションの実行
         self._resolve_action(event, context, flow)
@@ -44,7 +47,7 @@ class ActionResolutionSystem(System):
 
     def _resolve_action(self, event, context, flow):
         attacker_id = event.attacker_id
-        attacker_comps = self.world.entities.get(attacker_id)
+        attacker_comps = self.world.try_get_entity(attacker_id)
         
         if not attacker_comps: return
 
@@ -54,7 +57,8 @@ class ActionResolutionSystem(System):
             context.battle_log.append(f"{attacker_comps['medal'].nickname}は行動をスキップ！")
 
         # どのアクションであれ、終了後はクールダウンへ
-        reset_gauge_to_cooldown(attacker_comps['gauge'])
+        if 'gauge' in attacker_comps:
+            reset_gauge_to_cooldown(attacker_comps['gauge'])
         flow.current_phase = BattlePhase.LOG_WAIT
 
     def _handle_attack_action(self, event, attacker_comps, context):
@@ -62,15 +66,17 @@ class ActionResolutionSystem(System):
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         
         # 1. 自身の攻撃パーツ生存チェック
-        if not part_id or self.world.entities[part_id]['health'].hp <= 0:
+        part_comps = self.world.try_get_entity(part_id) if part_id is not None else None
+        if not part_comps or part_comps['health'].hp <= 0:
             context.battle_log.append(f"{attacker_name}の攻撃！ しかしパーツが破損している！")
             return
 
-        attack_comp = self.world.entities[part_id].get('attack')
+        attack_comp = part_comps.get('attack')
         target_id = event.current_target_id
+        target_comps = self.world.try_get_entity(target_id) if target_id is not None else None
         
         # 2. ターゲット存在チェック
-        if not target_id or target_id not in self.world.entities or self.world.entities[target_id]['defeated'].is_defeated:
+        if not target_comps or target_comps['defeated'].is_defeated:
             context.battle_log.append(f"{attacker_name}はターゲットロストした！")
             return
 
@@ -78,12 +84,10 @@ class ActionResolutionSystem(System):
         context.battle_log.append(f"{attacker_name}の攻撃！ {attack_comp.trait}！")
         
         # 3. 計算実行
-        # 修正: attacker_id 変数ではなく event.attacker_id を使用
-        self._execute_combat_calculations(event.attacker_id, target_id, event, attack_comp, context)
+        self._execute_combat_calculations(event.attacker_id, target_id, target_comps, event, attack_comp, context)
 
-    def _execute_combat_calculations(self, attacker_id, target_id, event, attack_comp, context):
+    def _execute_combat_calculations(self, attacker_id, target_id, target_comps, event, attack_comp, context):
         """戦闘計算のメインロジック"""
-        target_comps = self.world.entities[target_id]
         
         # A. ステータス取得
         success = attack_comp.success
@@ -119,8 +123,10 @@ class ActionResolutionSystem(System):
     def _get_target_legs_stats(self, target_comps):
         """ターゲットの脚部性能（機動・防御）を取得"""
         legs_id = target_comps['partlist'].parts.get(PartType.LEGS)
-        if legs_id and legs_id in self.world.entities:
-            mob_comp = self.world.entities[legs_id].get('mobility')
+        legs_comps = self.world.try_get_entity(legs_id) if legs_id is not None else None
+        
+        if legs_comps:
+            mob_comp = legs_comps.get('mobility')
             if mob_comp:
                 return mob_comp.mobility, mob_comp.defense
         return 0, 0
@@ -131,19 +137,24 @@ class ActionResolutionSystem(System):
         防御成功時: 「かばう」が発動し、頭部以外の最もHPが高いパーツに当たる。
         防御失敗時: 狙った部位に当たる（部位破壊済みの場合はランダム）。
         """
-        # 生存パーツのリスト
-        alive_parts_map = {
-            pt: pid for pt, pid in target_comps['partlist'].parts.items() 
-            if self.world.entities[pid]['health'].hp > 0
-        }
+        # 生存パーツのリストとマップ
+        alive_parts_map = {}
+        for pt, pid in target_comps['partlist'].parts.items():
+             p_comps = self.world.try_get_entity(pid)
+             if p_comps and p_comps['health'].hp > 0:
+                 alive_parts_map[pt] = pid
+                 
         alive_keys = list(alive_parts_map.keys())
 
         if is_defense:
             # 防御成功時は「頭部以外」かつ「HP最大」のパーツがかばう
             non_head = [p for p in alive_keys if p != PartType.HEAD]
             if non_head:
-                # HP降順でソート
-                non_head.sort(key=lambda p: self.world.entities[alive_parts_map[p]]['health'].hp, reverse=True)
+                # HP降順でソート (ECSアクセスしてHP比較)
+                non_head.sort(
+                    key=lambda p: self.world.entities[alive_parts_map[p]]['health'].hp, 
+                    reverse=True
+                )
                 return non_head[0]
             # 頭しか残ってなければ頭に当たる
             return PartType.HEAD

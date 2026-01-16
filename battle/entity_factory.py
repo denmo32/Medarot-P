@@ -10,7 +10,7 @@ from components.battle_flow import BattleFlowComponent
 from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
-from battle.constants import TEAM_SETTINGS
+from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -26,7 +26,7 @@ class BattleEntityFactory:
         if attack is not None:
             world.add_component(eid, AttackComponent(attack, trait, success))
         
-        if part_type == "legs":
+        if part_type == PartType.LEGS:
             world.add_component(eid, MobilityComponent(mobility, defense))
             
         return eid
@@ -37,6 +37,9 @@ class BattleEntityFactory:
         parts = {}
         for p_type, p_id in setup["parts"].items():
             data = pm.get_part_data(p_id)
+            # dataから取得する値はJSON由来なのでキーは文字列だが、
+            # Componentに渡すpart_type等は定数として扱える場合は本来そうすべき。
+            # ここではsetup["parts"]のキーが"head"等であることを前提としている。
             parts[p_type] = BattleEntityFactory.create_part(
                 world, 
                 p_type, 
@@ -72,7 +75,7 @@ class BattleEntityFactory:
         for i in range(player_count):
             setup = save_mgr.get_machine_setup(i)
             BattleEntityFactory._create_team_unit(
-                world, i, setup, "player", px, yoff, spacing, gw, gh, pm
+                world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, pm
             )
 
         # エネミーチーム生成
@@ -80,11 +83,11 @@ class BattleEntityFactory:
             # 適当な構成を生成
             medal_id = pm.get_part_ids_for_type("medal")[(i + 3) % 10]
             setup = {
-                "parts": {t: pm.get_part_ids_for_type(t)[2 - (i % 3)] for t in ["head", "right_arm", "left_arm", "legs"]},
+                "parts": {t: pm.get_part_ids_for_type(t)[2 - (i % 3)] for t in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]},
                 "medal": medal_id
             }
             BattleEntityFactory._create_team_unit(
-                world, i, setup, "enemy", ex, yoff, spacing, gw, gh, pm
+                world, i, setup, TeamType.ENEMY, ex, yoff, spacing, gw, gh, pm
             )
 
     @staticmethod
@@ -105,9 +108,10 @@ class BattleEntityFactory:
         world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))
         
         # チームごとのパラメータ設定（定数から取得）
-        settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS["enemy"])
+        # settingsのキーはTeamType定数を使用
+        settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS[TeamType.ENEMY])
         
-        world.add_component(eid, GaugeComponent(1.0, settings['gauge_speed'], GaugeComponent.ACTION_CHOICE))
+        world.add_component(eid, GaugeComponent(1.0, settings['gauge_speed'], GaugeStatus.ACTION_CHOICE))
         
         # 1機目をリーダーに設定
         is_leader = (index == 0)

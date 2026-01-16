@@ -2,11 +2,17 @@
 
 import random
 
+# 計算用定数（ゲームバランス調整用）
+MOBILITY_WEIGHT = 0.5       # 回避率計算時の機動性の重み
+DEFENSE_WEIGHT = 0.5        # 突破率計算時の防御力の重み
+CRITICAL_THRESHOLD = 1.5    # クリティカル発生閾値（命中率+突破率）
+DAMAGE_PENALTY_DIVISOR = 2  # ダメージボーナス計算時の除数
+
 def calculate_hit_probability(success: int, mobility: int) -> float:
     """
     命中率を計算する（攻撃が回避を上回る確率）
     
-    式: 命中率 = 成功度 / (成功度 + 回避度 * 0.5)
+    式: 命中率 = 成功度 / (成功度 + 回避度 * MOBILITY_WEIGHT)
     
     Args:
         success (int): 攻撃パーツの成功度
@@ -15,8 +21,7 @@ def calculate_hit_probability(success: int, mobility: int) -> float:
     Returns:
         float: 0.0 〜 1.0 の確率
     """
-    mobility_weight = 0.5
-    denominator = success + (mobility * mobility_weight)
+    denominator = success + (mobility * MOBILITY_WEIGHT)
     if denominator <= 0:
         return 1.0
     return success / denominator
@@ -26,7 +31,7 @@ def calculate_break_probability(success: int, defense: int) -> float:
     防御突破率を計算する（攻撃が防御を上回る確率）
     防御判定に失敗した場合、防御行動（ダメージ軽減・かばう）が発生しない。
     
-    式: 突破率 = 成功度 / (成功度 + 防御度 * 0.5)
+    式: 突破率 = 成功度 / (成功度 + 防御度 * DEFENSE_WEIGHT)
 
     Args:
         success (int): 攻撃パーツの成功度
@@ -35,8 +40,7 @@ def calculate_break_probability(success: int, defense: int) -> float:
     Returns:
         float: 0.0 〜 1.0 の確率
     """
-    defense_weight = 0.5
-    denominator = success + (defense * defense_weight)
+    denominator = success + (defense * DEFENSE_WEIGHT)
     if denominator <= 0:
         return 1.0
     return success / denominator
@@ -59,11 +63,10 @@ def check_attack_outcome(hit_prob: float, break_prob: float) -> tuple[bool, bool
     is_defense = not is_break_success
     
     # クリティカル判定
-    # 条件: 防御されておらず、かつ命中率と突破率の合計が高い場合（簡易式）
-    # ※ 1.5という閾値はゲームバランス依存の定数
+    # 条件: 防御されておらず、かつ命中率と突破率の合計が高い場合
     is_critical = False
     if not is_defense:
-        if (hit_prob + break_prob) > 1.5:
+        if (hit_prob + break_prob) > CRITICAL_THRESHOLD:
             is_critical = True
             
     return is_critical, is_defense
@@ -104,7 +107,7 @@ def calculate_damage(base_attack: int, success: int, mobility: int, defense: flo
         penalty_defense = defense
     
     # 成功度から相手のステータス分を差し引いたものが追加ダメージの源泉
-    performance_diff = success - (penalty_mobility / 2) - (penalty_defense / 2)
+    performance_diff = success - (penalty_mobility / DAMAGE_PENALTY_DIVISOR) - (penalty_defense / DAMAGE_PENALTY_DIVISOR)
     bonus_damage = max(0, performance_diff) / 2
     
     final_damage = int(base_attack + bonus_damage)
