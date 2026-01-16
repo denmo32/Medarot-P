@@ -1,7 +1,7 @@
 """ダメージ処理システム"""
 
 from core.ecs import System
-from battle.constants import PartType, BattlePhase
+from battle.constants import PartType, BattlePhase, PART_LABELS
 
 class DamageSystem(System):
     """DamageEventComponentを監視し、実際のHP減算、状態異常適用、敗北判定を行う"""
@@ -22,16 +22,11 @@ class DamageSystem(System):
                 health.hp = max(0, health.hp - event.damage)
                 
                 # ログ用部位名
-                names = {
-                    PartType.HEAD: "頭部", 
-                    PartType.RIGHT_ARM: "右腕", 
-                    PartType.LEFT_ARM: "左腕", 
-                    PartType.LEGS: "脚部"
-                }
+                part_name = PART_LABELS.get(event.target_part, '不明な部位')
                 target_name = self.world.entities[target_id]['medal'].nickname
                 
                 crit_text = " (クリティカル!)" if event.is_critical else ""
-                msg = f"{target_name}の{names.get(event.target_part, '不明な部位')}に{event.damage}のダメージ！{crit_text}"
+                msg = f"{target_name}の{part_name}に{event.damage}のダメージ！{crit_text}"
                 
                 # 詳細ログは一時保存
                 context.pending_logs.append(msg)

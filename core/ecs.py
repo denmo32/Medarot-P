@@ -50,6 +50,10 @@ class World:
             return self.entities[entity_id][component_name]
         return None
 
+    def try_get_entity(self, entity_id: int) -> Optional[Dict[str, Component]]:
+        """IDからエンティティのコンポーネント辞書を安全に取得する"""
+        return self.entities.get(entity_id)
+
     def delete_entity(self, entity_id: int) -> None:
         """エンティティを削除"""
         if entity_id in self.entities:

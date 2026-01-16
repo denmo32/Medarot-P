@@ -50,6 +50,7 @@ class HealthComponent(Component):
     def __init__(self, hp: int, max_hp: int):
         self.hp = hp
         self.max_hp = max_hp
+        self.display_hp = float(hp) # 表示上のアニメーション用HP
 
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""

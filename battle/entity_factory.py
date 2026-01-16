@@ -10,6 +10,7 @@ from components.battle_flow import BattleFlowComponent
 from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
+from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -25,7 +26,7 @@ class BattleEntityFactory:
         if attack is not None:
             world.add_component(eid, AttackComponent(attack, trait, success))
         
-        if part_type == "legs":
+        if part_type == PartType.LEGS:
             world.add_component(eid, MobilityComponent(mobility, defense))
             
         return eid
@@ -36,6 +37,9 @@ class BattleEntityFactory:
         parts = {}
         for p_type, p_id in setup["parts"].items():
             data = pm.get_part_data(p_id)
+            # dataから取得する値はJSON由来なのでキーは文字列だが、
+            # Componentに渡すpart_type等は定数として扱える場合は本来そうすべき。
+            # ここではsetup["parts"]のキーが"head"等であることを前提としている。
             parts[p_type] = BattleEntityFactory.create_part(
                 world, 
                 p_type, 
@@ -67,49 +71,55 @@ class BattleEntityFactory:
         save_mgr = get_save_manager()
         pm = get_parts_manager()
 
+        # プレイヤーチーム生成
         for i in range(player_count):
             setup = save_mgr.get_machine_setup(i)
-            parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
-            eid = world.create_entity()
-            medal_data = pm.get_medal_data(setup["medal"])
-            # personality情報をデータから取得して渡す
-            world.add_component(eid, MedalComponent(
-                setup["medal"], 
-                medal_data["name"], 
-                medal_data["nickname"],
-                medal_data.get("personality", "random")
-            ))
-            world.add_component(eid, PositionComponent(px, yoff + i * spacing))
-            world.add_component(eid, GaugeComponent(1.0, 0.3, GaugeComponent.ACTION_CHOICE))
-            # 1機目をリーダーに設定
-            is_leader = (i == 0)
-            world.add_component(eid, TeamComponent("player", (0, 100, 200), is_leader=is_leader))
-            world.add_component(eid, RenderComponent(30, 15, gw, gh))
-            world.add_component(eid, DefeatedComponent())
-            plist = PartListComponent()
-            plist.parts = parts
-            world.add_component(eid, plist)
+            BattleEntityFactory._create_team_unit(
+                world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, pm
+            )
 
+        # エネミーチーム生成
         for i in range(enemy_count):
+            # 適当な構成を生成
             medal_id = pm.get_part_ids_for_type("medal")[(i + 3) % 10]
-            setup = {"parts": {t: pm.get_part_ids_for_type(t)[2 - (i % 3)] for t in ["head", "right_arm", "left_arm", "legs"]}, "medal": medal_id}
-            parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
-            eid = world.create_entity()
-            medal_data = pm.get_medal_data(medal_id)
-            # personality情報をデータから取得して渡す
-            world.add_component(eid, MedalComponent(
-                medal_id, 
-                medal_data["name"], 
-                medal_data["nickname"],
-                medal_data.get("personality", "random")
-            ))
-            world.add_component(eid, PositionComponent(ex, yoff + i * spacing))
-            world.add_component(eid, GaugeComponent(1.0, 0.25, GaugeComponent.ACTION_CHOICE))
-            # 1機目をリーダーに設定
-            is_leader = (i == 0)
-            world.add_component(eid, TeamComponent("enemy", (200, 0, 0), is_leader=is_leader))
-            world.add_component(eid, RenderComponent(30, 15, gw, gh))
-            world.add_component(eid, DefeatedComponent())
-            plist = PartListComponent()
-            plist.parts = parts
-            world.add_component(eid, plist)
+            setup = {
+                "parts": {t: pm.get_part_ids_for_type(t)[2 - (i % 3)] for t in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]},
+                "medal": medal_id
+            }
+            BattleEntityFactory._create_team_unit(
+                world, i, setup, TeamType.ENEMY, ex, yoff, spacing, gw, gh, pm
+            )
+
+    @staticmethod
+    def _create_team_unit(world, index, setup, team_type, base_x, y_off, spacing, gw, gh, pm):
+        """チームの1機体を生成するヘルパーメソッド"""
+        parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
+        eid = world.create_entity()
+        
+        medal_data = pm.get_medal_data(setup["medal"])
+        
+        world.add_component(eid, MedalComponent(
+            setup["medal"], 
+            medal_data["name"], 
+            medal_data["nickname"],
+            medal_data.get("personality", "random")
+        ))
+        
+        world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))
+        
+        # チームごとのパラメータ設定（定数から取得）
+        # settingsのキーはTeamType定数を使用
+        settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS[TeamType.ENEMY])
+        
+        world.add_component(eid, GaugeComponent(1.0, settings['gauge_speed'], GaugeStatus.ACTION_CHOICE))
+        
+        # 1機目をリーダーに設定
+        is_leader = (index == 0)
+        world.add_component(eid, TeamComponent(team_type, settings['color'], is_leader=is_leader))
+        
+        world.add_component(eid, RenderComponent(30, 15, gw, gh))
+        world.add_component(eid, DefeatedComponent())
+        
+        plist = PartListComponent()
+        plist.parts = parts
+        world.add_component(eid, plist)

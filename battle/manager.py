@@ -9,6 +9,7 @@ from battle.systems.action_initiation_system import ActionInitiationSystem
 from battle.systems.action_resolution_system import ActionResolutionSystem
 from battle.systems.battle_flow_system import BattleFlowSystem
 from battle.systems.damage_system import DamageSystem
+from battle.systems.health_animation_system import HealthAnimationSystem
 from battle.systems.battle_status_system import BattleStatusSystem
 from battle.systems.input_system import InputSystem
 from battle.systems.render_system import RenderSystem
@@ -40,8 +41,9 @@ class BattleSystem:
             ActionInitiationSystem(self.world),  # 6. 行動起案 (IDLE: チャージ完了 -> EXECUTING/ActionEvent生成)
             ActionResolutionSystem(self.world),  # 7. 行動解決 (EXECUTING -> LOG_WAIT/ダメージ発生)
             DamageSystem(self.world),            # 8. ダメージ適用 (DamageEvent処理)
-            BattleStatusSystem(self.world),      # 9. 勝敗判定
-            RenderSystem(self.world, self.renderer) # 10. 描画
+            HealthAnimationSystem(self.world),   # 9. HPバーのアニメーション補間
+            BattleStatusSystem(self.world),      # 10. 勝敗判定
+            RenderSystem(self.world, self.renderer) # 11. 描画
         ]
 
     def update(self, dt: float = 0.016) -> None:
