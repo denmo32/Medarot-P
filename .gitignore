@@ -42,3 +42,4 @@ battle/systems/__pycache__/action_resolution_system.cpython-313.pyc
 battle/systems/__pycache__/action_initiation_system.cpython-313.pyc
 battle/__pycache__/calculator.cpython-313.pyc
 battle/__pycache__/constants.cpython-313.pyc
+battle/systems/__pycache__/health_animation_system.cpython-313.pyc

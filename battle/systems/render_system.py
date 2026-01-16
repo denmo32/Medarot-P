@@ -91,11 +91,12 @@ class RenderSystem(System):
             p_id = part_list_comp.parts.get(p_key)
             if p_id:
                 h = self.world.entities[p_id]['health']
+                # 真値 (h.hp) ではなく、アニメーション中の表示値 (h.display_hp) を使用
                 hp_data.append({
                     'label': PART_LABELS.get(p_key, ""),
-                    'current': h.hp,
+                    'current': int(h.display_hp),
                     'max': h.max_hp,
-                    'ratio': h.hp / h.max_hp if h.max_hp > 0 else 0
+                    'ratio': h.display_hp / h.max_hp if h.max_hp > 0 else 0
                 })
         return hp_data
 
