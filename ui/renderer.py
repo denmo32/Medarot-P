@@ -131,11 +131,39 @@ class Renderer:
     def draw_home_marker(self, x, y):
         pygame.draw.circle(self.screen, COLORS['HOME_MARKER'], (int(x), int(y + 20)), 22, 2)
 
-    def draw_character_icon(self, icon_x, y, team_color, border_color=None):
-        radius = 14
+    def draw_character_icon(self, icon_x, y, team_color, part_status=None, border_color=None):
+        """
+        簡易的なロボット型アイコンを描画する。
+        part_status: {'head': bool, 'legs': bool, 'right_arm': bool, 'left_arm': bool}
+        """
+        cx, cy = int(icon_x), int(y + 20)
+        
+        # 状態枠線（リング）を背面に描画
         if border_color:
-            pygame.draw.circle(self.screen, border_color, (int(icon_x), int(y + 20)), radius + 4)
-        pygame.draw.circle(self.screen, team_color, (int(icon_x), int(y + 20)), radius)
+            pygame.draw.circle(self.screen, border_color, (cx, cy), 22, 2)
+
+        # デフォルト状態（互換性維持）
+        if part_status is None:
+            pygame.draw.circle(self.screen, team_color, (cx, cy), 14)
+            return
+
+        # 色決定用ヘルパー（破壊されたらダークグレー）
+        def get_col(ptype):
+            return team_color if part_status.get(ptype, False) else (60, 60, 60)
+
+        # 1. 脚部（胴体兼任）：中央下部
+        # 中心から少し下に配置
+        pygame.draw.rect(self.screen, get_col('legs'), (cx - 6, cy + 2, 12, 10))
+
+        # 2. 頭部：中央上部
+        # 脚部の上に円を乗せる
+        pygame.draw.circle(self.screen, get_col('head'), (cx, cy - 9), 6)
+
+        # 3. 左腕：画面左側
+        pygame.draw.rect(self.screen, get_col('left_arm'), (cx - 13, cy - 4, 6, 10))
+
+        # 4. 右腕：画面右側
+        pygame.draw.rect(self.screen, get_col('right_arm'), (cx + 7, cy - 4, 6, 10))
 
     def draw_hp_bars(self, x, y, hp_data_list):
         for i, data in enumerate(hp_data_list):

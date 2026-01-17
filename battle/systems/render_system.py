@@ -47,13 +47,30 @@ class RenderSystem(System):
             # ホーム位置と本体
             self.renderer.draw_home_marker(pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0), pos.y)
             border = self._get_border_color(eid, gauge, context, flow)
-            self.renderer.draw_character_icon(icon_x, pos.y, team.team_color, border)
+            
+            # パーツごとの生存状況を取得して渡す
+            part_status = self._get_part_status_map(comps['partlist'])
+            self.renderer.draw_character_icon(icon_x, pos.y, team.team_color, part_status, border)
+            
             self.renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
 
             # HP
             hp_data = self._build_hp_data(comps['partlist'])
             self.renderer.draw_hp_bars(pos.x, pos.y, hp_data)
         return char_positions
+
+    def _get_part_status_map(self, part_list_comp):
+        """各パーツが生存しているかどうかのマップを作成"""
+        status = {}
+        for p_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]:
+            p_id = part_list_comp.parts.get(p_type)
+            is_alive = False
+            if p_id:
+                hp = self.world.entities[p_id]['health'].hp
+                if hp > 0:
+                    is_alive = True
+            status[p_type] = is_alive
+        return status
 
     def _get_border_color(self, eid, gauge, context, flow):
         from config import COLORS
