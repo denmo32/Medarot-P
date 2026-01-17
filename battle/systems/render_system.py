@@ -1,9 +1,11 @@
 """描画ロジック（データ加工）を担当するシステム"""
 
+import pygame
 from core.ecs import System
-from config import GAME_PARAMS
+from config import GAME_PARAMS, COLORS
 from battle.utils import calculate_current_x
 from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType, PART_LABELS, MENU_PART_ORDER
+from ui.cutin_renderer import CutinRenderer
 
 class RenderSystem(System):
     """Worldのコンポーネントから描画用データを抽出しRendererへ渡す"""
@@ -11,6 +13,7 @@ class RenderSystem(System):
     def __init__(self, world, renderer):
         super().__init__(world)
         self.renderer = renderer
+        self.cutin_renderer = CutinRenderer(renderer.screen, renderer)
         self.hp_bar_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
@@ -21,8 +24,16 @@ class RenderSystem(System):
         self.renderer.clear()
         self.renderer.draw_field_guides()
         char_positions = self._render_characters(context, flow)
+        
         self._render_target_marker(context, flow, char_positions)
+        self._render_target_indication_line(context, flow, char_positions)
+        
         self._render_ui(context, flow)
+
+        # カットインはUIの上にさらに重ねる
+        if flow.current_phase == BattlePhase.CUTIN or flow.current_phase == BattlePhase.CUTIN_RESULT:
+            self._render_cutin(context, flow)
+
         self.renderer.present()
 
     def _render_characters(self, context, flow):
@@ -36,16 +47,29 @@ class RenderSystem(System):
             # ホーム位置と本体
             self.renderer.draw_home_marker(pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0), pos.y)
             border = self._get_border_color(eid, gauge, context, flow)
-            self.renderer.draw_character_icon(icon_x, pos.y, team.team_color, border)
+            
+            # パーツごとの生存状況を取得して渡す
+            part_status = self._get_part_status_map(comps['partlist'])
+            self.renderer.draw_character_icon(icon_x, pos.y, team.team_color, part_status, border)
+            
             self.renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
 
-            # HP
-            hp_data = self._build_hp_data(comps['partlist'])
-            self.renderer.draw_hp_bars(pos.x, pos.y, hp_data)
         return char_positions
 
+    def _get_part_status_map(self, part_list_comp):
+        """各パーツが生存しているかどうかのマップを作成"""
+        status = {}
+        for p_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]:
+            p_id = part_list_comp.parts.get(p_type)
+            is_alive = False
+            if p_id:
+                hp = self.world.entities[p_id]['health'].hp
+                if hp > 0:
+                    is_alive = True
+            status[p_type] = is_alive
+        return status
+
     def _get_border_color(self, eid, gauge, context, flow):
-        from config import COLORS
         if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
             return COLORS.get('BORDER_WAIT')
         if gauge.status == GaugeStatus.CHARGING:
@@ -61,6 +85,7 @@ class RenderSystem(System):
             if p_id is not None:
                 h = self.world.entities[p_id]['health']
                 hp_data.append({
+                    'key': p_key,
                     'label': PART_LABELS.get(p_key, ""),
                     'current': int(h.display_hp),
                     'max': h.max_hp,
@@ -75,16 +100,59 @@ class RenderSystem(System):
             if eid and context.selected_menu_index < len(MENU_PART_ORDER):
                 target_data = self.world.entities[eid]['gauge'].part_targets.get(MENU_PART_ORDER[context.selected_menu_index])
                 if target_data: target_eid = target_data[0]
-        elif flow.processing_event_id is not None:
-            event_comps = self.world.try_get_entity(flow.processing_event_id)
-            if event_comps and 'actionevent' in event_comps:
-                target_eid = event_comps['actionevent'].current_target_id
+        elif flow.processing_event_id is not None and flow.current_phase != BattlePhase.TARGET_INDICATION:
+             pass
         
         if target_eid:
             self.renderer.draw_target_marker(target_eid, char_positions)
 
+    def _render_target_indication_line(self, context, flow, char_positions):
+        """TARGET_INDICATIONフェーズ、およびそれ以降のカットイン終了までのアニメーション描画"""
+        target_line_phases = [
+            BattlePhase.TARGET_INDICATION,
+            BattlePhase.ATTACK_DECLARATION,
+            BattlePhase.CUTIN,
+            BattlePhase.CUTIN_RESULT
+        ]
+        if flow.current_phase not in target_line_phases:
+            return
+            
+        event_eid = flow.processing_event_id
+        if event_eid is None: return
+        
+        event_comps = self.world.try_get_entity(event_eid)
+        if not event_comps or 'actionevent' not in event_comps: return
+        
+        event = event_comps['actionevent']
+        attacker_id = event.attacker_id
+        target_id = event.current_target_id
+        
+        if attacker_id in char_positions and target_id in char_positions:
+            start_pos = char_positions[attacker_id]
+            end_pos = char_positions[target_id]
+            
+            # アイコンの中心座標（icon_x, y+20 が中心）
+            sp = (start_pos['icon_x'], start_pos['y'] + 20)
+            ep = (end_pos['icon_x'], end_pos['y'] + 20)
+            
+            # コンポーネントに保存された停止位置（オフセット）を使用して描画
+            self.renderer.draw_flow_line(sp, ep, flow.target_line_offset)
+
     def _render_ui(self, context, flow):
-        self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], flow.current_phase == BattlePhase.LOG_WAIT)
+        # 入力待ち案内（「Zキー...」）を表示するかどうかのフラグ
+        show_input_guidance = (flow.current_phase == BattlePhase.LOG_WAIT or 
+                               flow.current_phase == BattlePhase.ATTACK_DECLARATION or
+                               flow.current_phase == BattlePhase.CUTIN_RESULT)
+        
+        # ログを表示するかどうか
+        # CUTIN, CUTIN_RESULT のときは、結果がポップアップで出るためウィンドウ内のログテキストは非表示にする
+        if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
+            display_logs = []
+        else:
+            display_logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
+
+        self.renderer.draw_message_window(display_logs, show_input_guidance)
+        
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid:
@@ -93,5 +161,43 @@ class RenderSystem(System):
                            for p_id in [comps['partlist'].parts.get(k) for k in MENU_PART_ORDER] if p_id]
                 buttons.append({'label': "スキップ", 'enabled': True})
                 self.renderer.draw_action_menu(comps['medal'].nickname, buttons, context.selected_menu_index)
+        
         if flow.current_phase == BattlePhase.GAME_OVER:
             self.renderer.draw_game_over(flow.winner)
+
+    def _render_cutin(self, context, flow):
+        event_eid = flow.processing_event_id
+        if event_eid is None: return
+        
+        event_comps = self.world.try_get_entity(event_eid)
+        if not event_comps or 'actionevent' not in event_comps: return
+        
+        event = event_comps['actionevent']
+        attacker_comps = self.world.try_get_entity(event.attacker_id)
+        target_comps = self.world.try_get_entity(event.current_target_id)
+        
+        if not attacker_comps or not target_comps: return
+
+        # 進行度取得（CUTINフェーズ以外は1.0=終了）
+        progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
+        
+        attacker_data = {
+            'name': attacker_comps['medal'].nickname,
+            'color': attacker_comps['team'].team_color
+        }
+        target_data = {
+            'name': target_comps['medal'].nickname,
+            'color': target_comps['team'].team_color
+        }
+        
+        attacker_hp_data = self._build_hp_data(attacker_comps['partlist'])
+        target_hp_data = self._build_hp_data(target_comps['partlist'])
+        
+        hit_result = event.calculation_result
+        is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
+
+        self.cutin_renderer.draw(
+            attacker_data, target_data, 
+            attacker_hp_data, target_hp_data,
+            progress, hit_result, mirror=is_enemy_attack
+        )

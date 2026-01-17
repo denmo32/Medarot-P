@@ -40,9 +40,8 @@ class GaugeSystem(System):
         """チャージ中の継続条件をチェックし、満たさない場合は中断させる"""
         actor_name = comps['medal'].nickname
         
-        # 1. 自身の予約パーツが破壊されたか (自分自身、対象パーツ=selected_part)
+        # 1. 自身の予約パーツが破壊されたか
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            # 自分自身(eid)の、selected_partが有効かチェック
             if not is_target_valid(self.world, eid, gauge.selected_part):
                 self._interrupt(eid, gauge, context, flow, f"{actor_name}の予約パーツは破壊された！")
                 return
@@ -51,8 +50,6 @@ class GaugeSystem(System):
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             target_id, target_part_type = target_data
-            
-            # ターゲットの有効性チェック (共通関数を利用)
             if not is_target_valid(self.world, target_id, target_part_type):
                 self._interrupt(eid, gauge, context, flow, f"{actor_name}はターゲットロストした！")
                 return
@@ -80,22 +77,29 @@ class GaugeSystem(System):
             if comps['defeated'].is_defeated: continue
             gauge = comps['gauge']
             
+            # 状態異常：停止中
             if gauge.stop_timer > 0:
                 gauge.stop_timer = max(0.0, gauge.stop_timer - dt)
                 continue
             
             if gauge.status == GaugeStatus.CHARGING:
-                gauge.progress += dt / gauge.charging_time * 100.0
-                if gauge.progress >= 100.0:
-                    gauge.progress = 100.0
-                    if eid not in context.waiting_queue:
-                        context.waiting_queue.append(eid)
+                self._process_charging(eid, gauge, dt, context)
             
             elif gauge.status == GaugeStatus.COOLDOWN:
-                gauge.progress += dt / gauge.cooldown_time * 100.0
-                if gauge.progress >= 100.0:
-                    gauge.progress = 0.0
-                    gauge.status = GaugeStatus.ACTION_CHOICE
-                    gauge.part_targets = {} 
-                    if eid not in context.waiting_queue:
-                        context.waiting_queue.append(eid)
+                self._process_cooldown(eid, gauge, dt, context)
+
+    def _process_charging(self, eid, gauge, dt, context):
+        gauge.progress += dt / gauge.charging_time * 100.0
+        if gauge.progress >= 100.0:
+            gauge.progress = 100.0
+            if eid not in context.waiting_queue:
+                context.waiting_queue.append(eid)
+
+    def _process_cooldown(self, eid, gauge, dt, context):
+        gauge.progress += dt / gauge.cooldown_time * 100.0
+        if gauge.progress >= 100.0:
+            gauge.progress = 0.0
+            gauge.status = GaugeStatus.ACTION_CHOICE
+            gauge.part_targets = {} 
+            if eid not in context.waiting_queue:
+                context.waiting_queue.append(eid)
