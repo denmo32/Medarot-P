@@ -1,5 +1,8 @@
+"""カットイン演出管理システム"""
+
 import pygame
 from config import GAME_PARAMS, COLORS
+from battle.constants import PartType
 
 class CutinRenderer:
     """カットイン演出の描画を担当するクラス"""
@@ -91,17 +94,96 @@ class CutinRenderer:
                 )
 
     def _draw_character_info(self, char_data, hp_data, center_x, center_y):
-        # アイコン
-        pygame.draw.circle(self.screen, char_data['color'], (center_x, center_y), 50)
+        """
+        キャラクターのアイコンとHPバーを描画する。
+        アイコンは各パーツ（頭・腕・脚）の集合体として描画し、破壊されたパーツはグレーにする。
+        """
         
-        # HPバー描画（アイコンの下に配置）
+        # HPデータから各パーツの生存確認マップを作成
+        is_alive_map = {item['key']: (item['current'] > 0) for item in hp_data}
+        
+        base_color = char_data['color']
+        broken_color = (60, 60, 60) # 破壊時はダークグレー
+
+        def get_col(part_key):
+            return base_color if is_alive_map.get(part_key, False) else broken_color
+
+        cx, cy = int(center_x), int(center_y)
+
+        # -- ロボット型アイコン描画 (幾何学図形で描く) --
+        
+        # 1. サイズ・形状定義
+        # 腕・脚の矩形
+        limb_w, limb_h = 16, 48
+        
+        # 胸部（逆三角形）
+        chest_a = 40
+        chest_h = 40
+        
+        # 頭部（円）
+        # 胸部に合わせてバランス良く（直径32程度）
+        head_r = 16
+
+        # 2. 配置基準 Y座標 (shoulder_y: 胸部の上辺、腕の上端、頭部の下端)
+        # cy を中心付近として、少し上にオフセット
+        shoulder_y = cy - 16
+
+        # 3. 各パーツ座標計算
+
+        # 頭部 (Head): 円
+        # 中心Y = shoulder_y - head_r (上辺に接する)
+        head_cy = shoulder_y - head_r
+
+        # 胸部 (Chest): 逆正三角形
+        # 頂点: 左上, 右上, 下
+        # Headの一部として扱う
+        chest_points = [
+            (cx - chest_a // 2, shoulder_y),
+            (cx + chest_a // 2, shoulder_y),
+            (cx, shoulder_y + chest_h)
+        ]
+
+        # 脚部 (Legs): 矩形 x 2
+        # 胸部の下の方から配置。少し隙間を空けて二脚感。
+        # 上端Y: 胸部下頂点より少し上にして接続感を出す
+        legs_y = shoulder_y + chest_h - 8
+        leg_gap = 4
+        # 左脚: 中心より左
+        l_leg_x = cx - leg_gap - limb_w
+        # 右脚: 中心より右
+        r_leg_x = cx + leg_gap
+
+        # 腕部 (Arms): 矩形 x 2
+        # 胸部の左右に配置。
+        arm_gap = 4
+        arms_y = shoulder_y
+        # 左腕: 胸の左端より外側
+        l_arm_x = cx - (chest_a // 2) - arm_gap - limb_w
+        # 右腕: 胸の右端より外側
+        r_arm_x = cx + (chest_a // 2) + arm_gap
+
+
+        # 4. 描画実行 (奥から手前へ)
+        
+        # 脚部 (Legs)
+        pygame.draw.rect(self.screen, get_col(PartType.LEGS), (l_leg_x, legs_y, limb_w, limb_h))
+        pygame.draw.rect(self.screen, get_col(PartType.LEGS), (r_leg_x, legs_y, limb_w, limb_h))
+
+        # 腕部 (Arms)
+        pygame.draw.rect(self.screen, get_col(PartType.LEFT_ARM), (l_arm_x, arms_y, limb_w, limb_h))
+        pygame.draw.rect(self.screen, get_col(PartType.RIGHT_ARM), (r_arm_x, arms_y, limb_w, limb_h))
+
+        # 胸部 (Chest -> Head color)
+        pygame.draw.polygon(self.screen, get_col(PartType.HEAD), chest_points)
+        
+        # 頭部 (Head -> Head color)
+        pygame.draw.circle(self.screen, get_col(PartType.HEAD), (cx, head_cy), head_r)
+
+        # -- HPバー描画 --
         # Renderer.draw_hp_bars を利用する。
-        # draw_hp_bars は指定された (x, y) を基準に、y+45 から描画を開始する。
-        # アイコン半径が 50 なので、center_y から少し下の位置を y として渡すことで
-        # ちょうど良い位置に表示させる。
-        # center_y + 20 を渡すと、描画開始は center_y + 20 + 45 = center_y + 65 となる。
-        
-        self.renderer.draw_hp_bars(center_x, center_y + 20, hp_data)
+        # アイコン下端: legs_y + limb_h = (cy - 20 + 36 - 8) + 45 = cy + 53
+        # 少し余裕を持って配置
+        self.renderer.draw_hp_bars(cx, cy + 65, hp_data)
 
     def _draw_projectile_animation(self, start_x, hit_x, obj_y, miss_x, progress, is_hit):
         
