@@ -1,6 +1,6 @@
 """行動イベントを表すコンポーネント"""
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from core.ecs import Component
 
 class ActionEventComponent(Component):
@@ -19,6 +19,9 @@ class ActionEventComponent(Component):
         
         self.desired_target_part = target_part # 攻撃側が狙った部位
         
+        # 計算結果 (InitiationSystemで事前に計算して格納する)
+        self.calculation_result: Optional[Dict[str, Any]] = None
+        
         # 状態
-        self.status = "created"        # created -> resolving -> finished
-        self.executed = False          # 解決済みフラグ
+        self.status = "created"
+        self.executed = False

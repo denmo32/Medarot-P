@@ -167,4 +167,9 @@ class RenderSystem(System):
             'color': target_comps['team'].team_color
         }
         
-        self.renderer.draw_cutin_window(attacker_data, target_data, progress)
+        # ヒット判定（計算結果がない場合はミス扱い）
+        is_hit = False
+        if event.calculation_result and event.calculation_result.get('is_hit'):
+            is_hit = True
+
+        self.renderer.draw_cutin_window(attacker_data, target_data, progress, is_hit)

@@ -196,45 +196,73 @@ class Renderer:
         self.draw_text(f"{winner_name}の勝利！", (mid_x, mid_y), color, 'notice', 'center')
         self.draw_text("ESCキーで終了", (mid_x, mid_y + GAME_PARAMS['NOTICE_Y_OFFSET']), COLORS['TEXT'], 'medium', 'center')
 
-    def draw_cutin_window(self, attacker_data, target_data, progress):
-        """カットインウィンドウを描画"""
+    def draw_cutin_window(self, attacker_data, target_data, progress, is_hit):
+        """カットインウィンドウを描画（枠線なし、アニメーション分岐）"""
         sw, sh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']
         
-        # 背景オーバーレイ
+        # 背景オーバーレイ（全体を暗くする）
         overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
         self.screen.blit(overlay, (0, 0))
         
-        # ウィンドウ枠
+        # ウィンドウエリア定義（枠線は描画しないが座標計算に使用）
         w_w, w_h = 700, 200
         w_x, w_y = (sw - w_w) // 2, (sh - w_h) // 2
-        
-        self.draw_box((w_x, w_y, w_w, w_h), (20, 20, 40), (100, 200, 255), 3)
         
         # 左右のキャラエリア
         char_box_w = 150
         
         # 攻撃側（左）
-        self.draw_box((w_x + 20, w_y + 20, char_box_w, w_h - 40), (40, 40, 60), attacker_data['color'], 2)
-        pygame.draw.circle(self.screen, attacker_data['color'], (w_x + 20 + char_box_w // 2, w_y + 80), 40)
+        # アイコン
+        pygame.draw.circle(self.screen, attacker_data['color'], (w_x + 20 + char_box_w // 2, w_y + 80), 50)
+        # 名前（アイコンの下）
         self.draw_text(attacker_data['name'], (w_x + 20 + char_box_w // 2, w_y + 140), font_type='medium', align='center')
 
         # 防御側（右）
-        self.draw_box((w_x + w_w - 20 - char_box_w, w_y + 20, char_box_w, w_h - 40), (40, 40, 60), target_data['color'], 2)
-        pygame.draw.circle(self.screen, target_data['color'], (w_x + w_w - 20 - char_box_w // 2, w_y + 80), 40)
-        self.draw_text(target_data['name'], (w_x + w_w - 20 - char_box_w // 2, w_y + 140), font_type='medium', align='center')
+        # アイコン
+        target_center_x = w_x + w_w - 20 - char_box_w // 2
+        target_center_y = w_y + 80
+        pygame.draw.circle(self.screen, target_data['color'], (target_center_x, target_center_y), 50)
+        # 名前
+        self.draw_text(target_data['name'], (target_center_x, w_y + 140), font_type='medium', align='center')
 
-        # アニメーションオブジェクト（弾など）
-        anim_area_start_x = w_x + 20 + char_box_w + 10
-        anim_area_end_x = w_x + w_w - 20 - char_box_w - 10
-        anim_width = anim_area_end_x - anim_area_start_x
+        # アニメーション（弾など）
+        start_x = w_x + 20 + char_box_w + 20
+        # ターゲットの中心座標
+        hit_x = target_center_x
+        # 画面端（回避時）
+        miss_x = sw + 50 
         
-        # 弾の現在位置
-        bullet_x = anim_area_start_x + anim_width * progress
-        bullet_y = w_y + w_h // 2
+        obj_y = target_center_y
         
-        if progress < 1.0:
-            # 弾描画
-            pygame.draw.circle(self.screen, (255, 255, 0), (int(bullet_x), int(bullet_y)), 10)
+        # 進行度(0.0~1.0) に基づく現在位置
+        if is_hit:
+            # ヒット時: start_x から hit_x まで移動して止まる
+            current_x = start_x + (hit_x - start_x) * progress
+            
+            # 着弾エフェクト（進行度が1.0に近い場合）
+            if progress > 0.95:
+                # 簡易爆発（円を広げる）
+                scale = (progress - 0.95) * 20 * 50
+                pygame.draw.circle(self.screen, (255, 200, 50), (int(hit_x), int(obj_y)), int(10 + scale))
+        else:
+            # 回避時: start_x から miss_x まで突き抜ける
+            # progress=1.0 の時点で画面外へ出るように少し速く動かすイメージ
+            current_x = start_x + (miss_x - start_x) * progress
+
+        # 弾の描画（ターゲットアイコンより手前に描画する場合と奥の場合で回避感を出す）
+        # ここではシンプルに、回避時はターゲットの「後ろ」を通るように見せるため、ターゲット描画前に描くべきだが、
+        # 構成上すでにターゲットを描画してしまった。
+        # なので、回避時はターゲットアイコンと被る部分を描画しない、あるいはターゲットを再描画する等の工夫がいるが、
+        # 今回はシンプルに「座標」で表現する。
+        
+        # 弾
+        if progress < 1.0 or not is_hit:
             # 軌跡
-            pygame.draw.line(self.screen, (255, 255, 0), (int(anim_area_start_x), int(bullet_y)), (int(bullet_x), int(bullet_y)), 2)
+            pygame.draw.line(self.screen, (255, 255, 0), (int(start_x), int(obj_y)), (int(current_x), int(obj_y)), 4)
+            # 本体
+            pygame.draw.circle(self.screen, (255, 255, 0), (int(current_x), int(obj_y)), 10)
+            
+        # 回避時はターゲットアイコンを上書きして「後ろを通った」感を出す（簡易的実装）
+        if not is_hit and current_x > hit_x - 50:
+             pygame.draw.circle(self.screen, target_data['color'], (target_center_x, target_center_y), 50)
