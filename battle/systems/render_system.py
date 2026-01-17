@@ -170,4 +170,7 @@ class RenderSystem(System):
         if event.calculation_result and event.calculation_result.get('is_hit'):
             is_hit = True
 
-        self.cutin_renderer.draw(attacker_data, target_data, progress, is_hit)
+        # 攻撃側がエネミーなら左右反転（右→左の攻撃）
+        is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
+
+        self.cutin_renderer.draw(attacker_data, target_data, progress, is_hit, mirror=is_enemy_attack)

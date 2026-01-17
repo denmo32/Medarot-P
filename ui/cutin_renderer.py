@@ -8,8 +8,11 @@ class CutinRenderer:
         self.screen = screen
         self.renderer = renderer # テキスト描画などの共通機能利用のため
 
-    def draw(self, attacker_data, target_data, progress, is_hit):
-        """カットインウィンドウを描画（枠線なし、アニメーション分岐）"""
+    def draw(self, attacker_data, target_data, progress, is_hit, mirror=False):
+        """
+        カットインウィンドウを描画（枠線なし、アニメーション分岐）
+        mirror: Trueなら 右→左 へ攻撃する（エネミー攻撃時など）
+        """
         sw, sh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']
         
         # 背景オーバーレイ（全体を暗くする）
@@ -24,42 +27,66 @@ class CutinRenderer:
         # 左右のキャラエリア
         char_box_w = 150
         
-        # 攻撃側（左）
-        self._draw_character_info(
-            attacker_data, 
-            w_x + 20 + char_box_w // 2, 
-            w_y + 80
-        )
+        # 座標定義
+        left_center_x = w_x + 20 + char_box_w // 2
+        right_center_x = w_x + w_w - 20 - char_box_w // 2
+        center_y = w_y + 80
 
-        # 防御側（右）
-        target_center_x = w_x + w_w - 20 - char_box_w // 2
-        target_center_y = w_y + 80
-        self._draw_character_info(
-            target_data, 
-            target_center_x, 
-            target_center_y
-        )
+        if not mirror:
+            # プレイヤー攻撃 (左 -> 右)
+            attacker_x, attacker_y = left_center_x, center_y
+            target_x, target_y = right_center_x, center_y
+            
+            proj_start_x = w_x + 20 + char_box_w + 20
+            proj_hit_x = target_x
+            proj_miss_x = sw + 50
+        else:
+            # エネミー攻撃 (右 -> 左)
+            attacker_x, attacker_y = right_center_x, center_y
+            target_x, target_y = left_center_x, center_y
+            
+            proj_start_x = w_x + w_w - 20 - char_box_w - 20
+            proj_hit_x = target_x
+            proj_miss_x = -50
+
+        # 攻撃側
+        self._draw_character_info(attacker_data, attacker_x, attacker_y)
+
+        # 防御側
+        self._draw_character_info(target_data, target_x, target_y)
 
         # アニメーション（弾など）
         self._draw_projectile_animation(
-            w_x + 20 + char_box_w + 20, # start_x
-            target_center_x,            # hit_x
-            target_center_y,            # obj_y
-            sw + 50,                    # miss_x
+            proj_start_x,
+            proj_hit_x,
+            target_y,
+            proj_miss_x,
             progress,
             is_hit
         )
         
         # 回避時はターゲットアイコンを上書きして「後ろを通った」感を出す（簡易的実装）
         if not is_hit:
-            miss_x = sw + 50
-            start_x = w_x + 20 + char_box_w + 20
-            current_x = start_x + (miss_x - start_x) * progress
-            if current_x > target_center_x - 50:
+            start_x = proj_start_x
+            current_x = start_x + (proj_miss_x - start_x) * progress
+            
+            # mirror考慮: 
+            # mirror=False (左->右): current_x > target_x - 50 (ターゲットの少し左を超えたら)
+            # mirror=True  (右->左): current_x < target_x + 50 (ターゲットの少し右を超えたら)
+            
+            should_redraw = False
+            if not mirror:
+                if current_x > target_x - 50:
+                    should_redraw = True
+            else:
+                if current_x < target_x + 50:
+                    should_redraw = True
+                    
+            if should_redraw:
                 self._draw_character_info(
                     target_data, 
-                    target_center_x, 
-                    target_center_y
+                    target_x, 
+                    target_y
                 )
 
     def _draw_character_info(self, char_data, center_x, center_y):
