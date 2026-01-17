@@ -73,19 +73,10 @@ class ActionResolutionSystem(System):
             return
 
         if not res['is_hit']:
-            context.pending_logs.append("攻撃を回避！")
+            # カットインで "MISS!" が表示されるためログは不要
             return
             
-        # ログのキューイング
-        if res['is_critical']:
-            context.pending_logs.append("クリティカルヒット！")
-        elif res['is_defense']:
-            context.pending_logs.append("攻撃を防御！")
-        else:
-            context.pending_logs.append("防御突破！クリーンヒット！")
-            
         # ダメージイベント発行
-        # 修正: event.target_id -> event.current_target_id
         self.world.add_component(event.current_target_id, DamageEventComponent(
             attacker_id=event.attacker_id,
             attacker_part=event.part_type,

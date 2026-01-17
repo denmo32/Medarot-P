@@ -21,20 +21,11 @@ class DamageSystem(System):
                 health = self.world.entities[part_id]['health']
                 health.hp = max(0, health.hp - event.damage)
                 
-                # ログ用部位名
-                part_name = PART_LABELS.get(event.target_part, '不明な部位')
-                target_name = self.world.entities[target_id]['medal'].nickname
-                
-                crit_text = " (クリティカル!)" if event.is_critical else ""
-                msg = f"{target_name}の{part_name}に{event.damage}のダメージ！{crit_text}"
-                
-                # 詳細ログは一時保存
-                context.pending_logs.append(msg)
+                # カットイン演出でダメージとHP減少が表示されるためログ追加は削除
 
                 # 状態異常：停止の適用
                 if event.stop_duration > 0:
                     comps['gauge'].stop_timer = max(comps['gauge'].stop_timer, event.stop_duration)
-                    context.pending_logs.append(f"{target_name}は電撃で動きが止まった！")
 
                 # 頭部破壊なら機能停止
                 if event.target_part == PartType.HEAD and health.hp <= 0:
