@@ -109,8 +109,14 @@ class RenderSystem(System):
             self.renderer.draw_target_marker(target_eid, char_positions)
 
     def _render_target_indication_line(self, context, flow, char_positions):
-        """TARGET_INDICATIONフェーズでのアニメーション描画"""
-        if flow.current_phase != BattlePhase.TARGET_INDICATION:
+        """TARGET_INDICATIONフェーズ、およびそれ以降のカットイン終了までのアニメーション描画"""
+        target_line_phases = [
+            BattlePhase.TARGET_INDICATION,
+            BattlePhase.ATTACK_DECLARATION,
+            BattlePhase.CUTIN,
+            BattlePhase.CUTIN_RESULT
+        ]
+        if flow.current_phase not in target_line_phases:
             return
             
         event_eid = flow.processing_event_id
@@ -131,10 +137,8 @@ class RenderSystem(System):
             sp = (start_pos['icon_x'], start_pos['y'] + 20)
             ep = (end_pos['icon_x'], end_pos['y'] + 20)
             
-            # 継続時間を使ったアニメーション
-            current_time = pygame.time.get_ticks() / 1000.0
-            
-            self.renderer.draw_flow_line(sp, ep, current_time)
+            # コンポーネントに保存された停止位置（オフセット）を使用して描画
+            self.renderer.draw_flow_line(sp, ep, flow.target_line_offset)
 
     def _render_ui(self, context, flow):
         # 入力待ち案内（「Zキー...」）を表示するかどうかのフラグ

@@ -1,5 +1,6 @@
 """ターゲット演出管理システム"""
 
+import pygame
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
 
@@ -17,6 +18,9 @@ class TargetIndicatorSystem(System):
 
         if flow.current_phase != BattlePhase.TARGET_INDICATION:
             return
+
+        # ラインの移動オフセットを現在の時間で更新（フェーズ終了時にこの値で停止する）
+        flow.target_line_offset = pygame.time.get_ticks() / 1000.0
 
         # タイマー更新
         flow.phase_timer -= dt

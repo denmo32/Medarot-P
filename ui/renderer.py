@@ -90,21 +90,6 @@ class Renderer:
             
             # 三角形を描画（進行方向に向ける）
             self._draw_triangle((px, py), angle, 8, color)
-            
-        # 簡易的な四隅マーカー
-        m_size = 20
-        pygame.draw.lines(self.screen, color, False, [
-            (ex - m_size, ey - m_size + 5), (ex - m_size, ey - m_size), (ex - m_size + 5, ey - m_size)
-        ], 2)
-        pygame.draw.lines(self.screen, color, False, [
-            (ex + m_size, ey - m_size + 5), (ex + m_size, ey - m_size), (ex + m_size - 5, ey - m_size)
-        ], 2)
-        pygame.draw.lines(self.screen, color, False, [
-            (ex - m_size, ey + m_size - 5), (ex - m_size, ey + m_size), (ex - m_size + 5, ey + m_size)
-        ], 2)
-        pygame.draw.lines(self.screen, color, False, [
-            (ex + m_size, ey + m_size - 5), (ex + m_size, ey + m_size), (ex + m_size - 5, ey + m_size)
-        ], 2)
 
     def _draw_triangle(self, pos, angle, size, color):
         """指定した角度の三角形を描画"""
