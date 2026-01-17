@@ -4,7 +4,7 @@ import random
 from core.ecs import System
 from components.action_event import ActionEventComponent
 from battle.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
-from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType
+from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
 from battle.calculator import (
     calculate_hit_probability, 
     calculate_break_probability, 
@@ -72,7 +72,7 @@ class ActionInitiationSystem(System):
         # フェーズ移行
         if gauge.selected_action == ActionType.ATTACK:
             flow.current_phase = BattlePhase.TARGET_INDICATION
-            flow.phase_timer = 0.8 # 演出時間(秒)
+            flow.phase_timer = BattleTiming.TARGET_INDICATION
         else:
             flow.current_phase = BattlePhase.EXECUTING
         
@@ -98,44 +98,37 @@ class ActionInitiationSystem(System):
             
         attack_comp = atk_part_comps['attack']
 
-        # A. ステータス取得
+        # ステータス取得と判定
         success = attack_comp.success
         mobility, defense = self._get_target_legs_stats(target_comps)
-
-        # B. 確率計算
         hit_prob = calculate_hit_probability(success, mobility)
+        
+        if not check_is_hit(hit_prob):
+            event.calculation_result = self._create_result_data(False, False, False, 0, None, 0.0)
+        else:
+            event.calculation_result = self._calculate_hit_outcome(
+                attack_comp, success, mobility, defense, hit_prob, target_comps, target_desired_part
+            )
+
+    def _calculate_hit_outcome(self, attack_comp, success, mobility, defense, hit_prob, target_comps, target_desired_part):
+        """命中時の詳細計算（クリティカル、防御、ダメージ）を行う"""
         break_prob = calculate_break_probability(success, defense)
-        
-        # C. 命中判定
-        is_hit = check_is_hit(hit_prob)
-        
-        if not is_hit:
-            # 回避された場合
-            event.calculation_result = {
-                'is_hit': False,
-                'is_critical': False,
-                'is_defense': False,
-                'damage': 0,
-                'hit_part': None,
-                'stop_duration': 0.0
-            }
-            return
-
-        # D. 判定詳細（クリティカル・防御）
         is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
-
-        # E. 命中部位の決定（防御発生時は「かばう」挙動）
+        
+        # 命中部位の決定（防御発生時は「かばう」挙動）
         hit_part = self._determine_hit_part(target_comps, target_desired_part, is_defense)
         
-        # F. ダメージ計算
+        # ダメージ計算
         damage = calculate_damage(attack_comp.attack, success, mobility, defense, is_critical, is_defense)
         
-        # G. 追加効果
+        # 追加効果
         stop_duration = self._calculate_stop_effect(attack_comp, success, mobility)
 
-        # 結果の保存
-        event.calculation_result = {
-            'is_hit': True,
+        return self._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)
+
+    def _create_result_data(self, is_hit, is_critical, is_defense, damage, hit_part, stop_duration):
+        return {
+            'is_hit': is_hit,
             'is_critical': is_critical,
             'is_defense': is_defense,
             'damage': damage,

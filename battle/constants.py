@@ -38,10 +38,15 @@ class BattlePhase:
     TARGET_INDICATION = "target_indication"
     ATTACK_DECLARATION = "attack_declaration"
     CUTIN = "cutin"
-    CUTIN_RESULT = "cutin_result"           # 追加: カットイン結果表示
+    CUTIN_RESULT = "cutin_result"
     EXECUTING = "executing"
     LOG_WAIT = "log_wait"
     GAME_OVER = "game_over"
+
+class BattleTiming:
+    """演出やフェーズ遷移のタイミング（秒）"""
+    TARGET_INDICATION = 0.8
+    CUTIN_ANIMATION = 1.5
 
 # UI表示用の部位名称マップ
 PART_LABELS = {

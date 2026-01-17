@@ -1,7 +1,7 @@
 """カットイン演出管理システム"""
 
 from core.ecs import System
-from battle.constants import BattlePhase
+from battle.constants import BattlePhase, BattleTiming
 
 class CutinAnimationSystem(System):
     """
@@ -21,8 +21,8 @@ class CutinAnimationSystem(System):
         # タイマー更新
         flow.phase_timer -= dt
         
-        # 進行度更新 (最大時間を1.5秒と仮定)
-        max_time = 1.5
+        # 進行度更新
+        max_time = BattleTiming.CUTIN_ANIMATION
         elapsed = max(0.0, max_time - flow.phase_timer)
         flow.cutin_progress = min(1.0, elapsed / max_time)
         

@@ -1,6 +1,5 @@
 """ターゲット演出管理システム"""
 
-import pygame
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
 
@@ -19,8 +18,8 @@ class TargetIndicatorSystem(System):
         if flow.current_phase != BattlePhase.TARGET_INDICATION:
             return
 
-        # ラインの移動オフセットを現在の時間で更新（フェーズ終了時にこの値で停止する）
-        flow.target_line_offset = pygame.time.get_ticks() / 1000.0
+        # ラインの移動オフセットを更新 (dtを加算してアニメーションさせる)
+        flow.target_line_offset += dt
 
         # タイマー更新
         flow.phase_timer -= dt
@@ -42,10 +41,9 @@ class TargetIndicatorSystem(System):
                 self._add_declaration_log(event, context)
                 flow.current_phase = BattlePhase.ATTACK_DECLARATION
             else:
-                # 攻撃以外なら即実行へ（基本ここには来ないはずだが念のため）
+                # 攻撃以外なら即実行へ
                 flow.current_phase = BattlePhase.EXECUTING
         else:
-            # イベントロスト時はIDLEへ戻す等の処理が必要だが、ここでは一旦実行フェーズへ流す
             flow.current_phase = BattlePhase.EXECUTING
 
     def _add_declaration_log(self, event, context):
@@ -58,12 +56,11 @@ class TargetIndicatorSystem(System):
         attacker_name = attacker_comps['medal'].nickname
         
         # 攻撃パーツ名と特性
-        part_id = attacker_comps['partlist'].parts.get(event.part_type)
-        part_comps = self.world.try_get_entity(part_id) if part_id else None
-        
         trait_text = ""
-        if part_comps and 'attack' in part_comps:
-            trait = part_comps['attack'].trait
-            trait_text = f" {trait}！"
+        part_id = attacker_comps['partlist'].parts.get(event.part_type)
+        if part_id:
+            part_comps = self.world.try_get_entity(part_id)
+            if part_comps and 'attack' in part_comps:
+                trait_text = f" {part_comps['attack'].trait}！"
             
         context.battle_log.append(f"{attacker_name}の攻撃！{trait_text}")

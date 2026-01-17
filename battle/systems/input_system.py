@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.utils import calculate_action_times, calculate_action_menu_layout
-from battle.constants import BattlePhase, ActionType, GaugeStatus, MENU_PART_ORDER
+from battle.constants import BattlePhase, ActionType, GaugeStatus, MENU_PART_ORDER, BattleTiming
 
 class InputSystem(System):
     """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
@@ -48,13 +48,10 @@ class InputSystem(System):
         if input_comp.mouse_clicked or input_comp.key_z:
             context.battle_log.clear()
             flow.current_phase = BattlePhase.CUTIN
-            flow.phase_timer = 1.5 # カットイン演出時間(秒)
+            flow.phase_timer = BattleTiming.CUTIN_ANIMATION
 
     def _handle_cutin_result(self, input_comp, context, flow):
         """カットイン後の結果ログ送り"""
-        # pending_logsがあれば、battle_logに移して表示
-        # ログがなくなったら、IDLEへ
-        
         # 最初の1回（遷移直後）でログが表示されていない場合の処理
         if not context.battle_log and context.pending_logs:
              context.battle_log.append(context.pending_logs.pop(0))

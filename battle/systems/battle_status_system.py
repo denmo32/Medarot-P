@@ -20,13 +20,13 @@ class BattleStatusSystem(System):
         player_leader_alive = False
         enemy_leader_alive = False
 
-        for _, components in self.world.entities.items():
-            team = components.get('team')
-            defeated = components.get('defeated')
+        # 'team' と 'defeated' を持つエンティティのみを対象にする
+        for eid, comps in self.world.get_entities_with_components('team', 'defeated'):
+            team = comps['team']
             
             # リーダーである機体のみをチェック
-            if team and team.is_leader:
-                is_alive = not (defeated and defeated.is_defeated)
+            if team.is_leader:
+                is_alive = not comps['defeated'].is_defeated
                 
                 if team.team_type == TeamType.PLAYER:
                     player_leader_alive = is_alive

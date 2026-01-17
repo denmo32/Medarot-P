@@ -2,7 +2,7 @@
 
 import pygame
 from core.ecs import System
-from config import GAME_PARAMS
+from config import GAME_PARAMS, COLORS
 from battle.utils import calculate_current_x
 from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType, PART_LABELS, MENU_PART_ORDER
 from ui.cutin_renderer import CutinRenderer
@@ -54,7 +54,6 @@ class RenderSystem(System):
             
             self.renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
 
-            # HPバー描画は削除 (カットインへ移動)
         return char_positions
 
     def _get_part_status_map(self, part_list_comp):
@@ -71,7 +70,6 @@ class RenderSystem(System):
         return status
 
     def _get_border_color(self, eid, gauge, context, flow):
-        from config import COLORS
         if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
             return COLORS.get('BORDER_WAIT')
         if gauge.status == GaugeStatus.CHARGING:
@@ -153,8 +151,6 @@ class RenderSystem(System):
         else:
             display_logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
 
-        # メッセージウィンドウは常に描画（枠のみ、または枠＋ログ）
-        # show_input_guidanceがTrueなら右下に案内が出る
         self.renderer.draw_message_window(display_logs, show_input_guidance)
         
         if flow.current_phase == BattlePhase.INPUT:
@@ -194,14 +190,10 @@ class RenderSystem(System):
             'color': target_comps['team'].team_color
         }
         
-        # HPデータの生成
         attacker_hp_data = self._build_hp_data(attacker_comps['partlist'])
         target_hp_data = self._build_hp_data(target_comps['partlist'])
         
-        # 計算結果の取得
         hit_result = event.calculation_result
-
-        # 攻撃側がエネミーなら左右反転（右→左の攻撃）
         is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
 
         self.cutin_renderer.draw(
