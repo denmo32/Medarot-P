@@ -3,6 +3,7 @@
 import pygame
 import math
 from config import COLORS, FONT_NAMES, GAME_PARAMS
+from battle.constants import PartType
 
 class Renderer:
     """
@@ -131,6 +132,68 @@ class Renderer:
     def draw_home_marker(self, x, y):
         pygame.draw.circle(self.screen, COLORS['HOME_MARKER'], (int(x), int(y + 20)), 22, 2)
 
+    def draw_robot_icon(self, cx, cy, base_color, part_status, scale=1.0):
+        """
+        ロボット型アイコンを描画する。
+        cx, cy: 基準座標（ロボットの肩付近）
+        scale: 拡大縮小率 (1.0 = カットインサイズ)
+        """
+        # 色決定用ヘルパー
+        broken_color = (60, 60, 60)
+        def get_col(ptype):
+            if part_status is None:
+                return base_color
+            return base_color if part_status.get(ptype, False) else broken_color
+
+        # 各部位の基本サイズ (scale=1.0)
+        limb_w = 16 * scale
+        limb_h = 48 * scale
+        chest_a = 40 * scale
+        chest_h = 40 * scale
+        head_r = 16 * scale
+        
+        # ギャップ等
+        leg_gap = 4 * scale
+        arm_gap = 4 * scale
+        
+        # 座標計算 (cx, cyを基準)
+        shoulder_y = cy - (16 * scale)
+        head_cy = shoulder_y - head_r
+
+        # 胴体（三角形）
+        # TopLeft, TopRight, BottomCenter
+        chest_points = [
+            (cx - chest_a / 2, shoulder_y),
+            (cx + chest_a / 2, shoulder_y),
+            (cx, shoulder_y + chest_h)
+        ]
+
+        legs_y = shoulder_y + chest_h - (8 * scale)
+        l_leg_x = cx - leg_gap - limb_w
+        r_leg_x = cx + leg_gap
+
+        arms_y = shoulder_y
+        l_arm_x = cx - (chest_a / 2) - arm_gap - limb_w
+        r_arm_x = cx + (chest_a / 2) + arm_gap
+
+        # 描画実行 (Rectはint型が必要)
+        def to_rect(x, y, w, h):
+            return (int(x), int(y), int(w), int(h))
+
+        # 脚
+        pygame.draw.rect(self.screen, get_col(PartType.LEGS), to_rect(l_leg_x, legs_y, limb_w, limb_h))
+        pygame.draw.rect(self.screen, get_col(PartType.LEGS), to_rect(r_leg_x, legs_y, limb_w, limb_h))
+        
+        # 腕
+        pygame.draw.rect(self.screen, get_col(PartType.LEFT_ARM), to_rect(l_arm_x, arms_y, limb_w, limb_h))
+        pygame.draw.rect(self.screen, get_col(PartType.RIGHT_ARM), to_rect(r_arm_x, arms_y, limb_w, limb_h))
+        
+        # 胴体
+        pygame.draw.polygon(self.screen, get_col(PartType.HEAD), chest_points)
+        
+        # 頭
+        pygame.draw.circle(self.screen, get_col(PartType.HEAD), (int(cx), int(head_cy)), int(head_r))
+
     def draw_character_icon(self, icon_x, y, team_color, part_status=None, border_color=None):
         """
         簡易的なロボット型アイコンを描画する。
@@ -142,28 +205,15 @@ class Renderer:
         if border_color:
             pygame.draw.circle(self.screen, border_color, (cx, cy), 22, 2)
 
-        # デフォルト状態（互換性維持）
-        if part_status is None:
-            pygame.draw.circle(self.screen, team_color, (cx, cy), 14)
-            return
-
-        # 色決定用ヘルパー（破壊されたらダークグレー）
-        def get_col(ptype):
-            return team_color if part_status.get(ptype, False) else (60, 60, 60)
-
-        # 1. 脚部（胴体兼任）：中央下部
-        # 中心から少し下に配置
-        pygame.draw.rect(self.screen, get_col('legs'), (cx - 6, cy + 2, 12, 10))
-
-        # 2. 頭部：中央上部
-        # 脚部の上に円を乗せる
-        pygame.draw.circle(self.screen, get_col('head'), (cx, cy - 9), 6)
-
-        # 3. 左腕：画面左側
-        pygame.draw.rect(self.screen, get_col('left_arm'), (cx - 13, cy - 4, 6, 10))
-
-        # 4. 右腕：画面右側
-        pygame.draw.rect(self.screen, get_col('right_arm'), (cx + 7, cy - 4, 6, 10))
+        # 縮小スケールでロボットアイコンを描画
+        # ロボットの描画重心(見た目の中心)を cy に合わせるため、基準点(肩)を少し上にずらす
+        # 全高96px相当のscale=0.4の場合、高さ約38px。
+        # 基準点(肩)から上端まで32px, 下端まで64px (比率1:2)。
+        # 重心は基準点より下にあるため、描画基準点を cy より少し上に設定すると丁度よい。
+        scale = 0.4
+        offset_y = 16 * scale
+        
+        self.draw_robot_icon(cx, cy - offset_y, team_color, part_status, scale=scale)
 
     def draw_hp_bars(self, x, y, hp_data_list):
         for i, data in enumerate(hp_data_list):

@@ -157,44 +157,10 @@ class CutinRenderer:
         is_alive_map = {item['key']: (item['current'] > 0) for item in hp_data}
         
         base_color = char_data['color']
-        broken_color = (60, 60, 60) # 破壊時はダークグレー
-
-        def get_col(part_key):
-            return base_color if is_alive_map.get(part_key, False) else broken_color
-
         cx, cy = int(center_x), int(center_y)
 
         # -- ロボット型アイコン描画 --
-        limb_w, limb_h = 16, 48
-        chest_a = 40
-        chest_h = 40
-        head_r = 16
-
-        shoulder_y = cy - 16
-        head_cy = shoulder_y - head_r
-
-        chest_points = [
-            (cx - chest_a // 2, shoulder_y),
-            (cx + chest_a // 2, shoulder_y),
-            (cx, shoulder_y + chest_h)
-        ]
-
-        legs_y = shoulder_y + chest_h - 8
-        leg_gap = 4
-        l_leg_x = cx - leg_gap - limb_w
-        r_leg_x = cx + leg_gap
-        arm_gap = 4
-        arms_y = shoulder_y
-        l_arm_x = cx - (chest_a // 2) - arm_gap - limb_w
-        r_arm_x = cx + (chest_a // 2) + arm_gap
-
-        # 描画実行
-        pygame.draw.rect(self.screen, get_col(PartType.LEGS), (l_leg_x, legs_y, limb_w, limb_h))
-        pygame.draw.rect(self.screen, get_col(PartType.LEGS), (r_leg_x, legs_y, limb_w, limb_h))
-        pygame.draw.rect(self.screen, get_col(PartType.LEFT_ARM), (l_arm_x, arms_y, limb_w, limb_h))
-        pygame.draw.rect(self.screen, get_col(PartType.RIGHT_ARM), (r_arm_x, arms_y, limb_w, limb_h))
-        pygame.draw.polygon(self.screen, get_col(PartType.HEAD), chest_points)
-        pygame.draw.circle(self.screen, get_col(PartType.HEAD), (cx, head_cy), head_r)
+        self.renderer.draw_robot_icon(cx, cy, base_color, is_alive_map, scale=1.0)
 
         # -- HPバー描画 --
         self.renderer.draw_hp_bars(cx, cy + 65, hp_data)
