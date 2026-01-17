@@ -185,8 +185,9 @@ class Renderer:
         pygame.draw.rect(self.screen, get_col(PartType.LEGS), to_rect(r_leg_x, legs_y, limb_w, limb_h))
         
         # 腕
-        pygame.draw.rect(self.screen, get_col(PartType.LEFT_ARM), to_rect(l_arm_x, arms_y, limb_w, limb_h))
-        pygame.draw.rect(self.screen, get_col(PartType.RIGHT_ARM), to_rect(r_arm_x, arms_y, limb_w, limb_h))
+        # 正面向き（対面）にするため、画面左側(l_arm_x)に右腕、画面右側(r_arm_x)に左腕を描画
+        pygame.draw.rect(self.screen, get_col(PartType.RIGHT_ARM), to_rect(l_arm_x, arms_y, limb_w, limb_h))
+        pygame.draw.rect(self.screen, get_col(PartType.LEFT_ARM), to_rect(r_arm_x, arms_y, limb_w, limb_h))
         
         # 胴体
         pygame.draw.polygon(self.screen, get_col(PartType.HEAD), chest_points)
