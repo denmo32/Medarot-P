@@ -1,5 +1,5 @@
 import pygame
-from config import GAME_PARAMS
+from config import GAME_PARAMS, COLORS
 
 class CutinRenderer:
     """カットイン演出の描画を担当するクラス"""
@@ -8,7 +8,7 @@ class CutinRenderer:
         self.screen = screen
         self.renderer = renderer # テキスト描画などの共通機能利用のため
 
-    def draw(self, attacker_data, target_data, progress, is_hit, mirror=False):
+    def draw(self, attacker_data, target_data, attacker_hp_data, target_hp_data, progress, is_hit, mirror=False):
         """
         カットインウィンドウを描画（枠線なし、アニメーション分岐）
         mirror: Trueなら 右→左 へ攻撃する（エネミー攻撃時など）
@@ -50,10 +50,10 @@ class CutinRenderer:
             proj_miss_x = -50
 
         # 攻撃側
-        self._draw_character_info(attacker_data, attacker_x, attacker_y)
+        self._draw_character_info(attacker_data, attacker_hp_data, attacker_x, attacker_y)
 
         # 防御側
-        self._draw_character_info(target_data, target_x, target_y)
+        self._draw_character_info(target_data, target_hp_data, target_x, target_y)
 
         # アニメーション（弾など）
         self._draw_projectile_animation(
@@ -85,15 +85,23 @@ class CutinRenderer:
             if should_redraw:
                 self._draw_character_info(
                     target_data, 
+                    target_hp_data,
                     target_x, 
                     target_y
                 )
 
-    def _draw_character_info(self, char_data, center_x, center_y):
+    def _draw_character_info(self, char_data, hp_data, center_x, center_y):
         # アイコン
         pygame.draw.circle(self.screen, char_data['color'], (center_x, center_y), 50)
-        # 名前（アイコンの下）
-        self.renderer.draw_text(char_data['name'], (center_x, center_y + 60), font_type='medium', align='center')
+        
+        # HPバー描画（アイコンの下に配置）
+        # Renderer.draw_hp_bars を利用する。
+        # draw_hp_bars は指定された (x, y) を基準に、y+45 から描画を開始する。
+        # アイコン半径が 50 なので、center_y から少し下の位置を y として渡すことで
+        # ちょうど良い位置に表示させる。
+        # center_y + 20 を渡すと、描画開始は center_y + 20 + 45 = center_y + 65 となる。
+        
+        self.renderer.draw_hp_bars(center_x, center_y + 20, hp_data)
 
     def _draw_projectile_animation(self, start_x, hit_x, obj_y, miss_x, progress, is_hit):
         

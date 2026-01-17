@@ -54,9 +54,7 @@ class RenderSystem(System):
             
             self.renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
 
-            # HP
-            hp_data = self._build_hp_data(comps['partlist'])
-            self.renderer.draw_hp_bars(pos.x, pos.y, hp_data)
+            # HPバー描画は削除 (カットインへ移動)
         return char_positions
 
     def _get_part_status_map(self, part_list_comp):
@@ -89,6 +87,7 @@ class RenderSystem(System):
             if p_id is not None:
                 h = self.world.entities[p_id]['health']
                 hp_data.append({
+                    'key': p_key,
                     'label': PART_LABELS.get(p_key, ""),
                     'current': int(h.display_hp),
                     'max': h.max_hp,
@@ -182,6 +181,10 @@ class RenderSystem(System):
             'color': target_comps['team'].team_color
         }
         
+        # HPデータの生成
+        attacker_hp_data = self._build_hp_data(attacker_comps['partlist'])
+        target_hp_data = self._build_hp_data(target_comps['partlist'])
+        
         # ヒット判定（計算結果がない場合はミス扱い）
         is_hit = False
         if event.calculation_result and event.calculation_result.get('is_hit'):
@@ -190,4 +193,8 @@ class RenderSystem(System):
         # 攻撃側がエネミーなら左右反転（右→左の攻撃）
         is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
 
-        self.cutin_renderer.draw(attacker_data, target_data, progress, is_hit, mirror=is_enemy_attack)
+        self.cutin_renderer.draw(
+            attacker_data, target_data, 
+            attacker_hp_data, target_hp_data,
+            progress, is_hit, mirror=is_enemy_attack
+        )
