@@ -55,9 +55,15 @@ class ActionInitiationSystem(System):
             target_part=target_part
         ))
         
-        # フェーズ移行: IDLE -> EXECUTING
-        flow.current_phase = BattlePhase.EXECUTING
         flow.processing_event_id = event_eid
+        
+        # フェーズ移行:
+        # 攻撃アクションの場合はターゲット演出フェーズへ、それ以外（スキップ等）は即実行へ
+        if gauge.selected_action == ActionType.ATTACK:
+            flow.current_phase = BattlePhase.TARGET_INDICATION
+            flow.phase_timer = 0.8 # 演出時間(秒)
+        else:
+            flow.current_phase = BattlePhase.EXECUTING
         
         # 待機列から削除
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:

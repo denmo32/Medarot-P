@@ -1,5 +1,6 @@
 """描画ロジック（データ加工）を担当するシステム"""
 
+import pygame
 from core.ecs import System
 from config import GAME_PARAMS
 from battle.utils import calculate_current_x
@@ -21,7 +22,10 @@ class RenderSystem(System):
         self.renderer.clear()
         self.renderer.draw_field_guides()
         char_positions = self._render_characters(context, flow)
+        
         self._render_target_marker(context, flow, char_positions)
+        self._render_target_indication_line(context, flow, char_positions) # 追加
+        
         self._render_ui(context, flow)
         self.renderer.present()
 
@@ -75,13 +79,44 @@ class RenderSystem(System):
             if eid and context.selected_menu_index < len(MENU_PART_ORDER):
                 target_data = self.world.entities[eid]['gauge'].part_targets.get(MENU_PART_ORDER[context.selected_menu_index])
                 if target_data: target_eid = target_data[0]
-        elif flow.processing_event_id is not None:
-            event_comps = self.world.try_get_entity(flow.processing_event_id)
-            if event_comps and 'actionevent' in event_comps:
-                target_eid = event_comps['actionevent'].current_target_id
+        elif flow.processing_event_id is not None and flow.current_phase != BattlePhase.TARGET_INDICATION:
+             # TARGET_INDICATION中はラインが出るので、マーカーは出さない（あるいは重ねて出す）
+             # ここではライン演出を優先し、EXECUTING以降でマーカーに戻すことも可能だが、
+             # ターゲット確認用としてEXECUTING中も出すのは既存通り。
+             # ターゲット演出中は専用描画に任せる。
+             pass
         
         if target_eid:
             self.renderer.draw_target_marker(target_eid, char_positions)
+
+    def _render_target_indication_line(self, context, flow, char_positions):
+        """TARGET_INDICATIONフェーズでのアニメーション描画"""
+        if flow.current_phase != BattlePhase.TARGET_INDICATION:
+            return
+            
+        event_eid = flow.processing_event_id
+        if event_eid is None: return
+        
+        event_comps = self.world.try_get_entity(event_eid)
+        if not event_comps or 'actionevent' not in event_comps: return
+        
+        event = event_comps['actionevent']
+        attacker_id = event.attacker_id
+        target_id = event.current_target_id
+        
+        if attacker_id in char_positions and target_id in char_positions:
+            start_pos = char_positions[attacker_id]
+            end_pos = char_positions[target_id]
+            
+            # アイコンの中心座標（icon_x, y+20 が中心）
+            sp = (start_pos['icon_x'], start_pos['y'] + 20)
+            ep = (end_pos['icon_x'], end_pos['y'] + 20)
+            
+            # 継続時間を使ったアニメーション
+            # pygame.time.get_ticks() / 1000.0 を使ってスムーズに動かす
+            current_time = pygame.time.get_ticks() / 1000.0
+            
+            self.renderer.draw_flow_line(sp, ep, current_time)
 
     def _render_ui(self, context, flow):
         self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], flow.current_phase == BattlePhase.LOG_WAIT)

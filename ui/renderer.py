@@ -1,6 +1,7 @@
 """描画のみを担当するプレゼンテーション層"""
 
 import pygame
+import math
 from config import COLORS, FONT_NAMES, GAME_PARAMS
 
 class Renderer:
@@ -57,6 +58,73 @@ class Renderer:
         # 枠線
         if border_color:
             pygame.draw.rect(self.screen, border_color, rect, 1)
+
+    def draw_flow_line(self, start_pos, end_pos, time_offset, color=(255, 255, 0)):
+        """
+        始点から終点へ向かうフローライン（▶▶▶）を描画する
+        
+        Args:
+            start_pos: (x, y) 始点
+            end_pos: (x, y) 終点
+            time_offset: アニメーション用の時間オフセット(float)
+            color: 描画色
+        """
+        sx, sy = start_pos
+        ex, ey = end_pos
+        
+        dx = ex - sx
+        dy = ey - sy
+        dist = math.hypot(dx, dy)
+        if dist < 1: return
+
+        angle = math.atan2(dy, dx)
+        
+        # 三角形の数と間隔
+        spacing = 30
+        count = int(dist / spacing)
+        
+        # 時間経過でオフセットを移動させる (0 -> spacing)
+        move_offset = (time_offset * 100) % spacing
+        
+        for i in range(count):
+            # 現在の位置（始点からの距離）
+            d = i * spacing + move_offset
+            if d > dist: continue
+            
+            # 座標計算
+            px = sx + math.cos(angle) * d
+            py = sy + math.sin(angle) * d
+            
+            # 三角形を描画（進行方向に向ける）
+            self._draw_triangle((px, py), angle, 8, color)
+            
+        # 簡易的な四隅マーカー
+        m_size = 20
+        pygame.draw.lines(self.screen, color, False, [
+            (ex - m_size, ey - m_size + 5), (ex - m_size, ey - m_size), (ex - m_size + 5, ey - m_size)
+        ], 2)
+        pygame.draw.lines(self.screen, color, False, [
+            (ex + m_size, ey - m_size + 5), (ex + m_size, ey - m_size), (ex + m_size - 5, ey - m_size)
+        ], 2)
+        pygame.draw.lines(self.screen, color, False, [
+            (ex - m_size, ey + m_size - 5), (ex - m_size, ey + m_size), (ex - m_size + 5, ey + m_size)
+        ], 2)
+        pygame.draw.lines(self.screen, color, False, [
+            (ex + m_size, ey + m_size - 5), (ex + m_size, ey + m_size), (ex + m_size - 5, ey + m_size)
+        ], 2)
+
+    def _draw_triangle(self, pos, angle, size, color):
+        """指定した角度の三角形を描画"""
+        cx, cy = pos
+        # 先端
+        p1 = (cx + math.cos(angle) * size, cy + math.sin(angle) * size)
+        # 後ろ2点（120度ずらす）
+        angle2 = angle + math.radians(140)
+        angle3 = angle - math.radians(140)
+        p2 = (cx + math.cos(angle2) * size, cy + math.sin(angle2) * size)
+        p3 = (cx + math.cos(angle3) * size, cy + math.sin(angle3) * size)
+        
+        pygame.draw.polygon(self.screen, color, [p1, p2, p3])
 
     # --- バトル共通描画 ---
 

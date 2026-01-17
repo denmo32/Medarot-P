@@ -35,6 +35,7 @@ class GaugeStatus:
 class BattlePhase:
     IDLE = "idle"
     INPUT = "input"
+    TARGET_INDICATION = "target_indication" # 追加: ターゲット演出フェーズ
     EXECUTING = "executing"
     LOG_WAIT = "log_wait"
     GAME_OVER = "game_over"
