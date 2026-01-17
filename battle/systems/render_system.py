@@ -137,12 +137,21 @@ class RenderSystem(System):
             self.renderer.draw_flow_line(sp, ep, current_time)
 
     def _render_ui(self, context, flow):
-        # メッセージウィンドウの表示条件に CUTIN_RESULT も追加
-        show_message = (flow.current_phase == BattlePhase.LOG_WAIT or 
-                        flow.current_phase == BattlePhase.ATTACK_DECLARATION or
-                        flow.current_phase == BattlePhase.CUTIN_RESULT)
+        # 入力待ち案内（「Zキー...」）を表示するかどうかのフラグ
+        show_input_guidance = (flow.current_phase == BattlePhase.LOG_WAIT or 
+                               flow.current_phase == BattlePhase.ATTACK_DECLARATION or
+                               flow.current_phase == BattlePhase.CUTIN_RESULT)
         
-        self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], show_message)
+        # ログを表示するかどうか
+        # CUTIN, CUTIN_RESULT のときは、結果がポップアップで出るためウィンドウ内のログテキストは非表示にする
+        if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
+            display_logs = []
+        else:
+            display_logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
+
+        # メッセージウィンドウは常に描画（枠のみ、または枠＋ログ）
+        # show_input_guidanceがTrueなら右下に案内が出る
+        self.renderer.draw_message_window(display_logs, show_input_guidance)
         
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
@@ -185,10 +194,8 @@ class RenderSystem(System):
         attacker_hp_data = self._build_hp_data(attacker_comps['partlist'])
         target_hp_data = self._build_hp_data(target_comps['partlist'])
         
-        # ヒット判定（計算結果がない場合はミス扱い）
-        is_hit = False
-        if event.calculation_result and event.calculation_result.get('is_hit'):
-            is_hit = True
+        # 計算結果の取得
+        hit_result = event.calculation_result
 
         # 攻撃側がエネミーなら左右反転（右→左の攻撃）
         is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
@@ -196,5 +203,5 @@ class RenderSystem(System):
         self.cutin_renderer.draw(
             attacker_data, target_data, 
             attacker_hp_data, target_hp_data,
-            progress, is_hit, mirror=is_enemy_attack
+            progress, hit_result, mirror=is_enemy_attack
         )
