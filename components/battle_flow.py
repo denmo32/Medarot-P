@@ -6,10 +6,13 @@ from battle.constants import BattlePhase
 class BattleFlowComponent(Component):
     """バトルの現在のフェーズを管理する"""
     
-    # フェーズ定義 (constantsと同様だがクラス定数として保持)
+    # フェーズ定義
     PHASE_IDLE = BattlePhase.IDLE
     PHASE_INPUT = BattlePhase.INPUT
     PHASE_TARGET_INDICATION = BattlePhase.TARGET_INDICATION
+    PHASE_ATTACK_DECLARATION = BattlePhase.ATTACK_DECLARATION
+    PHASE_CUTIN = BattlePhase.CUTIN
+    PHASE_CUTIN_RESULT = BattlePhase.CUTIN_RESULT # 追加
     PHASE_EXECUTING = BattlePhase.EXECUTING
     PHASE_LOG_WAIT = BattlePhase.LOG_WAIT
     PHASE_GAME_OVER = BattlePhase.GAME_OVER

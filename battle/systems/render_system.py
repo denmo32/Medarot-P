@@ -24,9 +24,14 @@ class RenderSystem(System):
         char_positions = self._render_characters(context, flow)
         
         self._render_target_marker(context, flow, char_positions)
-        self._render_target_indication_line(context, flow, char_positions) # 追加
+        self._render_target_indication_line(context, flow, char_positions)
         
         self._render_ui(context, flow)
+
+        # カットインはUIの上にさらに重ねる
+        if flow.current_phase == BattlePhase.CUTIN or flow.current_phase == BattlePhase.CUTIN_RESULT:
+            self._render_cutin(context, flow)
+
         self.renderer.present()
 
     def _render_characters(self, context, flow):
@@ -80,10 +85,6 @@ class RenderSystem(System):
                 target_data = self.world.entities[eid]['gauge'].part_targets.get(MENU_PART_ORDER[context.selected_menu_index])
                 if target_data: target_eid = target_data[0]
         elif flow.processing_event_id is not None and flow.current_phase != BattlePhase.TARGET_INDICATION:
-             # TARGET_INDICATION中はラインが出るので、マーカーは出さない（あるいは重ねて出す）
-             # ここではライン演出を優先し、EXECUTING以降でマーカーに戻すことも可能だが、
-             # ターゲット確認用としてEXECUTING中も出すのは既存通り。
-             # ターゲット演出中は専用描画に任せる。
              pass
         
         if target_eid:
@@ -113,13 +114,18 @@ class RenderSystem(System):
             ep = (end_pos['icon_x'], end_pos['y'] + 20)
             
             # 継続時間を使ったアニメーション
-            # pygame.time.get_ticks() / 1000.0 を使ってスムーズに動かす
             current_time = pygame.time.get_ticks() / 1000.0
             
             self.renderer.draw_flow_line(sp, ep, current_time)
 
     def _render_ui(self, context, flow):
-        self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], flow.current_phase == BattlePhase.LOG_WAIT)
+        # メッセージウィンドウの表示条件に CUTIN_RESULT も追加
+        show_message = (flow.current_phase == BattlePhase.LOG_WAIT or 
+                        flow.current_phase == BattlePhase.ATTACK_DECLARATION or
+                        flow.current_phase == BattlePhase.CUTIN_RESULT)
+        
+        self.renderer.draw_message_window(context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:], show_message)
+        
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid:
@@ -128,5 +134,37 @@ class RenderSystem(System):
                            for p_id in [comps['partlist'].parts.get(k) for k in MENU_PART_ORDER] if p_id]
                 buttons.append({'label': "スキップ", 'enabled': True})
                 self.renderer.draw_action_menu(comps['medal'].nickname, buttons, context.selected_menu_index)
+        
         if flow.current_phase == BattlePhase.GAME_OVER:
             self.renderer.draw_game_over(flow.winner)
+
+    def _render_cutin(self, context, flow):
+        event_eid = flow.processing_event_id
+        if event_eid is None: return
+        
+        event_comps = self.world.try_get_entity(event_eid)
+        if not event_comps or 'actionevent' not in event_comps: return
+        
+        event = event_comps['actionevent']
+        attacker_comps = self.world.try_get_entity(event.attacker_id)
+        target_comps = self.world.try_get_entity(event.current_target_id)
+        
+        if not attacker_comps or not target_comps: return
+
+        # 進行度計算
+        progress = 1.0
+        if flow.current_phase == BattlePhase.CUTIN:
+            max_time = 1.5
+            elapsed = max(0.0, max_time - flow.phase_timer)
+            progress = elapsed / max_time
+        
+        attacker_data = {
+            'name': attacker_comps['medal'].nickname,
+            'color': attacker_comps['team'].team_color
+        }
+        target_data = {
+            'name': target_comps['medal'].nickname,
+            'color': target_comps['team'].team_color
+        }
+        
+        self.renderer.draw_cutin_window(attacker_data, target_data, progress)

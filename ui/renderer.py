@@ -60,15 +60,7 @@ class Renderer:
             pygame.draw.rect(self.screen, border_color, rect, 1)
 
     def draw_flow_line(self, start_pos, end_pos, time_offset, color=(255, 255, 0)):
-        """
-        始点から終点へ向かうフローライン（▶▶▶）を描画する
-        
-        Args:
-            start_pos: (x, y) 始点
-            end_pos: (x, y) 終点
-            time_offset: アニメーション用の時間オフセット(float)
-            color: 描画色
-        """
+        """始点から終点へ向かうフローライン（▶▶▶）を描画する"""
         sx, sy = start_pos
         ex, ey = end_pos
         
@@ -203,3 +195,46 @@ class Renderer:
         
         self.draw_text(f"{winner_name}の勝利！", (mid_x, mid_y), color, 'notice', 'center')
         self.draw_text("ESCキーで終了", (mid_x, mid_y + GAME_PARAMS['NOTICE_Y_OFFSET']), COLORS['TEXT'], 'medium', 'center')
+
+    def draw_cutin_window(self, attacker_data, target_data, progress):
+        """カットインウィンドウを描画"""
+        sw, sh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']
+        
+        # 背景オーバーレイ
+        overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+        
+        # ウィンドウ枠
+        w_w, w_h = 700, 200
+        w_x, w_y = (sw - w_w) // 2, (sh - w_h) // 2
+        
+        self.draw_box((w_x, w_y, w_w, w_h), (20, 20, 40), (100, 200, 255), 3)
+        
+        # 左右のキャラエリア
+        char_box_w = 150
+        
+        # 攻撃側（左）
+        self.draw_box((w_x + 20, w_y + 20, char_box_w, w_h - 40), (40, 40, 60), attacker_data['color'], 2)
+        pygame.draw.circle(self.screen, attacker_data['color'], (w_x + 20 + char_box_w // 2, w_y + 80), 40)
+        self.draw_text(attacker_data['name'], (w_x + 20 + char_box_w // 2, w_y + 140), font_type='medium', align='center')
+
+        # 防御側（右）
+        self.draw_box((w_x + w_w - 20 - char_box_w, w_y + 20, char_box_w, w_h - 40), (40, 40, 60), target_data['color'], 2)
+        pygame.draw.circle(self.screen, target_data['color'], (w_x + w_w - 20 - char_box_w // 2, w_y + 80), 40)
+        self.draw_text(target_data['name'], (w_x + w_w - 20 - char_box_w // 2, w_y + 140), font_type='medium', align='center')
+
+        # アニメーションオブジェクト（弾など）
+        anim_area_start_x = w_x + 20 + char_box_w + 10
+        anim_area_end_x = w_x + w_w - 20 - char_box_w - 10
+        anim_width = anim_area_end_x - anim_area_start_x
+        
+        # 弾の現在位置
+        bullet_x = anim_area_start_x + anim_width * progress
+        bullet_y = w_y + w_h // 2
+        
+        if progress < 1.0:
+            # 弾描画
+            pygame.draw.circle(self.screen, (255, 255, 0), (int(bullet_x), int(bullet_y)), 10)
+            # 軌跡
+            pygame.draw.line(self.screen, (255, 255, 0), (int(anim_area_start_x), int(bullet_y)), (int(bullet_x), int(bullet_y)), 2)

@@ -14,6 +14,7 @@ from battle.systems.battle_status_system import BattleStatusSystem
 from battle.systems.input_system import InputSystem
 from battle.systems.render_system import RenderSystem
 from battle.systems.target_indicator_system import TargetIndicatorSystem
+from battle.systems.cutin_animation_system import CutinAnimationSystem
 from ui.renderer import Renderer
 
 class BattleSystem:
@@ -34,18 +35,19 @@ class BattleSystem:
         
         # システム更新順序を整理
         self.systems = [
-            InputSystem(self.world),             # 1. 入力受付 (INPUTフェーズ)
-            BattleFlowSystem(self.world),        # 2. 状態遷移管理 (LOG_WAIT -> IDLEなど)
-            GaugeSystem(self.world),             # 3. ゲージ進行 (IDLEフェーズ)
-            TargetSelectionSystem(self.world),   # 4. ターゲット選定 (IDLE)
-            TurnSystem(self.world),              # 5. ターン管理 (IDLE: キュー処理 -> INPUT/チャージ)
-            ActionInitiationSystem(self.world),  # 6. 行動起案 (IDLE: チャージ完了 -> TARGET_INDICATION/EXECUTING)
-            TargetIndicatorSystem(self.world),   # 7. ターゲット演出 (TARGET_INDICATION -> EXECUTING)
-            ActionResolutionSystem(self.world),  # 8. 行動解決 (EXECUTING -> LOG_WAIT/ダメージ発生)
-            DamageSystem(self.world),            # 9. ダメージ適用 (DamageEvent処理)
-            HealthAnimationSystem(self.world),   # 10. HPバーのアニメーション補間
-            BattleStatusSystem(self.world),      # 11. 勝敗判定
-            RenderSystem(self.world, self.renderer) # 12. 描画
+            InputSystem(self.world),             # 1. 入力受付 (INPUT / ATTACK_DECLARATION)
+            BattleFlowSystem(self.world),        # 2. 状態遷移管理
+            GaugeSystem(self.world),             # 3. ゲージ進行
+            TargetSelectionSystem(self.world),   # 4. ターゲット選定
+            TurnSystem(self.world),              # 5. ターン管理
+            ActionInitiationSystem(self.world),  # 6. 行動起案
+            TargetIndicatorSystem(self.world),   # 7. ターゲット演出 (-> ATTACK_DECLARATION)
+            CutinAnimationSystem(self.world),    # 8. カットイン演出 (-> EXECUTING)
+            ActionResolutionSystem(self.world),  # 9. 行動解決
+            DamageSystem(self.world),            # 10. ダメージ適用
+            HealthAnimationSystem(self.world),   # 11. HPバーのアニメーション
+            BattleStatusSystem(self.world),      # 12. 勝敗判定
+            RenderSystem(self.world, self.renderer) # 13. 描画
         ]
 
     def update(self, dt: float = 0.016) -> None:

@@ -28,7 +28,6 @@ class ActionResolutionSystem(System):
             return
         
         event_eid = flow.processing_event_id
-        # 安全な取得
         event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
         
         if not event_comps or 'actionevent' not in event_comps:
@@ -41,9 +40,13 @@ class ActionResolutionSystem(System):
         # アクションの実行
         self._resolve_action(event, context, flow)
         
-        # イベントエンティティの削除と後処理
-        self.world.delete_entity(event_eid)
-        flow.processing_event_id = None
+        # CUTIN_RESULTへ移行する場合はイベントをまだ削除しない（RenderSystemで情報を使うため）
+        # SKIP等でLOG_WAITに行く場合は削除する
+        if flow.current_phase != BattlePhase.CUTIN_RESULT:
+            self.world.delete_entity(event_eid)
+            flow.processing_event_id = None
+        
+        # イベントエンティティの削除を InputSystem._handle_cutin_result に委譲する形になる。
 
     def _resolve_action(self, event, context, flow):
         attacker_id = event.attacker_id
@@ -53,13 +56,15 @@ class ActionResolutionSystem(System):
 
         if event.action_type == ActionType.ATTACK:
             self._handle_attack_action(event, attacker_comps, context)
+            # 攻撃の場合はカットイン結果表示へ
+            flow.current_phase = BattlePhase.CUTIN_RESULT
         elif event.action_type == ActionType.SKIP:
             context.battle_log.append(f"{attacker_comps['medal'].nickname}は行動をスキップ！")
+            flow.current_phase = BattlePhase.LOG_WAIT
 
         # どのアクションであれ、終了後はクールダウンへ
         if 'gauge' in attacker_comps:
             reset_gauge_to_cooldown(attacker_comps['gauge'])
-        flow.current_phase = BattlePhase.LOG_WAIT
 
     def _handle_attack_action(self, event, attacker_comps, context):
         attacker_name = attacker_comps['medal'].nickname
@@ -79,9 +84,6 @@ class ActionResolutionSystem(System):
         if not target_comps or target_comps['defeated'].is_defeated:
             context.battle_log.append(f"{attacker_name}はターゲットロストした！")
             return
-
-        # 攻撃開始ログ
-        context.battle_log.append(f"{attacker_name}の攻撃！ {attack_comp.trait}！")
         
         # 3. 計算実行
         self._execute_combat_calculations(event.attacker_id, target_id, target_comps, event, attack_comp, context)
