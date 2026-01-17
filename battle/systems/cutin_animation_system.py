@@ -21,7 +21,13 @@ class CutinAnimationSystem(System):
         # タイマー更新
         flow.phase_timer -= dt
         
+        # 進行度更新 (最大時間を1.5秒と仮定)
+        max_time = 1.5
+        elapsed = max(0.0, max_time - flow.phase_timer)
+        flow.cutin_progress = min(1.0, elapsed / max_time)
+        
         # 時間経過で次のフェーズ（実行）へ
         if flow.phase_timer <= 0:
             flow.current_phase = BattlePhase.EXECUTING
             flow.phase_timer = 0.0
+            flow.cutin_progress = 1.0

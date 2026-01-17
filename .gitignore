@@ -45,3 +45,4 @@ battle/__pycache__/constants.cpython-313.pyc
 battle/systems/__pycache__/health_animation_system.cpython-313.pyc
 battle/systems/__pycache__/target_indicator_system.cpython-313.pyc
 battle/systems/__pycache__/cutin_animation_system.cpython-313.pyc
+ui/__pycache__/cutin_renderer.cpython-313.pyc

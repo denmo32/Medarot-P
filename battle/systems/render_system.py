@@ -5,6 +5,7 @@ from core.ecs import System
 from config import GAME_PARAMS
 from battle.utils import calculate_current_x
 from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType, PART_LABELS, MENU_PART_ORDER
+from ui.cutin_renderer import CutinRenderer
 
 class RenderSystem(System):
     """Worldのコンポーネントから描画用データを抽出しRendererへ渡す"""
@@ -12,6 +13,7 @@ class RenderSystem(System):
     def __init__(self, world, renderer):
         super().__init__(world)
         self.renderer = renderer
+        self.cutin_renderer = CutinRenderer(renderer.screen, renderer)
         self.hp_bar_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
@@ -151,12 +153,8 @@ class RenderSystem(System):
         
         if not attacker_comps or not target_comps: return
 
-        # 進行度計算
-        progress = 1.0
-        if flow.current_phase == BattlePhase.CUTIN:
-            max_time = 1.5
-            elapsed = max(0.0, max_time - flow.phase_timer)
-            progress = elapsed / max_time
+        # 進行度取得（CUTINフェーズ以外は1.0=終了）
+        progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         
         attacker_data = {
             'name': attacker_comps['medal'].nickname,
@@ -172,4 +170,4 @@ class RenderSystem(System):
         if event.calculation_result and event.calculation_result.get('is_hit'):
             is_hit = True
 
-        self.renderer.draw_cutin_window(attacker_data, target_data, progress, is_hit)
+        self.cutin_renderer.draw(attacker_data, target_data, progress, is_hit)
