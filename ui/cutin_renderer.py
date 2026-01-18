@@ -1,8 +1,9 @@
 """カットイン演出管理システム"""
 
 import pygame
+import math
 from config import GAME_PARAMS
-from battle.constants import PartType
+from battle.constants import PartType, TraitType
 
 class CutinRenderer:
     """カットイン演出の描画を担当するクラス"""
@@ -44,88 +45,146 @@ class CutinRenderer:
         # 下方向オフセット（登場用）
         bottom_offset = 300
 
-        # アニメーション進行度に基づく座標計算
-        # Phase閾値
-        t_switch_start = 0.45
-        t_switch_end = 0.7
-        t_impact = 0.8
-        
-        # デフォルト初期値
-        attacker_x = left_pos_x
-        attacker_y = center_y + bottom_offset
-        
-        defender_x = sw + offscreen_offset
+        # 初期値
+        attacker_x = -1000
+        attacker_y = center_y
+        defender_x = sw + 1000
         defender_y = center_y
         
         bullet_visible = False
         bullet_x = 0
+        slash_visible = False
         
-        # A. 攻撃側 アニメーション
-        if progress < t_switch_start:
-            # 登場 (0.0 -> 0.2)
+        # 格闘攻撃判定
+        is_melee = (attack_trait in TraitType.MELEE_TRAITS)
+
+        # 結果表示タイミング（デフォルト）
+        t_impact = 0.8
+
+        if is_melee:
+            # === 格闘アクション (接近 -> 攻撃 -> 離脱) ===
+            t_dash_start = 0.35
+            t_hit = 0.55
+            t_leave_start = 0.75
+            t_impact = t_hit # ポップアップ表示タイミングを合わせる
+
+            # A. 攻撃側 アニメーション
             if progress < t_enter:
+                # 登場 (下から)
                 ratio = progress / t_enter
-                # 下から上へ
                 attacker_y = (center_y + bottom_offset) - (bottom_offset * ratio)
                 attacker_x = left_pos_x
-            else:
+            elif progress < t_dash_start:
+                # 溜め (定位置)
                 attacker_y = center_y
                 attacker_x = left_pos_x
-        else:
-            # 退場 (0.45 -> 0.7)
-            attacker_y = center_y
-            if progress < t_switch_end:
-                ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
-                attacker_x = left_pos_x - (left_pos_x + offscreen_offset) * ratio
+            elif progress < t_hit:
+                # 急接近 (定位置 -> 敵の目前)
+                ratio = (progress - t_dash_start) / (t_hit - t_dash_start)
+                # イージング (加速)
+                ratio = ratio * ratio
+                attacker_y = center_y
+                # 敵の手前(right_pos_x - 100)まで移動
+                target_x = right_pos_x - 100
+                attacker_x = left_pos_x + (target_x - left_pos_x) * ratio
+            elif progress < t_leave_start:
+                # 攻撃ヒット中 (位置固定)
+                attacker_y = center_y
+                attacker_x = right_pos_x - 100
+                slash_visible = True
             else:
-                attacker_x = -offscreen_offset * 2
+                # 離脱 (相手の後ろを通り抜ける)
+                ratio = (progress - t_leave_start) / (1.0 - t_leave_start)
+                # イージング（加速）
+                ratio = ratio * ratio
+                
+                start_x = right_pos_x - 100
+                target_x = sw + offscreen_offset # 画面右外へ
+                
+                attacker_x = start_x + (target_x - start_x) * ratio
+                attacker_y = center_y
 
-        # B. 防御側 アニメーション
-        if progress < t_switch_start:
-            defender_x = sw + offscreen_offset
-        elif progress < t_switch_end:
-            # 登場 (0.45 -> 0.7)
-            ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
-            defender_x = (sw + offscreen_offset) - ((sw + offscreen_offset) - right_pos_x) * ratio
+            # B. 防御側 アニメーション
+            if progress < t_dash_start:
+                defender_x = sw + offscreen_offset
+            elif progress < t_hit:
+                # 攻撃側の接近に合わせてスライドイン
+                ratio = (progress - t_dash_start) / (t_hit - t_dash_start)
+                ratio = ratio * ratio
+                defender_x = (sw + offscreen_offset) - ((sw + offscreen_offset) - right_pos_x) * ratio
+            else:
+                defender_x = right_pos_x
+
         else:
-            defender_x = right_pos_x
+            # === 射撃アクション (弾発射) ===
+            t_switch_start = 0.45
+            t_switch_end = 0.7
+            t_impact = 0.8
 
-        # C. 弾丸 アニメーション
-        t_fire = 0.25
-        
-        if progress >= t_fire:
-            bullet_visible = True
-            
-            bullet_start_rel_x = 80
-            screen_center_x = sw // 2
-            
+            # A. 攻撃側 アニメーション
             if progress < t_switch_start:
-                # 発射フェーズ
-                ratio = (progress - t_fire) / (t_switch_start - t_fire)
-                start_x = left_pos_x + bullet_start_rel_x
-                bullet_x = start_x + (screen_center_x - start_x) * ratio
-                
-            elif progress < t_switch_end:
-                # 追従フェーズ
-                ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
-                bullet_x = screen_center_x + (50 * ratio)
-                
-            else:
-                # 着弾フェーズ
-                ratio = (progress - t_switch_end) / (t_impact - t_switch_end)
-                prev_x = screen_center_x + 50
-                target_hit_x = right_pos_x
-                
-                is_hit = hit_result.get('is_hit', False) if hit_result else False
-                
-                if progress <= t_impact:
-                    bullet_x = prev_x + (target_hit_x - prev_x) * ratio
+                # 登場 (0.0 -> 0.2)
+                if progress < t_enter:
+                    ratio = progress / t_enter
+                    attacker_y = (center_y + bottom_offset) - (bottom_offset * ratio)
+                    attacker_x = left_pos_x
                 else:
-                    if is_hit:
-                        bullet_visible = False
+                    attacker_y = center_y
+                    attacker_x = left_pos_x
+            else:
+                # 退場 (0.45 -> 0.7)
+                attacker_y = center_y
+                if progress < t_switch_end:
+                    ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
+                    attacker_x = left_pos_x - (left_pos_x + offscreen_offset) * ratio
+                else:
+                    attacker_x = -offscreen_offset * 2
+
+            # B. 防御側 アニメーション
+            if progress < t_switch_start:
+                defender_x = sw + offscreen_offset
+            elif progress < t_switch_end:
+                # 登場 (0.45 -> 0.7)
+                ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
+                defender_x = (sw + offscreen_offset) - ((sw + offscreen_offset) - right_pos_x) * ratio
+            else:
+                defender_x = right_pos_x
+
+            # C. 弾丸 アニメーション
+            t_fire = 0.25
+            
+            if progress >= t_fire:
+                bullet_visible = True
+                bullet_start_rel_x = 80
+                screen_center_x = sw // 2
+                
+                if progress < t_switch_start:
+                    # 発射フェーズ
+                    ratio = (progress - t_fire) / (t_switch_start - t_fire)
+                    start_x = left_pos_x + bullet_start_rel_x
+                    bullet_x = start_x + (screen_center_x - start_x) * ratio
+                    
+                elif progress < t_switch_end:
+                    # 追従フェーズ
+                    ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
+                    bullet_x = screen_center_x + (50 * ratio)
+                    
+                else:
+                    # 着弾フェーズ
+                    ratio = (progress - t_switch_end) / (t_impact - t_switch_end)
+                    prev_x = screen_center_x + 50
+                    target_hit_x = right_pos_x
+                    
+                    is_hit = hit_result.get('is_hit', False) if hit_result else False
+                    
+                    if progress <= t_impact:
+                        bullet_x = prev_x + (target_hit_x - prev_x) * ratio
                     else:
-                        miss_ratio = (progress - t_impact) / (1.0 - t_impact)
-                        bullet_x = target_hit_x + (sw - target_hit_x + 100) * miss_ratio
+                        if is_hit:
+                            bullet_visible = False
+                        else:
+                            miss_ratio = (progress - t_impact) / (1.0 - t_impact)
+                            bullet_x = target_hit_x + (sw - target_hit_x + 100) * miss_ratio
 
         # --- ミラーリング ---
         if mirror:
@@ -135,7 +194,7 @@ class CutinRenderer:
 
         # --- 描画実行 (順序: キャラ/弾 -> 黒帯 -> ポップアップ) ---
 
-        # 2. キャラクター & 弾丸 (黒帯の下)
+        # 2. キャラクター & 弾丸/エフェクト (黒帯の下)
         
         # 攻撃側
         if -200 < attacker_x < sw + 200:
@@ -152,6 +211,10 @@ class CutinRenderer:
             direction = -1 if mirror else 1
             tail_end_x = bullet_x - (tail_len * direction)
             pygame.draw.line(self.screen, (255, 200, 0), (int(bullet_x), int(center_y)), (int(tail_end_x), int(center_y)), 4)
+            
+        # スラッシュエフェクト（格闘用）
+        if slash_visible:
+            self._draw_slash_effect(defender_x, center_y, progress, mirror)
 
         # 3. 黒帯 (Cinematic Bars) - 最前面に描画し、滑らかに登場させる
         target_bar_height = sh // 8
@@ -167,11 +230,51 @@ class CutinRenderer:
         if progress > t_impact:
              self._draw_popup_result(defender_x, center_y, hit_result, progress, t_impact)
 
+    def _draw_slash_effect(self, cx, cy, progress, mirror):
+        """格闘攻撃の軌跡（スラッシュ）を描画"""
+        # アニメーション係数 (短時間で消える)
+        # 表示開始から0.2秒程度で消える
+        effect_time = 0.2
+        # progressは t_hit (0.55) から t_leave_start (0.75) の間
+        t_start = 0.55
+        
+        local_t = (progress - t_start) / effect_time
+        if local_t > 1.0: return
+        
+        alpha = int(255 * (1.0 - local_t))
+        if alpha <= 0: return
+
+        # エフェクトの形状 (斜め線)
+        length = 150
+        width = int(10 * (1.0 - local_t))
+        
+        # ミラー時は反転
+        direction = -1 if mirror else 1
+        
+        # 振り下ろし: 左上 -> 右下 (mirror: 右上 -> 左下)
+        start_pos = (cx - (50 * direction), cy - 80)
+        end_pos = (cx + (50 * direction), cy + 80)
+        
+        # Pygameでアルファ値付きラインを描くにはSurfaceが必要
+        # ここでは簡易的に加算合成的な色で描画
+        color = (255, 255, 200) # 白っぽい黄色
+        
+        pygame.draw.line(self.screen, color, start_pos, end_pos, width)
+        
+        # 残像（少しずらす）
+        if width > 4:
+            pygame.draw.line(self.screen, (200, 100, 50), 
+                             (start_pos[0]-10, start_pos[1]), 
+                             (end_pos[0]-10, end_pos[1]), width // 2)
+
     def _draw_popup_result(self, center_x, center_y, hit_result, progress, t_impact):
         """結果テキストをターゲットの上にポップアップ表示"""
         if not hit_result: return
 
         anim_duration = 1.0 - t_impact
+        # 0除算対策
+        if anim_duration <= 0: anim_duration = 0.1
+            
         anim_t = (progress - t_impact) / anim_duration
         anim_t = max(0.0, min(1.0, anim_t))
         
