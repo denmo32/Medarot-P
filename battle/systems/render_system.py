@@ -178,6 +178,15 @@ class RenderSystem(System):
         
         if not attacker_comps or not target_comps: return
 
+        # 攻撃特性の取得
+        attack_trait = None
+        if event.part_type:
+             p_id = attacker_comps['partlist'].parts.get(event.part_type)
+             if p_id:
+                 p_comps = self.world.try_get_entity(p_id)
+                 if p_comps and 'attack' in p_comps:
+                     attack_trait = p_comps['attack'].trait
+
         # 進行度取得（CUTINフェーズ以外は1.0=終了）
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         
@@ -199,5 +208,7 @@ class RenderSystem(System):
         self.cutin_renderer.draw(
             attacker_data, target_data, 
             attacker_hp_data, target_hp_data,
-            progress, hit_result, mirror=is_enemy_attack
+            progress, hit_result, 
+            mirror=is_enemy_attack,
+            attack_trait=attack_trait
         )

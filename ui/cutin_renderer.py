@@ -1,7 +1,7 @@
 """カットイン演出管理システム"""
 
 import pygame
-from config import GAME_PARAMS, COLORS
+from config import GAME_PARAMS
 from battle.constants import PartType
 
 class CutinRenderer:
@@ -11,11 +11,15 @@ class CutinRenderer:
         self.screen = screen
         self.renderer = renderer # テキスト描画などの共通機能利用のため
 
-    def draw(self, attacker_data, target_data, attacker_hp_data, target_hp_data, progress, hit_result, mirror=False):
+    def draw(self, attacker_data, target_data, attacker_hp_data, target_hp_data, progress, hit_result, mirror=False, attack_trait=None):
         """
-        カットインウィンドウを描画（枠線なし、アニメーション分岐）
-        hit_result: ActionEventのcalculation_result辞書
-        mirror: Trueなら 右→左 へ攻撃する（エネミー攻撃時など）
+        カットインウィンドウを描画（スライド＆追従カメラ演出）
+        
+        演出フロー:
+        0.0 - 0.2: 攻撃側スライドイン (画面外 -> 定位置)
+        0.2 - 0.45: 攻撃側静止、発射 (攻撃側 -> 中央方向へ)
+        0.45 - 0.7: カメラ追従 & 入れ替わり (攻撃側フレームアウト、防御側フレームイン)
+        0.7 - 1.0: 着弾 & 結果表示
         """
         sw, sh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']
         
@@ -24,86 +28,141 @@ class CutinRenderer:
         overlay.fill((0, 0, 0, 150))
         self.screen.blit(overlay, (0, 0))
         
-        # ウィンドウエリア定義（枠線は描画しないが座標計算に使用）
+        # ウィンドウエリア定義（座標基準点）
         w_w, w_h = 700, 200
         w_x, w_y = (sw - w_w) // 2, (sh - w_h) // 2
-        
-        # 左右のキャラエリア
-        char_box_w = 150
-        
-        # 座標定義
-        left_center_x = w_x + 20 + char_box_w // 2
-        right_center_x = w_x + w_w - 20 - char_box_w // 2
         center_y = w_y + 80
+        
+        # 左右の基準X座標（画面内定位置）
+        left_pos_x = w_x + 100
+        right_pos_x = w_x + w_w - 100
+        
+        # 画面外オフセット
+        offscreen_offset = 400
 
-        if not mirror:
-            # プレイヤー攻撃 (左 -> 右)
-            attacker_x, attacker_y = left_center_x, center_y
-            target_x, target_y = right_center_x, center_y
-            
-            proj_start_x = w_x + 20 + char_box_w + 20
-            proj_hit_x = target_x
-            proj_miss_x = sw + 50
+        # --- アニメーション進行度に基づく座標計算 ---
+        # 基本は Left(Attacker) -> Right(Defender) の動きで計算し、Mirrorなら反転する
+
+        # Phase閾値
+        t_enter = 0.2
+        t_switch_start = 0.45
+        t_switch_end = 0.7
+        t_impact = 0.8
+        
+        # デフォルトは画面外
+        attacker_x = -offscreen_offset
+        defender_x = sw + offscreen_offset
+        bullet_visible = False
+        bullet_x = 0
+        
+        # 1. 攻撃側 アニメーション
+        if progress < t_switch_start:
+            # 登場 (0.0 -> 0.2)
+            if progress < t_enter:
+                ratio = progress / t_enter
+                attacker_x = -offscreen_offset + (left_pos_x - (-offscreen_offset)) * ratio
+            else:
+                attacker_x = left_pos_x
         else:
-            # エネミー攻撃 (右 -> 左)
-            attacker_x, attacker_y = right_center_x, center_y
-            target_x, target_y = left_center_x, center_y
-            
-            proj_start_x = w_x + w_w - 20 - char_box_w - 20
-            proj_hit_x = target_x
-            proj_miss_x = -50
+            # 退場 (0.45 -> 0.7)
+            if progress < t_switch_end:
+                ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
+                attacker_x = left_pos_x - (left_pos_x + offscreen_offset) * ratio
+            else:
+                attacker_x = -offscreen_offset * 2 # 完全に見えない位置
 
-        # ヒット情報の展開
-        is_hit = hit_result.get('is_hit', False) if hit_result else False
+        # 2. 防御側 アニメーション
+        if progress < t_switch_start:
+            defender_x = sw + offscreen_offset # まだ来ない
+        elif progress < t_switch_end:
+            # 登場 (0.45 -> 0.7)
+            ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
+            defender_x = (sw + offscreen_offset) - ((sw + offscreen_offset) - right_pos_x) * ratio
+        else:
+            defender_x = right_pos_x
+
+        # 3. 弾丸 アニメーション
+        # 発射タイミング 0.25あたりから
+        t_fire = 0.25
+        
+        if progress >= t_fire:
+            bullet_visible = True
+            # 弾の移動計算 (カメラワーク含む相対的な見た目位置)
+            # 0.25 -> 0.45 : Attackerの前から画面中央へ
+            # 0.45 -> 0.70 : 画面中央付近をキープ（カメラが追従しているため）
+            # 0.70 -> 0.80 : 中央からDefenderへ
+            
+            bullet_start_x = attacker_x + 80 # 少し前
+            screen_center_x = sw // 2
+            
+            if progress < t_switch_start:
+                # 発射フェーズ
+                ratio = (progress - t_fire) / (t_switch_start - t_fire)
+                bullet_x = left_pos_x + 80 + (screen_center_x - (left_pos_x + 80)) * ratio
+            elif progress < t_switch_end:
+                # 追従フェーズ（中央を少し進む）
+                ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
+                # 中央から少し右へ
+                bullet_x = screen_center_x + (50 * ratio)
+            else:
+                # 着弾フェーズ
+                # 0.7 -> 0.8 (Impact) -> 1.0 (Through if miss)
+                ratio = (progress - t_switch_end) / (t_impact - t_switch_end)
+                # 直前の位置からターゲットへ
+                prev_x = screen_center_x + 50
+                target_hit_x = right_pos_x
+                
+                # 命中判定により挙動変化
+                is_hit = hit_result.get('is_hit', False) if hit_result else False
+                
+                if progress <= t_impact:
+                    bullet_x = prev_x + (target_hit_x - prev_x) * ratio
+                else:
+                    if is_hit:
+                        bullet_visible = False # 着弾消滅
+                    else:
+                        # Miss: 突き抜ける
+                        miss_ratio = (progress - t_impact) / (1.0 - t_impact)
+                        bullet_x = target_hit_x + (sw - target_hit_x + 100) * miss_ratio
+
+        # --- ミラーリング（敵攻撃時の反転） ---
+        if mirror:
+            # 画面中央を中心にX座標を反転
+            attacker_x = sw - attacker_x
+            defender_x = sw - defender_x
+            bullet_x = sw - bullet_x
+
+        # --- 描画実行 ---
 
         # 攻撃側
-        self._draw_character_info(attacker_data, attacker_hp_data, attacker_x, attacker_y)
+        if -200 < attacker_x < sw + 200:
+            self._draw_character_info(attacker_data, attacker_hp_data, attacker_x, center_y)
 
         # 防御側
-        self._draw_character_info(target_data, target_hp_data, target_x, target_y)
+        if -200 < defender_x < sw + 200:
+            self._draw_character_info(target_data, target_hp_data, defender_x, center_y)
 
-        # アニメーション（弾など）
-        self._draw_projectile_animation(
-            proj_start_x,
-            proj_hit_x,
-            target_y,
-            proj_miss_x,
-            progress,
-            is_hit
-        )
-        
-        # 回避時はターゲットアイコンを上書きして「後ろを通った」感を出す（簡易的実装）
-        if not is_hit:
-            start_x = proj_start_x
-            current_x = start_x + (proj_miss_x - start_x) * progress
-            
-            should_redraw = False
-            if not mirror:
-                if current_x > target_x - 50:
-                    should_redraw = True
-            else:
-                if current_x < target_x + 50:
-                    should_redraw = True
-                    
-            if should_redraw:
-                self._draw_character_info(
-                    target_data, 
-                    target_hp_data,
-                    target_x, 
-                    target_y
-                )
+        # 弾丸
+        if bullet_visible:
+            pygame.draw.circle(self.screen, (255, 255, 50), (int(bullet_x), int(center_y)), 12)
+            # 簡易エフェクト（尾ひれ）
+            tail_len = 30
+            direction = -1 if mirror else 1
+            tail_end_x = bullet_x - (tail_len * direction)
+            pygame.draw.line(self.screen, (255, 200, 0), (int(bullet_x), int(center_y)), (int(tail_end_x), int(center_y)), 4)
 
-        # 結果ポップアップの表示 (アニメーション後半から表示)
-        if progress > 0.7:
-             self._draw_popup_result(target_x, target_y, hit_result, progress)
+        # 結果ポップアップ (着弾後)
+        if progress > t_impact:
+             # 表示位置は防御側座標
+             self._draw_popup_result(defender_x, center_y, hit_result, progress, t_impact)
 
-    def _draw_popup_result(self, center_x, center_y, hit_result, progress):
+    def _draw_popup_result(self, center_x, center_y, hit_result, progress, t_impact):
         """結果テキストをターゲットの上にポップアップ表示"""
         if not hit_result: return
 
-        # アニメーション係数 (0.7 -> 1.0 の間を 0.0 -> 1.0 に正規化)
-        # 1.0を超えても（CUTIN_RESULTフェーズ）1.0でクランプ
-        anim_t = (progress - 0.7) / 0.3
+        # アニメーション係数
+        anim_duration = 1.0 - t_impact
+        anim_t = (progress - t_impact) / anim_duration
         anim_t = max(0.0, min(1.0, anim_t))
         
         # 下から上へ少し浮き上がる動き
@@ -135,7 +194,6 @@ class CutinRenderer:
         current_y = start_y + offset_y
         
         for text, color in lines:
-            # アウトライン（影）付きで描画して視認性を上げる
             self._draw_text_with_outline(text, center_x, current_y, color)
             current_y += 35 # 行送り
 
@@ -152,34 +210,11 @@ class CutinRenderer:
         """
         キャラクターのアイコンとHPバーを描画する。
         """
-        
-        # HPデータから各パーツの生存確認マップを作成
         is_alive_map = {item['key']: (item['current'] > 0) for item in hp_data}
-        
         base_color = char_data['color']
         cx, cy = int(center_x), int(center_y)
 
-        # -- ロボット型アイコン描画 --
+        # ロボット型アイコン
         self.renderer.draw_robot_icon(cx, cy, base_color, is_alive_map, scale=1.0)
-
-        # -- HPバー描画 --
+        # HPバー
         self.renderer.draw_hp_bars(cx, cy + 65, hp_data)
-
-    def _draw_projectile_animation(self, start_x, hit_x, obj_y, miss_x, progress, is_hit):
-        
-        # 進行度(0.0~1.0) に基づく現在位置
-        if is_hit:
-            # ヒット時: start_x から hit_x まで移動して止まる
-            current_x = start_x + (hit_x - start_x) * progress
-            
-            # 着弾エフェクトは削除（大きすぎるため）
-        else:
-            # 回避時: start_x から miss_x まで突き抜ける
-            current_x = start_x + (miss_x - start_x) * progress
-
-        # 弾
-        if progress < 1.0 or not is_hit:
-            # 軌跡
-            pygame.draw.line(self.screen, (255, 255, 0), (int(start_x), int(obj_y)), (int(current_x), int(obj_y)), 4)
-            # 本体
-            pygame.draw.circle(self.screen, (255, 255, 0), (int(current_x), int(obj_y)), 10)

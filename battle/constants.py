@@ -46,7 +46,8 @@ class BattlePhase:
 class BattleTiming:
     """演出やフェーズ遷移のタイミング（秒）"""
     TARGET_INDICATION = 0.8
-    CUTIN_ANIMATION = 1.5
+    # 演出時間を延長 (スライド演出のため)
+    CUTIN_ANIMATION = 2.5
 
 # UI表示用の部位名称マップ
 PART_LABELS = {
