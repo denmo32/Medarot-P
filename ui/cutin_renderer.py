@@ -43,7 +43,9 @@ class CutinRenderer:
         # 画面外オフセット
         offscreen_offset = 400
         # 下方向オフセット（登場用）
-        bottom_offset = 300
+        bottom_offset = 400
+        # 上方向オフセット（防御側登場用）
+        top_offset = 400
 
         # 初期値
         attacker_x = -1000
@@ -105,14 +107,13 @@ class CutinRenderer:
                 attacker_y = center_y
 
             # B. 防御側 アニメーション
-            if progress < t_dash_start:
-                defender_x = sw + offscreen_offset
-            elif progress < t_hit:
-                # 攻撃側の接近に合わせてスライドイン
-                ratio = (progress - t_dash_start) / (t_hit - t_dash_start)
-                ratio = ratio * ratio
-                defender_x = (sw + offscreen_offset) - ((sw + offscreen_offset) - right_pos_x) * ratio
+            if progress < t_enter:
+                # 登場 (上から) - 攻撃側と同時
+                ratio = progress / t_enter
+                defender_y = (center_y - top_offset) + (top_offset * ratio)
+                defender_x = right_pos_x
             else:
+                defender_y = center_y
                 defender_x = right_pos_x
 
         else:
@@ -142,13 +143,16 @@ class CutinRenderer:
 
             # B. 防御側 アニメーション
             if progress < t_switch_start:
+                # まだ画面外
                 defender_x = sw + offscreen_offset
             elif progress < t_switch_end:
-                # 登場 (0.45 -> 0.7)
+                # 登場 (0.45 -> 0.7) - 射撃は横からスライドイン
                 ratio = (progress - t_switch_start) / (t_switch_end - t_switch_start)
                 defender_x = (sw + offscreen_offset) - ((sw + offscreen_offset) - right_pos_x) * ratio
+                defender_y = center_y
             else:
                 defender_x = right_pos_x
+                defender_y = center_y
 
             # C. 弾丸 アニメーション
             t_fire = 0.25
