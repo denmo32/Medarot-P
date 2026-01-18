@@ -213,7 +213,7 @@ class CutinRenderer:
             direction = -1 if mirror else 1
             
             if attack_trait == TraitType.RIFLE:
-                # ライフル: 三角形の弾 + 螺旋状の軌跡
+                # ライフル: 三角形の弾 + 縦長ドーナツ型楕円の軌跡 (大・中・小)
                 size = 15
                 tip = (bullet_x, center_y)
                 back_x = bullet_x - (size * direction)
@@ -222,59 +222,52 @@ class CutinRenderer:
                 p1 = (back_x, center_y - size // 2)
                 p2 = (back_x, center_y + size // 2)
                 
-                # 軌跡 (螺旋)
-                trail_len = 96
-                gap_from_bullet = 25 # 弾との隙間 (弾サイズ15 + 余白10)
-                points = []
-                steps = 200
-                for i in range(steps):
-                    t = i / float(steps) # 0.0 to 1.0 (near to far)
-                    
-                    # 弾の後ろへ伸びる (隙間を空ける)
-                    current_dist = gap_from_bullet + (trail_len * t)
-                    tx = bullet_x - (current_dist * direction)
-                    
-                    # 螺旋の半径と回転
-                    # バネのように半径を一定、かつ幅を狭く(3px)、回転数を多く
-                    radius = 3
-                    angle = (progress * 50) + (t * 40)
-                    
-                    ty = center_y + math.sin(angle) * radius
-                    points.append((int(tx), int(ty)))
+                # 軌跡 (小・中・大の楕円)
+                trail_color = (200, 255, 255)
+                # (幅, 高さ, 弾からの距離)
+                ellipses = [
+                    (6, 22, 35),  # 小
+                    (9, 36, 55),  # 中
+                    (12, 50, 70)  # 大
+                ]
                 
-                if len(points) > 1:
-                    # 軌跡描画
-                    pygame.draw.lines(self.screen, (200, 255, 255), False, points, 3)
+                for w, h, dist in ellipses:
+                    cx = bullet_x - (dist * direction)
+                    rect = pygame.Rect(0, 0, w, h)
+                    rect.center = (int(cx), int(center_y))
+                    # ドーナツ型 (線幅指定)
+                    pygame.draw.ellipse(self.screen, trail_color, rect, 2)
                 
                 # 本体描画
                 pygame.draw.polygon(self.screen, (255, 255, 150), [tip, p1, p2])
 
             elif attack_trait == TraitType.GATLING:
-                # ガトリング: 5つの小さめの弾
+                # ガトリング: 5つの小さめの弾 (四角+三角 □▷)
                 for i in range(5):
                     # 少しずつ後ろにずらす
                     offset_x = i * 25 * direction
                     bx = bullet_x - offset_x
                     
                     # Y軸も少しバラつかせる (固定パターン)
-                    # i=0: 0, i=1: -5, i=2: 5, i=3: -3, i=4: 3
                     offsets_y = [0, -6, 6, -3, 3]
                     by = center_y + offsets_y[i]
                     
                     # 画面内にある場合のみ描画
                     if -50 < bx < sw + 50:
-                        # 三角形に変更
                         g_size = 10
                         g_tip = (bx, by)
                         g_back_x = bx - (g_size * direction)
+                        
+                        # 三角形部分 (先端)
                         g_p1 = (g_back_x, by - g_size // 2)
                         g_p2 = (g_back_x, by + g_size // 2)
-                        
                         pygame.draw.polygon(self.screen, (255, 200, 50), [g_tip, g_p1, g_p2])
                         
-                        # 短い尾を付ける
-                        tail_x = bx - (15 * direction)
-                        pygame.draw.line(self.screen, (255, 100, 0), (int(bx), int(by)), (int(tail_x), int(by)), 2)
+                        # 四角形部分 (後ろ)
+                        sq_size = 8
+                        sq_x = g_back_x if direction < 0 else g_back_x - sq_size
+                        sq_y = by - sq_size // 2
+                        pygame.draw.rect(self.screen, (255, 150, 0), (int(sq_x), int(sq_y), sq_size, sq_size))
 
             else:
                 # 通常弾 (その他)
