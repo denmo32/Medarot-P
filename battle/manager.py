@@ -15,7 +15,8 @@ from battle.systems.input_system import InputSystem
 from battle.systems.render_system import RenderSystem
 from battle.systems.target_indicator_system import TargetIndicatorSystem
 from battle.systems.cutin_animation_system import CutinAnimationSystem
-from ui.renderer import Renderer
+from ui.field_renderer import FieldRenderer
+from ui.battle_ui_renderer import BattleUIRenderer
 
 class BattleSystem:
     def __init__(self, screen, player_count: int = 3, enemy_count: int = 3,
@@ -31,7 +32,8 @@ class BattleSystem:
             gauge_width, gauge_height
         )
 
-        self.renderer = Renderer(screen)
+        self.field_renderer = FieldRenderer(screen)
+        self.ui_renderer = BattleUIRenderer(screen)
         
         # システム更新順序を整理
         self.systems = [
@@ -47,7 +49,7 @@ class BattleSystem:
             DamageSystem(self.world),            # 10. ダメージ適用
             HealthAnimationSystem(self.world),   # 11. HPバーのアニメーション
             BattleStatusSystem(self.world),      # 12. 勝敗判定
-            RenderSystem(self.world, self.renderer) # 13. 描画
+            RenderSystem(self.world, self.field_renderer, self.ui_renderer) # 13. 描画
         ]
 
     def update(self, dt: float = 0.016) -> None:

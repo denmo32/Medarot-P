@@ -4,13 +4,13 @@ import pygame
 import math
 from config import GAME_PARAMS
 from battle.constants import PartType, TraitType
+from .base_renderer import BaseRenderer
 
-class CutinRenderer:
+class CutinRenderer(BaseRenderer):
     """カットイン演出の描画を担当するクラス"""
 
-    def __init__(self, screen, renderer):
-        self.screen = screen
-        self.renderer = renderer # テキスト描画などの共通機能利用のため
+    def __init__(self, screen):
+        super().__init__(screen)
 
     def draw(self, attacker_data, target_data, attacker_hp_data, target_hp_data, progress, hit_result, mirror=False, attack_trait=None):
         """
@@ -373,8 +373,8 @@ class CutinRenderer:
 
     def _draw_text_with_outline(self, text, x, y, color):
         for ox, oy in [(-2, -2), (-2, 2), (2, -2), (2, 2)]:
-            self.renderer.draw_text(text, (x + ox, y + oy), (0, 0, 0), 'large', 'center')
-        self.renderer.draw_text(text, (x, y), color, 'large', 'center')
+            self.draw_text(text, (x + ox, y + oy), (0, 0, 0), 'large', 'center')
+        self.draw_text(text, (x, y), color, 'large', 'center')
 
     def _draw_character_info(self, char_data, hp_data, center_x, center_y, show_hp=True):
         """
@@ -385,8 +385,8 @@ class CutinRenderer:
         cx, cy = int(center_x), int(center_y)
 
         # ロボット型アイコン
-        self.renderer.draw_robot_icon(cx, cy, base_color, is_alive_map, scale=1.0)
+        self.draw_robot_icon(cx, cy, base_color, is_alive_map, scale=1.0)
         
         # HPバー
         if show_hp:
-            self.renderer.draw_hp_bars(cx, cy + 65, hp_data)
+            self.draw_hp_bars(cx, cy + 65, hp_data)

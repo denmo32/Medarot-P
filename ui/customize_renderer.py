@@ -2,9 +2,9 @@
 
 import pygame
 from config import COLORS, GAME_PARAMS
-from ui.renderer import Renderer
+from ui.base_renderer import BaseRenderer
 
-class CustomizeRenderer(Renderer):
+class CustomizeRenderer(BaseRenderer):
     """カスタマイズ画面の3カラムレイアウトを描画"""
 
     def __init__(self, screen):

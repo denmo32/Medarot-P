@@ -10,10 +10,12 @@ from ui.cutin_renderer import CutinRenderer
 class RenderSystem(System):
     """Worldのコンポーネントから描画用データを抽出しRendererへ渡す"""
     
-    def __init__(self, world, renderer):
+    def __init__(self, world, field_renderer, ui_renderer):
         super().__init__(world)
-        self.renderer = renderer
-        self.cutin_renderer = CutinRenderer(renderer.screen, renderer)
+        self.field_renderer = field_renderer
+        self.ui_renderer = ui_renderer
+        # CutinRendererの初期化を修正（screenのみを受け取るように変更）
+        self.cutin_renderer = CutinRenderer(field_renderer.screen)
         self.hp_bar_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
@@ -21,8 +23,8 @@ class RenderSystem(System):
         if not entities: return
         context, flow = entities[0][1]['battlecontext'], entities[0][1]['battleflow']
 
-        self.renderer.clear()
-        self.renderer.draw_field_guides()
+        self.field_renderer.clear()
+        self.field_renderer.draw_field_guides()
         char_positions = self._render_characters(context, flow)
         
         self._render_target_marker(context, flow, char_positions)
@@ -34,7 +36,7 @@ class RenderSystem(System):
         if flow.current_phase == BattlePhase.CUTIN or flow.current_phase == BattlePhase.CUTIN_RESULT:
             self._render_cutin(context, flow)
 
-        self.renderer.present()
+        self.field_renderer.present()
 
     def _render_characters(self, context, flow):
         char_positions = {}
@@ -45,14 +47,14 @@ class RenderSystem(System):
             char_positions[eid] = {'x': pos.x, 'y': pos.y, 'icon_x': icon_x}
             
             # ホーム位置と本体
-            self.renderer.draw_home_marker(pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0), pos.y)
+            self.field_renderer.draw_home_marker(pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0), pos.y)
             border = self._get_border_color(eid, gauge, context, flow)
             
             # パーツごとの生存状況を取得して渡す
             part_status = self._get_part_status_map(comps['partlist'])
-            self.renderer.draw_character_icon(icon_x, pos.y, team.team_color, part_status, border)
+            self.field_renderer.draw_character_icon(icon_x, pos.y, team.team_color, part_status, border)
             
-            self.renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
+            self.field_renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
 
         return char_positions
 
@@ -104,7 +106,7 @@ class RenderSystem(System):
              pass
         
         if target_eid:
-            self.renderer.draw_target_marker(target_eid, char_positions)
+            self.field_renderer.draw_target_marker(target_eid, char_positions)
 
     def _render_target_indication_line(self, context, flow, char_positions):
         """TARGET_INDICATIONフェーズ、およびそれ以降のカットイン終了までのアニメーション描画"""
@@ -136,7 +138,7 @@ class RenderSystem(System):
             ep = (end_pos['icon_x'], end_pos['y'] + 20)
             
             # コンポーネントに保存された停止位置（オフセット）を使用して描画
-            self.renderer.draw_flow_line(sp, ep, flow.target_line_offset)
+            self.field_renderer.draw_flow_line(sp, ep, flow.target_line_offset)
 
     def _render_ui(self, context, flow):
         # 入力待ち案内（「Zキー...」）を表示するかどうかのフラグ
@@ -151,7 +153,7 @@ class RenderSystem(System):
         else:
             display_logs = context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
 
-        self.renderer.draw_message_window(display_logs, show_input_guidance)
+        self.ui_renderer.draw_message_window(display_logs, show_input_guidance)
         
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
@@ -160,10 +162,10 @@ class RenderSystem(System):
                 buttons = [{'label': self.world.entities[p_id]['name'].name, 'enabled': self.world.entities[p_id]['health'].hp > 0} 
                            for p_id in [comps['partlist'].parts.get(k) for k in MENU_PART_ORDER] if p_id]
                 buttons.append({'label': "スキップ", 'enabled': True})
-                self.renderer.draw_action_menu(comps['medal'].nickname, buttons, context.selected_menu_index)
+                self.ui_renderer.draw_action_menu(comps['medal'].nickname, buttons, context.selected_menu_index)
         
         if flow.current_phase == BattlePhase.GAME_OVER:
-            self.renderer.draw_game_over(flow.winner)
+            self.ui_renderer.draw_game_over(flow.winner)
 
     def _render_cutin(self, context, flow):
         event_eid = flow.processing_event_id
