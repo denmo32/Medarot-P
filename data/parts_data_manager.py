@@ -16,6 +16,13 @@ class PartsDataManager:
         'legs': '脚部'
     }
 
+    # 属性の表示名マッピング
+    ATTRIBUTE_LABELS = {
+        'speed': 'スピード',
+        'power': 'パワー',
+        'undefined': 'ー'
+    }
+
     def __init__(self, json_path: str = None):
         """初期化"""
         if json_path is None:
@@ -76,6 +83,10 @@ class PartsDataManager:
     def get_button_labels(self, is_player: bool = True) -> Dict[str, str]:
         """ボタン表示用のラベルを取得"""
         return self.PART_TYPE_LABELS
+
+    def get_attribute_label(self, attr_key: str) -> str:
+        """属性キーから表示名を取得"""
+        return self.ATTRIBUTE_LABELS.get(attr_key, attr_key)
 
     def get_next_part_id(self, current_id: str, direction: int = 1) -> str:
         """現在選択中のアイテムの次または前のIDを取得"""

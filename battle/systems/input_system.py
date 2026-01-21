@@ -129,8 +129,19 @@ class InputSystem(System):
         
         if part:
             p_id = part_list.parts.get(part)
-            atk = self.world.entities[p_id]['attack'].attack
+            p_comps = self.world.entities[p_id]
+            atk = p_comps['attack'].attack
             gauge.charging_time, gauge.cooldown_time = calculate_action_times(atk)
+
+            # 属性ボーナス（時間短縮）の適用
+            # メダルとパーツの属性が一致した場合、チャージ・クールダウン時間を20%短縮
+            medal_comp = self.world.entities[eid].get('medal')
+            part_comp = p_comps.get('part')
+            
+            if medal_comp and part_comp:
+                if medal_comp.attribute != "undefined" and medal_comp.attribute == part_comp.attribute:
+                    gauge.charging_time *= 0.80
+                    gauge.cooldown_time *= 0.80
 
         # チャージ開始
         gauge.status, gauge.progress = GaugeStatus.CHARGING, 0.0

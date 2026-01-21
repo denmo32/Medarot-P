@@ -17,10 +17,10 @@ class BattleEntityFactory:
 
     @staticmethod
     def create_part(world: World, part_type: str, name: str, hp: int, trait: str = None, 
-                    attack: int = None, success: int = 0, mobility: int = 0, defense: int = 0) -> int:
+                    attack: int = None, success: int = 0, mobility: int = 0, defense: int = 0, attribute: str = "undefined") -> int:
         eid = world.create_entity()
         world.add_component(eid, NameComponent(name))
-        world.add_component(eid, PartComponent(part_type))
+        world.add_component(eid, PartComponent(part_type, attribute))
         world.add_component(eid, HealthComponent(hp, hp))
         
         if attack is not None:
@@ -35,8 +35,24 @@ class BattleEntityFactory:
     def create_medabot_from_setup(world: World, setup: dict) -> dict:
         pm = get_parts_manager()
         parts = {}
+        
+        # メダルの属性を取得（脚部ボーナス計算用）
+        medal_attr = "undefined"
+        if "medal" in setup:
+            medal_data = pm.get_medal_data(setup["medal"])
+            medal_attr = medal_data.get("attribute", "undefined")
+
         for p_type, p_id in setup["parts"].items():
             data = pm.get_part_data(p_id)
+            
+            # 属性取得
+            part_attr = data.get("attribute", "undefined")
+            
+            # 脚部ボーナス計算：メダルと脚部の属性が一致した場合、機動+5
+            mobility = data.get("mobility", 0)
+            if p_type == PartType.LEGS and medal_attr != "undefined" and medal_attr == part_attr:
+                mobility += 5
+            
             parts[p_type] = BattleEntityFactory.create_part(
                 world, 
                 p_type, 
@@ -45,8 +61,9 @@ class BattleEntityFactory:
                 data.get("trait"), 
                 data.get("attack"),
                 data.get("success", 0),
-                data.get("mobility", 0),
-                data.get("defense", 0)
+                mobility,
+                data.get("defense", 0),
+                part_attr
             )
         return parts
 
@@ -108,7 +125,8 @@ class BattleEntityFactory:
             setup["medal"], 
             medal_data["name"], 
             medal_data["nickname"],
-            medal_data.get("personality", "random")
+            medal_data.get("personality", "random"),
+            medal_data.get("attribute", "undefined")
         ))
         
         world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))

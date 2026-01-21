@@ -41,9 +41,10 @@ class RenderComponent(Component):
         self.gauge_height = gauge_height
 
 class PartComponent(Component):
-    """パーツの種類"""
-    def __init__(self, part_type: str):
+    """パーツの種類と属性"""
+    def __init__(self, part_type: str, attribute: str = "undefined"):
         self.part_type = part_type # "head", "right_arm", "left_arm", "legs"
+        self.attribute = attribute
 
 class HealthComponent(Component):
     """HPデータ"""
@@ -72,11 +73,12 @@ class PartListComponent(Component):
 
 class MedalComponent(Component):
     """メダル（頭脳）データ"""
-    def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random"):
+    def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random", attribute: str = "undefined"):
         self.medal_id = medal_id
         self.medal_name = medal_name
         self.nickname = nickname
         self.personality_id = personality_id
+        self.attribute = attribute
 
 class DefeatedComponent(Component):
     """敗北フラグ"""

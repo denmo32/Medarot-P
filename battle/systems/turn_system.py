@@ -8,7 +8,7 @@ from battle.constants import TeamType, GaugeStatus, BattlePhase, ActionType
 
 class TurnSystem(System):
     """
-    IDLEフェーズにおいて待機キューの先頭を確認し、
+    IDLEフェーズにおいて待機列の先頭を確認し、
     プレイヤーならINPUTフェーズへ遷移、エネミーならAI意思決定を行ってチャージを開始する。
     """
 
@@ -54,11 +54,23 @@ class TurnSystem(System):
         
         if action == ActionType.ATTACK and part:
             part_id = comps['partlist'].parts.get(part)
-            attack_comp = self.world.entities[part_id].get('attack')
+            part_comps = self.world.entities[part_id]
+            attack_comp = part_comps.get('attack')
+            
             if attack_comp:
                 c_t, cd_t = calculate_action_times(attack_comp.attack)
                 gauge.charging_time = c_t
                 gauge.cooldown_time = cd_t
+                
+                # 属性ボーナス（時間短縮）の適用
+                # メダルとパーツの属性が一致した場合、チャージ・クールダウン時間を5%短縮
+                medal_comp = comps.get('medal')
+                part_comp = part_comps.get('part')
+                
+                if medal_comp and part_comp:
+                    if medal_comp.attribute != "undefined" and medal_comp.attribute == part_comp.attribute:
+                        gauge.charging_time *= 0.95
+                        gauge.cooldown_time *= 0.95
 
         # チャージフェーズへ移行させ、キューから外す
         gauge.status = GaugeStatus.CHARGING

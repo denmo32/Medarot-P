@@ -116,6 +116,11 @@ class CustomizeManager:
         if not focused_data:
             focused_data = self.parts_manager.get_medal_data(focused_id)
 
+        # 現在のメダル属性を取得（ボーナス一致判定用）
+        medal_id = setup["medal"]
+        medal_data = self.parts_manager.get_medal_data(medal_id)
+        current_medal_attr = medal_data.get("attribute", "undefined")
+
         return {
             "state": self.state,
             "machine_idx": self.selected_machine_idx,
@@ -125,5 +130,6 @@ class CustomizeManager:
             "setup": setup,
             "focused_id": focused_id,
             "focused_data": focused_data,
-            "available_ids": self.parts_manager.get_part_ids_for_type(slot_name)
+            "available_ids": self.parts_manager.get_part_ids_for_type(slot_name),
+            "current_medal_attr": current_medal_attr
         }
