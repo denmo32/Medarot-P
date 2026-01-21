@@ -48,10 +48,11 @@ class BattleEntityFactory:
             # 属性取得
             part_attr = data.get("attribute", "undefined")
             
-            # 脚部ボーナス計算：メダルと脚部の属性が一致した場合、機動+5
+            # 脚部ボーナス計算：メダルと脚部の属性が一致し、かつ「スピード」属性の場合のみ機動ボーナスを適用
             mobility = data.get("mobility", 0)
-            if p_type == PartType.LEGS and medal_attr != "undefined" and medal_attr == part_attr:
-                mobility += 5
+            if p_type == PartType.LEGS:
+                if medal_attr == part_attr and medal_attr == "speed":
+                    mobility += 20
             
             parts[p_type] = BattleEntityFactory.create_part(
                 world, 

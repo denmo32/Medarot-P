@@ -20,6 +20,7 @@ class PartsDataManager:
     ATTRIBUTE_LABELS = {
         'speed': 'スピード',
         'power': 'パワー',
+        'technique': 'テクニック',
         'undefined': 'ー'
     }
 

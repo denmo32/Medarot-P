@@ -3,7 +3,7 @@
 import math
 from typing import Optional
 from config import GAME_PARAMS
-from battle.constants import GaugeStatus, TeamType
+from battle.constants import GaugeStatus, TeamType, ActionType, BattlePhase
 
 def calculate_action_times(attack_power: int) -> tuple:
     """攻撃力に基づいてチャージ時間とクールダウン時間を計算（対数スケール）"""
@@ -14,6 +14,53 @@ def calculate_action_times(attack_power: int) -> tuple:
     cooldown_time = base_time + log_modifier
     
     return charging_time, cooldown_time
+
+def apply_action_command(world, eid: int, action: str, part: Optional[str]):
+    """
+    コマンドを適用し、時間計算を行ってチャージを開始する共通関数
+    InputSystem(プレイヤー)とAISystem(エネミー)の両方から呼ばれる
+    """
+    comps = world.entities[eid]
+    gauge = comps['gauge']
+    context = world.entities[0]['battlecontext'] # Singleton想定
+    flow = world.entities[0]['battleflow']
+
+    gauge.selected_action = action
+    gauge.selected_part = part
+
+    # 時間計算
+    if action == ActionType.ATTACK and part:
+        # パーツ情報の取得
+        part_id = comps['partlist'].parts.get(part)
+        p_comps = world.entities[part_id]
+        
+        # 基本時間計算
+        atk = p_comps['attack'].attack
+        c_t, cd_t = calculate_action_times(atk)
+        gauge.charging_time = c_t
+        gauge.cooldown_time = cd_t
+        
+        # 属性ボーナス（時間短縮）の適用
+        # メダルとパーツの属性が一致し、かつ「スピード」属性の場合のみ適用
+        medal_comp = comps.get('medal')
+        part_comp = p_comps.get('part')
+        
+        if medal_comp and part_comp:
+            if medal_comp.attribute == part_comp.attribute and medal_comp.attribute == "speed":
+                gauge.charging_time *= 0.80
+                gauge.cooldown_time *= 0.80
+    
+    # チャージ開始
+    gauge.status = GaugeStatus.CHARGING
+    gauge.progress = 0.0
+    
+    # フェーズ遷移 (IDLEに戻す)
+    context.current_turn_entity_id = None
+    flow.current_phase = BattlePhase.IDLE
+    
+    # 待機列から削除
+    if context.waiting_queue and context.waiting_queue[0] == eid:
+        context.waiting_queue.pop(0)
 
 def calculate_current_x(base_x: int, status: str, progress: float, team_type: str) -> float:
     """エンティティの現在のアイコンX座標を計算する（ゲージ進行に基づく視覚的座標）"""

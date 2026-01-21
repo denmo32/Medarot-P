@@ -35,6 +35,7 @@ class GaugeStatus:
 class BattlePhase:
     IDLE = "idle"
     INPUT = "input"
+    ENEMY_TURN = "enemy_turn" # 追加: エネミー思考フェーズ
     TARGET_INDICATION = "target_indication"
     ATTACK_DECLARATION = "attack_declaration"
     CUTIN = "cutin"
