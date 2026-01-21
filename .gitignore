@@ -46,3 +46,6 @@ battle/systems/__pycache__/health_animation_system.cpython-313.pyc
 battle/systems/__pycache__/target_indicator_system.cpython-313.pyc
 battle/systems/__pycache__/cutin_animation_system.cpython-313.pyc
 ui/__pycache__/cutin_renderer.cpython-313.pyc
+ui/__pycache__/field_renderer.cpython-313.pyc
+ui/__pycache__/base_renderer.cpython-313.pyc
+ui/__pycache__/battle_ui_renderer.cpython-313.pyc
