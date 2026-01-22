@@ -55,8 +55,9 @@ class HealthComponent(Component):
 
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
-    def __init__(self, attack: int, trait: str = None, success: int = 0):
-        self.attack = attack
+    def __init__(self, attack: int, trait: str = None, success: int = 0, base_attack: int = None):
+        self.attack = attack # 現在の攻撃力（ボーナス込み）
+        self.base_attack = base_attack if base_attack is not None else attack # 時間計算用の基本攻撃力
         self.trait = trait # "ライフル", "ソード", "サンダー" 等
         self.success = success # 成功度
 

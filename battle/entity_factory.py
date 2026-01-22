@@ -24,7 +24,27 @@ class BattleEntityFactory:
         world.add_component(eid, HealthComponent(hp, hp))
         
         if attack is not None:
-            world.add_component(eid, AttackComponent(attack, trait, success))
+            # base_attackは補正前の値を想定してattackと同じ値を初期値として渡すが、
+            # 呼び出し元で補正が行われている場合はその限りではない。
+            # ここではシンプルに受け取ったattackをそのまま設定し、base_attack用引数を追加する形にするのが望ましいが、
+            # create_medabot_from_setup側で計算済みの値を渡す設計にする。
+            # ただし、AttackComponent側で base_attack を保持する必要があるため、引数を拡張する。
+            pass
+
+        # create_partの引数が多くなりすぎているため、コンポーネント生成を個別に処理する形にリファクタリングしつつ実装
+        return eid
+
+    @staticmethod
+    def _create_part_entity(world: World, part_type: str, name: str, hp: int, trait: str, 
+                            attack: int, base_attack: int, success: int, mobility: int, defense: int, attribute: str) -> int:
+        """内部用パーツ生成ヘルパー"""
+        eid = world.create_entity()
+        world.add_component(eid, NameComponent(name))
+        world.add_component(eid, PartComponent(part_type, attribute))
+        world.add_component(eid, HealthComponent(hp, hp))
+        
+        if attack is not None:
+            world.add_component(eid, AttackComponent(attack, trait, success, base_attack))
         
         if part_type == PartType.LEGS:
             world.add_component(eid, MobilityComponent(mobility, defense))
@@ -36,7 +56,7 @@ class BattleEntityFactory:
         pm = get_parts_manager()
         parts = {}
         
-        # メダルの属性を取得（脚部ボーナス計算用）
+        # メダルの属性を取得
         medal_attr = "undefined"
         if "medal" in setup:
             medal_data = pm.get_medal_data(setup["medal"])
@@ -44,26 +64,48 @@ class BattleEntityFactory:
 
         for p_type, p_id in setup["parts"].items():
             data = pm.get_part_data(p_id)
-            
-            # 属性取得
             part_attr = data.get("attribute", "undefined")
             
-            # 脚部ボーナス計算：メダルと脚部の属性が一致し、かつ「スピード」属性の場合のみ機動ボーナスを適用
+            # 基本パラメータの取得
+            hp = data.get("hp", 0)
+            attack = data.get("attack") # Noneの場合あり
+            success = data.get("success", 0)
             mobility = data.get("mobility", 0)
-            if p_type == PartType.LEGS:
-                if medal_attr == part_attr and medal_attr == "speed":
-                    mobility += 20
-            
-            parts[p_type] = BattleEntityFactory.create_part(
+            defense = data.get("defense", 0)
+            base_attack = attack # 補正前の攻撃力
+
+            # 属性一致ボーナスの適用
+            if medal_attr == part_attr and medal_attr != "undefined":
+                if medal_attr == "speed":
+                    # スピード: 脚部の機動+20
+                    if p_type == PartType.LEGS:
+                        mobility += 20
+                
+                elif medal_attr == "power":
+                    # パワー: 全パーツHP+5, 脚部以外の攻撃+5
+                    hp += 5
+                    if p_type != PartType.LEGS and attack is not None:
+                        attack += 10
+                        # base_attack は加算しない（時間計算への影響を避けるため）
+
+                elif medal_attr == "technique":
+                    # テクニック: 脚部以外の成功+10, 脚部の防御+20
+                    if p_type == PartType.LEGS:
+                        defense += 10
+                    else:
+                        success += 20
+
+            parts[p_type] = BattleEntityFactory._create_part_entity(
                 world, 
                 p_type, 
                 data.get("name", p_id), 
-                data.get("hp", 0), 
+                hp, 
                 data.get("trait"), 
-                data.get("attack"),
-                data.get("success", 0),
+                attack,
+                base_attack,
+                success,
                 mobility,
-                data.get("defense", 0),
+                defense,
                 part_attr
             )
         return parts
@@ -95,8 +137,7 @@ class BattleEntityFactory:
 
         # エネミーチーム生成
         for i in range(enemy_count):
-            # メダルとパーツをランダム風に取得（現在は固定パターンのため簡易実装）
-            # インデックスに基づいて異なる機体構成を割り当てる
+            # メダルとパーツをランダム風に取得
             medal_idx = (i + 3) % 10
             parts_offset = i % 3
             

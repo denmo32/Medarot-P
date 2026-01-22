@@ -35,7 +35,8 @@ def apply_action_command(world, eid: int, action: str, part: Optional[str]):
         p_comps = world.entities[part_id]
         
         # 基本時間計算
-        atk = p_comps['attack'].attack
+        # 属性ボーナス（Power）による攻撃力上昇が速度低下を招かないよう、base_attackを使用する
+        atk = p_comps['attack'].base_attack
         c_t, cd_t = calculate_action_times(atk)
         gauge.charging_time = c_t
         gauge.cooldown_time = cd_t
