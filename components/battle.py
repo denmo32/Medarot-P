@@ -55,11 +55,12 @@ class HealthComponent(Component):
 
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
-    def __init__(self, attack: int, trait: str = None, success: int = 0, base_attack: int = None):
+    def __init__(self, attack: int, trait: str = None, success: int = 0, base_attack: int = None, time_modifier: float = 1.0):
         self.attack = attack # 現在の攻撃力（ボーナス込み）
         self.base_attack = base_attack if base_attack is not None else attack # 時間計算用の基本攻撃力
         self.trait = trait # "ライフル", "ソード", "サンダー" 等
         self.success = success # 成功度
+        self.time_modifier = time_modifier # 充填・冷却時間の補正係数（属性一致ボーナス等）
 
 class MobilityComponent(Component):
     """機動・防御性能（脚部）"""

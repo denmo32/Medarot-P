@@ -36,21 +36,15 @@ def apply_action_command(world, eid: int, action: str, part: Optional[str]):
         
         # 基本時間計算
         # 属性ボーナス（Power）による攻撃力上昇が速度低下を招かないよう、base_attackを使用する
-        atk = p_comps['attack'].base_attack
+        atk_comp = p_comps['attack']
+        atk = atk_comp.base_attack
         c_t, cd_t = calculate_action_times(atk)
-        gauge.charging_time = c_t
-        gauge.cooldown_time = cd_t
         
-        # 属性ボーナス（時間短縮）の適用
-        # メダルとパーツの属性が一致し、かつ「スピード」属性の場合のみ適用
-        medal_comp = comps.get('medal')
-        part_comp = p_comps.get('part')
+        # 事前に計算された補正値を適用（Speed属性ボーナスなど）
+        mod = atk_comp.time_modifier
+        gauge.charging_time = c_t * mod
+        gauge.cooldown_time = cd_t * mod
         
-        if medal_comp and part_comp:
-            if medal_comp.attribute == part_comp.attribute and medal_comp.attribute == "speed":
-                gauge.charging_time *= 0.80
-                gauge.cooldown_time *= 0.80
-    
     # チャージ開始
     gauge.status = GaugeStatus.CHARGING
     gauge.progress = 0.0

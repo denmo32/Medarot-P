@@ -16,42 +16,6 @@ class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
 
     @staticmethod
-    def create_part(world: World, part_type: str, name: str, hp: int, trait: str = None, 
-                    attack: int = None, success: int = 0, mobility: int = 0, defense: int = 0, attribute: str = "undefined") -> int:
-        eid = world.create_entity()
-        world.add_component(eid, NameComponent(name))
-        world.add_component(eid, PartComponent(part_type, attribute))
-        world.add_component(eid, HealthComponent(hp, hp))
-        
-        if attack is not None:
-            # base_attackは補正前の値を想定してattackと同じ値を初期値として渡すが、
-            # 呼び出し元で補正が行われている場合はその限りではない。
-            # ここではシンプルに受け取ったattackをそのまま設定し、base_attack用引数を追加する形にするのが望ましいが、
-            # create_medabot_from_setup側で計算済みの値を渡す設計にする。
-            # ただし、AttackComponent側で base_attack を保持する必要があるため、引数を拡張する。
-            pass
-
-        # create_partの引数が多くなりすぎているため、コンポーネント生成を個別に処理する形にリファクタリングしつつ実装
-        return eid
-
-    @staticmethod
-    def _create_part_entity(world: World, part_type: str, name: str, hp: int, trait: str, 
-                            attack: int, base_attack: int, success: int, mobility: int, defense: int, attribute: str) -> int:
-        """内部用パーツ生成ヘルパー"""
-        eid = world.create_entity()
-        world.add_component(eid, NameComponent(name))
-        world.add_component(eid, PartComponent(part_type, attribute))
-        world.add_component(eid, HealthComponent(hp, hp))
-        
-        if attack is not None:
-            world.add_component(eid, AttackComponent(attack, trait, success, base_attack))
-        
-        if part_type == PartType.LEGS:
-            world.add_component(eid, MobilityComponent(mobility, defense))
-            
-        return eid
-
-    @staticmethod
     def create_medabot_from_setup(world: World, setup: dict) -> dict:
         pm = get_parts_manager()
         parts = {}
@@ -64,51 +28,81 @@ class BattleEntityFactory:
 
         for p_type, p_id in setup["parts"].items():
             data = pm.get_part_data(p_id)
-            part_attr = data.get("attribute", "undefined")
             
-            # 基本パラメータの取得
-            hp = data.get("hp", 0)
-            attack = data.get("attack") # Noneの場合あり
-            success = data.get("success", 0)
-            mobility = data.get("mobility", 0)
-            defense = data.get("defense", 0)
-            base_attack = attack # 補正前の攻撃力
-
-            # 属性一致ボーナスの適用
-            if medal_attr == part_attr and medal_attr != "undefined":
-                if medal_attr == "speed":
-                    # スピード: 脚部の機動+20
-                    if p_type == PartType.LEGS:
-                        mobility += 20
-                
-                elif medal_attr == "power":
-                    # パワー: 全パーツHP+5, 脚部以外の攻撃+5
-                    hp += 5
-                    if p_type != PartType.LEGS and attack is not None:
-                        attack += 10
-                        # base_attack は加算しない（時間計算への影響を避けるため）
-
-                elif medal_attr == "technique":
-                    # テクニック: 脚部以外の成功+10, 脚部の防御+20
-                    if p_type == PartType.LEGS:
-                        defense += 10
-                    else:
-                        success += 20
+            # ステータスとボーナスの計算
+            stats = BattleEntityFactory._calculate_stats_with_bonus(data, p_type, medal_attr)
 
             parts[p_type] = BattleEntityFactory._create_part_entity(
                 world, 
                 p_type, 
                 data.get("name", p_id), 
-                hp, 
-                data.get("trait"), 
-                attack,
-                base_attack,
-                success,
-                mobility,
-                defense,
-                part_attr
+                stats
             )
         return parts
+
+    @staticmethod
+    def _calculate_stats_with_bonus(data: dict, part_type: str, medal_attr: str) -> dict:
+        """パーツデータとメダル属性に基づいて、ボーナス適用後のステータスを計算する"""
+        stats = {
+            "hp": data.get("hp", 0),
+            "attack": data.get("attack"), # None許容
+            "base_attack": data.get("attack"),
+            "success": data.get("success", 0),
+            "mobility": data.get("mobility", 0),
+            "defense": data.get("defense", 0),
+            "trait": data.get("trait"),
+            "attribute": data.get("attribute", "undefined"),
+            "time_modifier": 1.0 # 充填・冷却時間補正 (デフォルト1.0)
+        }
+        
+        part_attr = stats["attribute"]
+        
+        # 属性一致ボーナスの適用
+        if medal_attr == part_attr and medal_attr != "undefined":
+            if medal_attr == "speed":
+                # スピード: 脚部の機動+20, 攻撃パーツの時間短縮(x0.8)
+                if part_type == PartType.LEGS:
+                    stats["mobility"] += 20
+                else:
+                    stats["time_modifier"] = 0.8
+
+            elif medal_attr == "power":
+                # パワー: 全パーツHP+5, 脚部以外の攻撃+10
+                stats["hp"] += 5
+                if part_type != PartType.LEGS and stats["attack"] is not None:
+                    stats["attack"] += 10
+                    # base_attack は加算しない（時間計算への影響を避けるため）
+
+            elif medal_attr == "technique":
+                # テクニック: 脚部以外の成功+20, 脚部の防御+10
+                if part_type == PartType.LEGS:
+                    stats["defense"] += 10
+                else:
+                    stats["success"] += 20
+                    
+        return stats
+
+    @staticmethod
+    def _create_part_entity(world: World, part_type: str, name: str, stats: dict) -> int:
+        """内部用パーツ生成ヘルパー"""
+        eid = world.create_entity()
+        world.add_component(eid, NameComponent(name))
+        world.add_component(eid, PartComponent(part_type, stats["attribute"]))
+        world.add_component(eid, HealthComponent(stats["hp"], stats["hp"]))
+        
+        if stats["attack"] is not None:
+            world.add_component(eid, AttackComponent(
+                stats["attack"], 
+                stats["trait"], 
+                stats["success"], 
+                stats["base_attack"],
+                stats["time_modifier"]
+            ))
+        
+        if part_type == PartType.LEGS:
+            world.add_component(eid, MobilityComponent(stats["mobility"], stats["defense"]))
+            
+        return eid
 
     @staticmethod
     def create_battle_context(world: World) -> int:
