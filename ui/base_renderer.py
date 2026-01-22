@@ -11,12 +11,13 @@ class BaseRenderer:
     def __init__(self, screen):
         self.screen = screen
         # 共通フォントの初期化
+        font_priority = ",".join(FONT_NAMES)
         self.fonts = {
-            'small': pygame.font.SysFont(FONT_NAMES, 14),
-            'normal': pygame.font.SysFont(FONT_NAMES, 20),
-            'medium': pygame.font.SysFont(FONT_NAMES, 24),
-            'large': pygame.font.SysFont(FONT_NAMES, 32),
-            'notice': pygame.font.SysFont(FONT_NAMES, 36)
+            'small': pygame.font.SysFont(font_priority, 14),
+            'normal': pygame.font.SysFont(font_priority, 20),
+            'medium': pygame.font.SysFont(font_priority, 24),
+            'large': pygame.font.SysFont(font_priority, 32),
+            'notice': pygame.font.SysFont(font_priority, 36)
         }
 
     def clear(self):

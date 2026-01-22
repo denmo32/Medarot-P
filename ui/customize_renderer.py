@@ -65,17 +65,7 @@ class CustomizeRenderer(BaseRenderer):
             item_id = data['setup']['medal'] if key == "medal" else data['setup']['parts'][key]
             part_name = mgr.get_part_name(item_id)
             
-            # 属性情報の取得と描画
-            p_data = mgr.get_part_data(item_id)
-            if not p_data: p_data = mgr.get_medal_data(item_id)
-            attr = p_data.get('attribute', 'undefined')
-            
-            # 属性一致ハイライト（メダル行以外で、現在のメダル属性と一致する場合）
-            is_match = (key != "medal" and attr != 'undefined' and attr == data['current_medal_attr'])
-            attr_color = (255, 220, 50) if is_match else (120, 130, 140)
-
             self.draw_text(part_name, (bx + 80, by + 7))
-            self.draw_text(mgr.get_attribute_label(attr), (bx + 230, by + 7), attr_color, 'small')
 
         # 一覧
         list_y = self.y + 280
@@ -91,17 +81,9 @@ class CustomizeRenderer(BaseRenderer):
                 pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (col['x'] + 10, by - 2, 5, 28))
             
             # アイテム情報
-            p_data = mgr.get_part_data(item_id)
-            if not p_data: p_data = mgr.get_medal_data(item_id)
-            attr = p_data.get('attribute', 'undefined')
-            
-            # リスト選択中の一致判定
-            is_match = (data['slot_idx'] != 0 and attr != 'undefined' and attr == data['current_medal_attr'])
-            attr_color = (255, 220, 50) if is_match else (120, 130, 140)
             
             color = COLORS['TEXT'] if (data['state'] == "part_list_select" and data['part_list_idx'] == i) else (180, 180, 180)
             self.draw_text(mgr.get_part_name(item_id), (col['x'] + 25, by), color)
-            self.draw_text(mgr.get_attribute_label(attr), (col['x'] + 230, by + 4), attr_color, 'small')
 
     def _draw_column_3(self, data):
         title = "メダル詳細" if data['slot_idx'] == 0 else "パーツ詳細"
@@ -135,9 +117,4 @@ class CustomizeRenderer(BaseRenderer):
             pygame.draw.line(self.screen, (50, 60, 75), (col['x'] + 15, by + 30), (col['x'] + col['w'] - 15, by + 30))
             self.draw_text(label, (col['x'] + 15, by + 5), (150, 160, 180))
             
-            # 属性の値を少し強調
-            val_color = COLORS['TEXT']
-            if label == "属性" and val != "ー":
-                val_color = (200, 200, 255)
-                
-            self.draw_text(str(val), (col['x'] + col['w'] - 20, by + 5), val_color, 'medium', 'right')
+            self.draw_text(str(val), (col['x'] + col['w'] - 20, by + 5), COLORS['TEXT'], 'medium', 'right')
