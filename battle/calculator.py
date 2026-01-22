@@ -112,3 +112,47 @@ def calculate_damage(base_attack: int, success: int, mobility: int, defense: flo
     
     final_damage = int(base_attack + bonus_damage)
     return final_damage
+
+def _get_single_affinity_score(atk_attr: str, def_attr: str) -> int:
+    """単体の属性相性スコアを計算 (Power > Technique > Speed > Power)"""
+    if atk_attr == "undefined" or def_attr == "undefined":
+        return 0
+    if atk_attr == def_attr:
+        return 0
+    
+    if atk_attr == "power":
+        return 1 if def_attr == "technique" else -1
+    if atk_attr == "technique":
+        return 1 if def_attr == "speed" else -1
+    if atk_attr == "speed":
+        return 1 if def_attr == "power" else -1
+    return 0
+
+def calculate_attribute_affinity_bonus(atk_medal_attr: str, atk_part_attr: str, def_medal_attr: str) -> tuple[int, int]:
+    """
+    3すくみに基づく属性相性ボーナスを計算する。
+    攻撃側はメダルとパーツの2属性、防御側はメダルの1属性で判定。
+    
+    Returns:
+        (atk_bonus, def_bonus)
+        - atk_bonus: 攻撃側の success, attack に加算
+        - def_bonus: 防御側の mobility, defense に加算（攻撃側有利ならマイナス）
+    """
+    score1 = _get_single_affinity_score(atk_medal_attr, def_medal_attr)
+    score2 = _get_single_affinity_score(atk_part_attr, def_medal_attr)
+    
+    # スコア合計: +2(OO), +1(O), 0(-), -1(X), -2(XX)
+    total_score = score1 + score2
+    
+    # 係数: 5
+    # OO: +10 / -10
+    # O : +5  / -5
+    # - : 0   / 0
+    # X : -5  / +5
+    # XX: -10 / +10
+    factor = 5
+    
+    atk_mod = total_score * factor
+    def_mod = total_score * factor * -1 
+    
+    return atk_mod, def_mod
