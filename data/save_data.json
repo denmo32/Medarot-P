@@ -1,0 +1,34 @@
+{
+  "player_team": [
+    {
+      "name": "機体1",
+      "medal": "medal_001",
+      "parts": {
+        "head": "head_001",
+        "right_arm": "rarm_001",
+        "left_arm": "larm_001",
+        "legs": "legs_001"
+      }
+    },
+    {
+      "name": "機体2",
+      "medal": "medal_002",
+      "parts": {
+        "head": "head_002",
+        "right_arm": "rarm_002",
+        "left_arm": "larm_002",
+        "legs": "legs_002"
+      }
+    },
+    {
+      "name": "機体3",
+      "medal": "medal_003",
+      "parts": {
+        "head": "head_003",
+        "right_arm": "rarm_003",
+        "left_arm": "larm_003",
+        "legs": "legs_003"
+      }
+    }
+  ]
+}

@@ -3,9 +3,9 @@
 import random
 
 # 計算用定数（ゲームバランス調整用）
-MOBILITY_WEIGHT = 0.5       # 回避率計算時の機動性の重み
-DEFENSE_WEIGHT = 0.5        # 突破率計算時の防御力の重み
-CRITICAL_THRESHOLD = 1.5    # クリティカル発生閾値（命中率+突破率）
+MOBILITY_WEIGHT = 0.2       # 回避率計算時の機動性の重み
+DEFENSE_WEIGHT = 2          # 突破率計算時の防御力の重み
+CRITICAL_THRESHOLD = 2      # クリティカル発生閾値（命中率+突破率）
 DAMAGE_PENALTY_DIVISOR = 2  # ダメージボーナス計算時の除数
 
 def calculate_hit_probability(success: int, mobility: int) -> float:
@@ -29,7 +29,7 @@ def calculate_hit_probability(success: int, mobility: int) -> float:
 def calculate_break_probability(success: int, defense: int) -> float:
     """
     防御突破率を計算する（攻撃が防御を上回る確率）
-    防御判定に失敗した場合、防御行動（ダメージ軽減・かばう）が発生しない。
+    防御判定に失敗した場合、防御行動（被弾部位置換、ダメージ軽減）が発生しない。
     
     式: 突破率 = 成功度 / (成功度 + 防御度 * DEFENSE_WEIGHT)
 

@@ -1,5 +1,6 @@
 """エンティティ生成ファクトリ"""
 
+import random
 from core.ecs import World
 from components.common import NameComponent, PositionComponent
 from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
@@ -129,19 +130,23 @@ class BattleEntityFactory:
                 world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, pm
             )
 
-        # エネミーチーム生成
+        # エネミーチーム生成 (ランダム構成)
+        medal_ids = pm.get_part_ids_for_type("medal")
+        head_ids = pm.get_part_ids_for_type("head")
+        r_arm_ids = pm.get_part_ids_for_type("right_arm")
+        l_arm_ids = pm.get_part_ids_for_type("left_arm")
+        legs_ids = pm.get_part_ids_for_type("legs")
+
         for i in range(enemy_count):
-            # メダルとパーツをランダム風に取得
-            medal_idx = (i + 3) % 10
-            parts_offset = i % 3
-            
-            medal_id = pm.get_part_ids_for_type("medal")[medal_idx]
+            # メダルとパーツをランダムに取得
             setup = {
                 "parts": {
-                    t: pm.get_part_ids_for_type(t)[2 - parts_offset] 
-                    for t in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
+                    "head": random.choice(head_ids) if head_ids else "head_001",
+                    "right_arm": random.choice(r_arm_ids) if r_arm_ids else "rarm_001",
+                    "left_arm": random.choice(l_arm_ids) if l_arm_ids else "larm_001",
+                    "legs": random.choice(legs_ids) if legs_ids else "legs_001",
                 },
-                "medal": medal_id
+                "medal": random.choice(medal_ids) if medal_ids else "medal_001"
             }
             BattleEntityFactory._create_team_unit(
                 world, i, setup, TeamType.ENEMY, ex, yoff, spacing, gw, gh, pm
