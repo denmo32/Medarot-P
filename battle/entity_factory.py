@@ -12,6 +12,7 @@ from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
 from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus
+from battle.attributes import AttributeLogic
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -56,30 +57,8 @@ class BattleEntityFactory:
             "time_modifier": 1.0 # 充填・冷却時間補正 (デフォルト1.0)
         }
         
-        part_attr = stats["attribute"]
-        
-        # 属性一致ボーナスの適用
-        if medal_attr == part_attr and medal_attr != "undefined":
-            if medal_attr == "speed":
-                # スピード: 脚部の機動+20, 攻撃パーツの時間短縮(x0.8)
-                if part_type == PartType.LEGS:
-                    stats["mobility"] += 20
-                else:
-                    stats["time_modifier"] = 0.8
-
-            elif medal_attr == "power":
-                # パワー: 全パーツHP+5, 脚部以外の攻撃+10
-                stats["hp"] += 5
-                if part_type != PartType.LEGS and stats["attack"] is not None:
-                    stats["attack"] += 10
-                    # base_attack は加算しない（時間計算への影響を避けるため）
-
-            elif medal_attr == "technique":
-                # テクニック: 脚部以外の成功+20, 脚部の防御+10
-                if part_type == PartType.LEGS:
-                    stats["defense"] += 10
-                else:
-                    stats["success"] += 20
+        # 属性ボーナス計算ロジックを外部モジュールに委譲
+        AttributeLogic.apply_passive_stats_bonus(stats, part_type, medal_attr)
                     
         return stats
 

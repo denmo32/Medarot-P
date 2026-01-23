@@ -5,13 +5,14 @@ from core.ecs import System
 from components.action_event import ActionEventComponent
 from battle.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
+from battle.attributes import AttributeLogic
+from battle.traits import TraitManager
 from battle.calculator import (
     calculate_hit_probability, 
     calculate_break_probability, 
     check_is_hit,
     check_attack_outcome,
-    calculate_damage,
-    calculate_attribute_affinity_bonus
+    calculate_damage
 )
 
 class ActionInitiationSystem(System):
@@ -108,8 +109,8 @@ class ActionInitiationSystem(System):
         atk_part_attr = atk_part.attribute if atk_part else "undefined"
         tgt_medal_attr = tgt_medal.attribute if tgt_medal else "undefined"
 
-        # 相性補正の計算
-        atk_bonus, def_bonus = calculate_attribute_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
+        # 相性補正の計算（Attributesロジックの使用）
+        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
 
         # ステータス補正適用 (最小値クリップ含む)
         adjusted_success = max(1, attack_comp.success + atk_bonus)
@@ -141,8 +142,9 @@ class ActionInitiationSystem(System):
         # ダメージ計算 (補正後の攻撃力とステータスを使用)
         damage = calculate_damage(attack_power, success, mobility, defense, is_critical, is_defense)
         
-        # 追加効果
-        stop_duration = self._calculate_stop_effect(attack_comp, success, mobility)
+        # 特性に応じた追加効果（Traitsロジックの使用）
+        trait_behavior = TraitManager.get_behavior(attack_comp.trait)
+        stop_duration = trait_behavior.get_stop_duration(success, mobility)
 
         return self._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)
 
@@ -197,12 +199,6 @@ class ActionInitiationSystem(System):
                 return random.choice(alive_keys)
         
         return PartType.HEAD
-
-    def _calculate_stop_effect(self, attack_comp, success, mobility):
-        """サンダー攻撃などの停止時間を計算"""
-        if attack_comp.trait == TraitType.THUNDER:
-            return max(0.5, (success - mobility) * 0.05)
-        return 0.0
 
     def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
         """ターゲットが見つからなかった場合の中断処理"""
