@@ -36,7 +36,7 @@ class InputSystem(System):
             self._handle_action_selection(context, flow, input_comp)
 
     def _handle_log_wait(self, input_comp, context):
-        if input_comp.mouse_clicked or input_comp.key_z:
+        if input_comp.mouse_clicked or input_comp.btn_ok:
             if context.pending_logs:
                 context.battle_log.clear()
                 context.battle_log.append(context.pending_logs.pop(0))
@@ -45,17 +45,18 @@ class InputSystem(System):
 
     def _handle_attack_declaration_wait(self, input_comp, context, flow):
         """攻撃宣言メッセージの確認待ち"""
-        if input_comp.mouse_clicked or input_comp.key_z:
+        if input_comp.mouse_clicked or input_comp.btn_ok:
             context.battle_log.clear()
             flow.current_phase = BattlePhase.CUTIN
             flow.phase_timer = BattleTiming.CUTIN_ANIMATION
 
     def _handle_cutin_result(self, input_comp, context, flow):
         """カットイン後の結果ログ送り"""
+        # 自動送りなどが無い場合、手動送り
         if not context.battle_log and context.pending_logs:
              context.battle_log.append(context.pending_logs.pop(0))
 
-        if input_comp.mouse_clicked or input_comp.key_z:
+        if input_comp.mouse_clicked or input_comp.btn_ok:
             if context.pending_logs:
                 context.battle_log.clear()
                 context.battle_log.append(context.pending_logs.pop(0))
@@ -77,15 +78,16 @@ class InputSystem(System):
         menu_items_count = len(MENU_PART_ORDER) + 1
         self._process_menu_navigation(input_comp, context, menu_items_count)
 
-        if input_comp.key_z or input_comp.mouse_clicked:
+        if input_comp.btn_ok or input_comp.mouse_clicked:
             self._confirm_action(eid, context)
 
     def _process_menu_navigation(self, input_comp, context, item_count):
-        if input_comp.key_left:
+        if input_comp.btn_left:
             context.selected_menu_index = (context.selected_menu_index - 1) % item_count
-        elif input_comp.key_right:
+        elif input_comp.btn_right:
             context.selected_menu_index = (context.selected_menu_index + 1) % item_count
 
+        # マウスカーソルによる選択
         button_layout = calculate_action_menu_layout(item_count)
         for i, rect in enumerate(button_layout):
             if rect['x'] <= input_comp.mouse_x <= rect['x'] + rect['w'] and \
@@ -100,6 +102,7 @@ class InputSystem(System):
         if idx < len(MENU_PART_ORDER):
             p_type = MENU_PART_ORDER[idx]
             p_id = part_list.parts.get(p_type)
+            # 生存チェック
             if p_id and self.world.entities[p_id]['health'].hp > 0:
                 action, part = ActionType.ATTACK, p_type
         else:

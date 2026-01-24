@@ -20,10 +20,11 @@ class BattleScene:
         if not running:
             return 'quit'
         
-        # 追加のイベント処理（ESCキーでタイトルに戻る）
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_ESCAPE]:
-            return 'title'  # ESCキーでタイトルに戻る
+        # InputComponentを取得して共通操作（中断）を確認
+        input_comp = self.battle_system.world.entities[self.event_manager.input_entity_id]['input']
+        
+        if input_comp.btn_menu: # ESCキーなど
+            return 'title'
             
         return None
 

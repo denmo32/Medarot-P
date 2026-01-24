@@ -1,15 +1,25 @@
 """行動開始起案システム"""
 
+import random
 from core.ecs import System
 from components.action_event import ActionEventComponent
-from battle.constants import GaugeStatus, ActionType, BattlePhase, PartType, BattleTiming
-from battle.service.combat_service import CombatService
+from battle.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
+from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
+from battle.attributes import AttributeLogic
+from battle.traits import TraitManager
+from battle.calculator import (
+    calculate_hit_probability, 
+    calculate_break_probability, 
+    check_is_hit,
+    check_attack_outcome,
+    calculate_damage
+)
 
 class ActionInitiationSystem(System):
     """
     1. 行動開始の起案システム
     チャージ完了したエンティティに対し、ターゲットを確定し、
-    **CombatServiceを使用して事前に戦闘計算を行って** ActionEventを生成する。
+    **事前に戦闘計算を行って** ActionEventを生成する。
     """
     def update(self, dt: float):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -54,9 +64,9 @@ class ActionInitiationSystem(System):
             target_part=target_part
         )
         
-        # 攻撃の場合はCombatServiceで事前計算を行う
+        # 攻撃の場合はここで事前計算を行う
         if gauge.selected_action == ActionType.ATTACK:
-            self._process_combat_calculation(actor_eid, target_id, target_part, gauge.selected_part, event)
+            self._pre_calculate_combat(actor_eid, target_id, target_part, gauge.selected_part, event)
 
         self.world.add_component(event_eid, event)
         flow.processing_event_id = event_eid
@@ -72,10 +82,8 @@ class ActionInitiationSystem(System):
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)
 
-    def _process_combat_calculation(self, attacker_id, target_id, target_desired_part, attacker_part_type, event):
-        """Worldからデータを収集し、CombatServiceに計算を依頼する"""
-        
-        # 1. コンポーネント取得
+    def _pre_calculate_combat(self, attacker_id, target_id, target_desired_part, attacker_part_type, event):
+        """戦闘結果を事前に計算し、イベントコンポーネントに保存する"""
         attacker_comps = self.world.try_get_entity(attacker_id)
         target_comps = self.world.try_get_entity(target_id)
         
@@ -83,7 +91,7 @@ class ActionInitiationSystem(System):
             event.calculation_result = None
             return
 
-        # 2. 攻撃側データの収集
+        # 攻撃パーツ情報の取得
         atk_part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
         atk_part_comps = self.world.try_get_entity(atk_part_id)
         if not atk_part_comps or 'attack' not in atk_part_comps:
@@ -91,41 +99,64 @@ class ActionInitiationSystem(System):
             return
             
         attack_comp = atk_part_comps['attack']
+
+        # 属性情報の取得
         atk_medal = attacker_comps.get('medal')
         atk_part = atk_part_comps.get('part')
-        
-        attacker_data = {
-            'medal_attr': atk_medal.attribute if atk_medal else "undefined",
-            'part_attr': atk_part.attribute if atk_part else "undefined",
-            'attack_val': attack_comp.attack,
-            'success_val': attack_comp.success,
-            'trait': attack_comp.trait
-        }
-
-        # 3. 防御側データの収集
         tgt_medal = target_comps.get('medal')
-        mobility, defense = self._get_target_legs_stats(target_comps)
         
-        target_data = {
-            'medal_attr': tgt_medal.attribute if tgt_medal else "undefined",
-            'mobility': mobility,
-            'defense': defense,
-            'desired_part': target_desired_part
-        }
-        
-        # 4. 生存パーツマップの作成 {part_type: hp}
-        target_alive_parts = {}
-        for pt, pid in target_comps['partlist'].parts.items():
-            p_comps = self.world.try_get_entity(pid)
-            if p_comps and p_comps['health'].hp > 0:
-                target_alive_parts[pt] = p_comps['health'].hp
+        atk_medal_attr = atk_medal.attribute if atk_medal else "undefined"
+        atk_part_attr = atk_part.attribute if atk_part else "undefined"
+        tgt_medal_attr = tgt_medal.attribute if tgt_medal else "undefined"
 
-        # 5. Service呼び出し
-        event.calculation_result = CombatService.calculate_combat_result(
-            attacker_data, 
-            target_data, 
-            target_alive_parts
-        )
+        # 相性補正の計算（Attributesロジックの使用）
+        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
+
+        # ステータス補正適用 (最小値クリップ含む)
+        adjusted_success = max(1, attack_comp.success + atk_bonus)
+        adjusted_attack = max(1, attack_comp.attack + atk_bonus)
+        
+        base_mobility, base_defense = self._get_target_legs_stats(target_comps)
+        adjusted_mobility = max(0, base_mobility + def_bonus)
+        adjusted_defense = max(0, base_defense + def_bonus)
+
+        # 命中判定
+        hit_prob = calculate_hit_probability(adjusted_success, adjusted_mobility)
+        
+        if not check_is_hit(hit_prob):
+            event.calculation_result = self._create_result_data(False, False, False, 0, None, 0.0)
+        else:
+            event.calculation_result = self._calculate_hit_outcome(
+                attack_comp, adjusted_success, adjusted_attack, adjusted_mobility, adjusted_defense, 
+                hit_prob, target_comps, target_desired_part
+            )
+
+    def _calculate_hit_outcome(self, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part):
+        """命中時の詳細計算（クリティカル、防御、ダメージ）を行う"""
+        break_prob = calculate_break_probability(success, defense)
+        is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
+        
+        # 命中部位の決定（防御発生時は「かばう」挙動）
+        hit_part = self._determine_hit_part(target_comps, target_desired_part, is_defense)
+        
+        # ダメージ計算 (補正後の攻撃力とステータスを使用)
+        damage = calculate_damage(attack_power, success, mobility, defense, is_critical, is_defense)
+        
+        # 特性に応じた追加効果（Traitsロジックの使用）
+        trait_behavior = TraitManager.get_behavior(attack_comp.trait)
+        stop_duration = trait_behavior.get_stop_duration(success, mobility)
+
+        return self._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)
+
+    def _create_result_data(self, is_hit, is_critical, is_defense, damage, hit_part, stop_duration):
+        return {
+            'is_hit': is_hit,
+            'is_critical': is_critical,
+            'is_defense': is_defense,
+            'damage': damage,
+            'hit_part': hit_part,
+            'stop_duration': stop_duration
+        }
 
     def _get_target_legs_stats(self, target_comps):
         """ターゲットの脚部性能（機動・防御）を取得"""
@@ -138,14 +169,43 @@ class ActionInitiationSystem(System):
                 return mob_comp.mobility, mob_comp.defense
         return 0, 0
 
+    def _determine_hit_part(self, target_comps, desired_part, is_defense):
+        """実際に命中する部位を決定する"""
+        # 生存パーツのリストとマップ
+        alive_parts_map = {}
+        for pt, pid in target_comps['partlist'].parts.items():
+             p_comps = self.world.try_get_entity(pid)
+             if p_comps and p_comps['health'].hp > 0:
+                 alive_parts_map[pt] = pid
+                 
+        alive_keys = list(alive_parts_map.keys())
+
+        if is_defense:
+            # 防御成功時は「頭部以外」かつ「HP最大」のパーツがかばう
+            non_head = [p for p in alive_keys if p != PartType.HEAD]
+            if non_head:
+                non_head.sort(
+                    key=lambda p: self.world.entities[alive_parts_map[p]]['health'].hp, 
+                    reverse=True
+                )
+                return non_head[0]
+            return PartType.HEAD
+        
+        else:
+            # 防御失敗時は狙った部位へ
+            if desired_part and desired_part in alive_keys:
+                return desired_part
+            elif alive_keys:
+                return random.choice(alive_keys)
+        
+        return PartType.HEAD
+
     def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
         """ターゲットが見つからなかった場合の中断処理"""
         actor_name = actor_comps['medal'].nickname
         context.battle_log.append(f"{actor_name}はターゲットロストした！")
-        
-        # 本来はGaugeSystemの責務だが、フロー制御をここに記述してしまっている（後のリファクタリング対象）
-        from battle.utils import reset_gauge_to_cooldown
         flow.current_phase = BattlePhase.LOG_WAIT
+        
         reset_gauge_to_cooldown(gauge)
         
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
@@ -168,20 +228,17 @@ class ActionInitiationSystem(System):
         if not attack_comp:
             return None, None
 
-        from battle.constants import TraitType
         if attack_comp.trait in TraitType.MELEE_TRAITS:
             return self._resolve_melee_target(actor_comps)
         else:
             return self._resolve_shooting_target(gauge)
 
     def _resolve_melee_target(self, actor_comps):
-        from battle.utils import get_closest_target_by_gauge
         target_id = get_closest_target_by_gauge(self.world, actor_comps['team'].team_type)
         target_part = self._select_random_alive_part(target_id)
         return target_id, target_part
 
     def _resolve_shooting_target(self, gauge):
-        from battle.utils import is_target_valid
         if not gauge.selected_part:
             return None, None
             
@@ -193,7 +250,6 @@ class ActionInitiationSystem(System):
         return None, None
 
     def _select_random_alive_part(self, target_id):
-        import random
         t_comps = self.world.try_get_entity(target_id)
         if not t_comps:
             return None
