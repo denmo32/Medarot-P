@@ -7,6 +7,7 @@ from battle.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, i
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
 from battle.attributes import AttributeLogic
 from battle.traits import TraitManager
+from battle.service.log_service import LogService
 from battle.calculator import (
     calculate_hit_probability, 
     calculate_break_probability, 
@@ -203,7 +204,10 @@ class ActionInitiationSystem(System):
     def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
         """ターゲットが見つからなかった場合の中断処理"""
         actor_name = actor_comps['medal'].nickname
-        context.battle_log.append(f"{actor_name}はターゲットロストした！")
+        
+        # LogServiceを利用
+        context.battle_log.append(LogService.get_target_lost(actor_name))
+        
         flow.current_phase = BattlePhase.LOG_WAIT
         
         reset_gauge_to_cooldown(gauge)

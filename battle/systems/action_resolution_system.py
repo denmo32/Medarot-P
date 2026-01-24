@@ -4,6 +4,7 @@ from core.ecs import System
 from components.battle import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
 from battle.utils import reset_gauge_to_cooldown
+from battle.service.log_service import LogService
 
 class ActionResolutionSystem(System):
     """
@@ -48,7 +49,8 @@ class ActionResolutionSystem(System):
             flow.current_phase = BattlePhase.CUTIN_RESULT
             
         elif event.action_type == ActionType.SKIP:
-            context.battle_log.append(f"{attacker_comps['medal'].nickname}は行動をスキップ！")
+            # LogService利用
+            context.battle_log.append(LogService.get_skip_action(attacker_comps['medal'].nickname))
             flow.current_phase = BattlePhase.LOG_WAIT
 
         # クールダウンへ
@@ -62,14 +64,15 @@ class ActionResolutionSystem(System):
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         part_comps = self.world.try_get_entity(part_id) if part_id is not None else None
         if not part_comps or part_comps['health'].hp <= 0:
-            context.battle_log.append(f"{attacker_name}の攻撃！ しかしパーツが破損している！")
+            # LogService利用
+            context.battle_log.append(LogService.get_part_broken_attack(attacker_name))
             return
 
         # 2. 事前計算結果の適用
         res = event.calculation_result
         if res is None:
             # 計算が行われていない（ターゲットロスト等）
-            context.battle_log.append(f"{attacker_name}はターゲットを見失った！")
+            context.battle_log.append(LogService.get_target_lost(attacker_name))
             return
 
         if not res['is_hit']:

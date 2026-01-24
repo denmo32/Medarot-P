@@ -9,9 +9,6 @@ from .base_renderer import BaseRenderer
 class CutinCinematics:
     """
     カットイン演出の計算ロジックを担当するクラス。
-    時間経過(progress)に応じたキャラクターや弾丸の座標、透明度などを計算し、
-    描画に必要なフレーム状態(State)を生成する。
-    描画命令(pygameなど)は一切含まない。
     """
     def __init__(self):
         # 画面サイズ等の定数
@@ -241,12 +238,6 @@ class CutinCinematics:
         char_state['defender']['x'] = sw - char_state['defender']['x']
         if char_state['bullet']['visible']:
             char_state['bullet']['x'] = sw - char_state['bullet']['x']
-        # ポップアップはここでは反転しない（表示時に位置調整されるか、あるいは中央基準なら不要）
-        # ただし defender の位置が変わったので、ポップアップの基準位置も変える必要がある
-        # _calc_popup_state で right_pos_x を使っているため。
-        # ポップアップのX座標修正は Renderer 側で行うか、ここで計算し直すか。
-        # ここでは座標値のみを反転させるのが一貫性がある。
-        pass
 
 
 class CutinRenderer(BaseRenderer):
@@ -259,18 +250,18 @@ class CutinRenderer(BaseRenderer):
         super().__init__(screen)
         self.cinematics = CutinCinematics()
 
-    def draw(self, attacker_data, target_data, attacker_hp_data, target_hp_data, progress, hit_result, mirror=False, attack_trait=None):
+    def draw(self, attacker_visual, target_visual, progress, hit_result, mirror=False, attack_trait=None):
         """
         メイン描画メソッド。
-        外部からはこのメソッドだけを呼ぶ。
+        VisualStateを受け取り描画する（データ加工は行わない）
         """
         # 1. 状態計算（ロジック）
         state = self.cinematics.calculate_frame_state(progress, attack_trait, mirror, hit_result)
         
         # 2. 描画実行（レンダリング）
-        self._render_scene(state, attacker_data, target_data, attacker_hp_data, target_hp_data, mirror)
+        self._render_scene(state, attacker_visual, target_visual, mirror)
 
-    def _render_scene(self, state, attacker_data, target_data, attacker_hp_data, target_hp_data, mirror):
+    def _render_scene(self, state, attacker_visual, target_visual, mirror):
         sw, sh = self.cinematics.sw, self.cinematics.sh
         
         # 1. 背景オーバーレイ
@@ -283,12 +274,12 @@ class CutinRenderer(BaseRenderer):
         # 攻撃側
         atk = state['attacker']
         if atk['visible'] and -200 < atk['x'] < sw + 200:
-            self._draw_character_info(attacker_data, attacker_hp_data, atk['x'], atk['y'], show_hp=False)
+            self._draw_character_info(attacker_visual, atk['x'], atk['y'])
 
         # 防御側
         defn = state['defender']
         if defn['visible'] and -200 < defn['x'] < sw + 200:
-            self._draw_character_info(target_data, target_hp_data, defn['x'], defn['y'], show_hp=True)
+            self._draw_character_info(target_visual, defn['x'], defn['y'])
 
         # 3. 弾丸描画
         bul = state['bullet']
@@ -429,11 +420,14 @@ class CutinRenderer(BaseRenderer):
             self.draw_text(text, (x + ox, y + oy), (0, 0, 0), 'large', 'center')
         self.draw_text(text, (x, y), color, 'large', 'center')
 
-    def _draw_character_info(self, char_data, hp_data, center_x, center_y, show_hp=True):
-        is_alive_map = {item['key']: (item['current'] > 0) for item in hp_data}
-        base_color = char_data['color']
+    def _draw_character_info(self, view_data, center_x, center_y):
+        # 描画データ(view_data)は既に整形済み
+        color = view_data['color']
+        is_alive_map = view_data['is_alive_map']
+        hp_bars = view_data.get('hp_bars')
+        
         cx, cy = int(center_x), int(center_y)
 
-        self.draw_robot_icon(cx, cy, base_color, is_alive_map, scale=1.0)
-        if show_hp:
-            self.draw_hp_bars(cx, cy + 65, hp_data)
+        self.draw_robot_icon(cx, cy, color, is_alive_map, scale=1.0)
+        if hp_bars:
+            self.draw_hp_bars(cx, cy + 65, hp_bars)

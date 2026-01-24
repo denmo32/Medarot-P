@@ -2,6 +2,7 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
+from battle.service.log_service import LogService
 
 class TargetIndicatorSystem(System):
     """
@@ -62,5 +63,6 @@ class TargetIndicatorSystem(System):
             part_comps = self.world.try_get_entity(part_id)
             if part_comps and 'attack' in part_comps:
                 trait_text = f" {part_comps['attack'].trait}！"
-            
-        context.battle_log.append(f"{attacker_name}の攻撃！{trait_text}")
+        
+        # LogServiceを利用
+        context.battle_log.append(LogService.get_attack_declaration(attacker_name, trait_text))

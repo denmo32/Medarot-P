@@ -52,3 +52,5 @@ ui/__pycache__/battle_ui_renderer.cpython-313.pyc
 battle/__pycache__/traits.cpython-313.pyc
 battle/__pycache__/attributes.cpython-313.pyc
 battle/service/__pycache__/combat_service.cpython-313.pyc
+battle/__pycache__/view_model.cpython-313.pyc
+battle/service/__pycache__/log_service.cpython-313.pyc

@@ -3,6 +3,7 @@
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase, ActionType
 from battle.utils import interrupt_gauge_return_home, is_target_valid
+from battle.service.log_service import LogService
 
 class GaugeSystem(System):
     """ATBゲージの進行管理、およびチャージ中のアクション有効性監視を担当"""
@@ -43,7 +44,8 @@ class GaugeSystem(System):
         # 1. 自身の予約パーツが破壊されたか
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
             if not is_target_valid(self.world, eid, gauge.selected_part):
-                self._interrupt(eid, gauge, context, flow, f"{actor_name}の予約パーツは破壊された！")
+                message = LogService.get_part_broken_interruption(actor_name)
+                self._interrupt(eid, gauge, context, flow, message)
                 return
 
         # 2. ターゲットがロストしたか（事前ターゲットの場合のみ）
@@ -51,7 +53,8 @@ class GaugeSystem(System):
         if target_data:
             target_id, target_part_type = target_data
             if not is_target_valid(self.world, target_id, target_part_type):
-                self._interrupt(eid, gauge, context, flow, f"{actor_name}はターゲットロストした！")
+                message = LogService.get_target_lost(actor_name)
+                self._interrupt(eid, gauge, context, flow, message)
                 return
 
     def _interrupt(self, eid, gauge, context, flow, message):

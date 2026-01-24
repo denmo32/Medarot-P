@@ -1,10 +1,9 @@
 """描画ロジック（データ加工）を担当するシステム"""
 
-import pygame
 from core.ecs import System
 from config import GAME_PARAMS, COLORS
-from battle.utils import calculate_current_x
-from battle.constants import PartType, GaugeStatus, BattlePhase, TeamType, PART_LABELS, MENU_PART_ORDER
+from battle.constants import BattlePhase, MENU_PART_ORDER, TeamType
+from battle.view_model import BattleViewModel, CutinViewModel
 from ui.cutin_renderer import CutinRenderer
 
 class RenderSystem(System):
@@ -16,7 +15,6 @@ class RenderSystem(System):
         self.ui_renderer = ui_renderer
         # CutinRendererの初期化
         self.cutin_renderer = CutinRenderer(field_renderer.screen)
-        self.hp_bar_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
     def update(self, dt: float):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -44,61 +42,33 @@ class RenderSystem(System):
 
     def _render_characters(self, context, flow):
         char_positions = {}
-        for eid, comps in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'medal'):
-            pos, gauge, team, medal = comps['position'], comps['gauge'], comps['team'], comps['medal']
+        # 描画対象のエンティティを取得
+        for eid, _ in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'medal'):
+            # ViewModelを使用して描画データを取得
+            view_data = BattleViewModel.get_character_view_data(self.world, eid, context, flow)
             
-            # アイコンの現在位置計算 (Utils)
-            icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
-            char_positions[eid] = {'x': pos.x, 'y': pos.y, 'icon_x': icon_x}
+            char_positions[eid] = {
+                'x': view_data['x'], 
+                'y': view_data['y'], 
+                'icon_x': view_data['icon_x']
+            }
             
-            # ホーム位置と本体
-            self.field_renderer.draw_home_marker(pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0), pos.y)
-            border = self._get_border_color(eid, gauge, context, flow)
+            # ホームマーカー
+            self.field_renderer.draw_home_marker(view_data['home_x'], view_data['home_y'])
             
-            # パーツごとの生存状況
-            part_status = self._get_part_status_map(comps['partlist'])
-            self.field_renderer.draw_character_icon(icon_x, pos.y, team.team_color, part_status, border)
+            # キャラクターアイコン
+            self.field_renderer.draw_character_icon(
+                view_data['icon_x'], 
+                view_data['y'], 
+                view_data['team_color'], 
+                view_data['part_status'], 
+                view_data['border_color']
+            )
             
-            self.field_renderer.draw_text(medal.nickname, (pos.x - 20, pos.y - 25), font_type='medium')
+            # 名前
+            self.field_renderer.draw_text(view_data['name'], (view_data['x'] - 20, view_data['y'] - 25), font_type='medium')
 
         return char_positions
-
-    def _get_part_status_map(self, part_list_comp):
-        """各パーツが生存しているかどうかのマップを作成"""
-        status = {}
-        for p_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]:
-            p_id = part_list_comp.parts.get(p_type)
-            is_alive = False
-            if p_id:
-                hp = self.world.entities[p_id]['health'].hp
-                if hp > 0:
-                    is_alive = True
-            status[p_type] = is_alive
-        return status
-
-    def _get_border_color(self, eid, gauge, context, flow):
-        if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
-            return COLORS.get('BORDER_WAIT')
-        if gauge.status == GaugeStatus.CHARGING:
-            return COLORS.get('BORDER_CHARGE')
-        if gauge.status == GaugeStatus.COOLDOWN:
-            return COLORS.get('BORDER_COOLDOWN')
-        return None
-
-    def _build_hp_data(self, part_list_comp):
-        hp_data = []
-        for p_key in self.hp_bar_order:
-            p_id = part_list_comp.parts.get(p_key)
-            if p_id is not None:
-                h = self.world.entities[p_id]['health']
-                hp_data.append({
-                    'key': p_key,
-                    'label': PART_LABELS.get(p_key, ""),
-                    'current': int(h.display_hp),
-                    'max': h.max_hp,
-                    'ratio': h.display_hp / h.max_hp if h.max_hp > 0 else 0
-                })
-        return hp_data
 
     def _render_target_marker(self, context, flow, char_positions):
         target_eid = None
@@ -172,8 +142,6 @@ class RenderSystem(System):
     def _render_cutin(self, context, flow):
         """
         カットイン演出に必要なデータを収集してRendererへ渡す。
-        RenderSystemは「何を描くか(データ)」のみを管理し、
-        「どう動くか(演出ロジック)」はRenderer(Cinematics)に委譲する。
         """
         event_eid = flow.processing_event_id
         if event_eid is None: return
@@ -196,29 +164,27 @@ class RenderSystem(System):
                  if p_comps and 'attack' in p_comps:
                      attack_trait = p_comps['attack'].trait
 
-        # 進行度取得（CUTINフェーズ以外は1.0=演出終了状態）
+        # 進行度取得
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         
-        # データ構築（ViewModel）
-        attacker_data = {
-            'name': attacker_comps['medal'].nickname,
-            'color': attacker_comps['team'].team_color
-        }
-        target_data = {
-            'name': target_comps['medal'].nickname,
-            'color': target_comps['team'].team_color
-        }
+        # データ構築（ViewModel使用）
+        attacker_data = CutinViewModel.create_character_data(self.world, event.attacker_id)
+        target_data = CutinViewModel.create_character_data(self.world, event.current_target_id)
         
-        attacker_hp_data = self._build_hp_data(attacker_comps['partlist'])
-        target_hp_data = self._build_hp_data(target_comps['partlist'])
+        # HPデータの生成もBattleViewModelのロジックを再利用
+        attacker_hp_data = BattleViewModel.build_hp_data(self.world, attacker_comps['partlist'])
+        target_hp_data = BattleViewModel.build_hp_data(self.world, target_comps['partlist'])
+        
+        # 描画用データの整形（CutinRendererの負担を減らす）
+        attacker_visual = CutinViewModel.create_character_visual_state(attacker_data, attacker_hp_data, show_hp=False)
+        target_visual = CutinViewModel.create_character_visual_state(target_data, target_hp_data, show_hp=True)
         
         hit_result = event.calculation_result
         is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
 
         # 描画委譲
         self.cutin_renderer.draw(
-            attacker_data, target_data, 
-            attacker_hp_data, target_hp_data,
+            attacker_visual, target_visual,
             progress, hit_result, 
             mirror=is_enemy_attack,
             attack_trait=attack_trait
