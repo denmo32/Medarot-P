@@ -34,5 +34,4 @@ class CustomizeScene:
         """描画処理"""
         ui_data = self.manager.get_ui_data()
         self.renderer.render(ui_data)
-        import pygame
-        pygame.display.flip()
+        self.renderer.present()

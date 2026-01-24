@@ -5,6 +5,8 @@ from core.ecs import System
 from components.action_event import ActionEventComponent
 from battle.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
+from battle.attributes import AttributeLogic
+from battle.traits import TraitManager
 from battle.calculator import (
     calculate_hit_probability, 
     calculate_break_probability, 
@@ -98,19 +100,38 @@ class ActionInitiationSystem(System):
             
         attack_comp = atk_part_comps['attack']
 
-        # ステータス取得と判定
-        success = attack_comp.success
-        mobility, defense = self._get_target_legs_stats(target_comps)
-        hit_prob = calculate_hit_probability(success, mobility)
+        # 属性情報の取得
+        atk_medal = attacker_comps.get('medal')
+        atk_part = atk_part_comps.get('part')
+        tgt_medal = target_comps.get('medal')
+        
+        atk_medal_attr = atk_medal.attribute if atk_medal else "undefined"
+        atk_part_attr = atk_part.attribute if atk_part else "undefined"
+        tgt_medal_attr = tgt_medal.attribute if tgt_medal else "undefined"
+
+        # 相性補正の計算（Attributesロジックの使用）
+        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
+
+        # ステータス補正適用 (最小値クリップ含む)
+        adjusted_success = max(1, attack_comp.success + atk_bonus)
+        adjusted_attack = max(1, attack_comp.attack + atk_bonus)
+        
+        base_mobility, base_defense = self._get_target_legs_stats(target_comps)
+        adjusted_mobility = max(0, base_mobility + def_bonus)
+        adjusted_defense = max(0, base_defense + def_bonus)
+
+        # 命中判定
+        hit_prob = calculate_hit_probability(adjusted_success, adjusted_mobility)
         
         if not check_is_hit(hit_prob):
             event.calculation_result = self._create_result_data(False, False, False, 0, None, 0.0)
         else:
             event.calculation_result = self._calculate_hit_outcome(
-                attack_comp, success, mobility, defense, hit_prob, target_comps, target_desired_part
+                attack_comp, adjusted_success, adjusted_attack, adjusted_mobility, adjusted_defense, 
+                hit_prob, target_comps, target_desired_part
             )
 
-    def _calculate_hit_outcome(self, attack_comp, success, mobility, defense, hit_prob, target_comps, target_desired_part):
+    def _calculate_hit_outcome(self, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part):
         """命中時の詳細計算（クリティカル、防御、ダメージ）を行う"""
         break_prob = calculate_break_probability(success, defense)
         is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
@@ -118,11 +139,12 @@ class ActionInitiationSystem(System):
         # 命中部位の決定（防御発生時は「かばう」挙動）
         hit_part = self._determine_hit_part(target_comps, target_desired_part, is_defense)
         
-        # ダメージ計算
-        damage = calculate_damage(attack_comp.attack, success, mobility, defense, is_critical, is_defense)
+        # ダメージ計算 (補正後の攻撃力とステータスを使用)
+        damage = calculate_damage(attack_power, success, mobility, defense, is_critical, is_defense)
         
-        # 追加効果
-        stop_duration = self._calculate_stop_effect(attack_comp, success, mobility)
+        # 特性に応じた追加効果（Traitsロジックの使用）
+        trait_behavior = TraitManager.get_behavior(attack_comp.trait)
+        stop_duration = trait_behavior.get_stop_duration(success, mobility)
 
         return self._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)
 
@@ -177,12 +199,6 @@ class ActionInitiationSystem(System):
                 return random.choice(alive_keys)
         
         return PartType.HEAD
-
-    def _calculate_stop_effect(self, attack_comp, success, mobility):
-        """サンダー攻撃などの停止時間を計算"""
-        if attack_comp.trait == TraitType.THUNDER:
-            return max(0.5, (success - mobility) * 0.05)
-        return 0.0
 
     def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
         """ターゲットが見つからなかった場合の中断処理"""

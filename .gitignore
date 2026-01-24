@@ -49,3 +49,6 @@ ui/__pycache__/cutin_renderer.cpython-313.pyc
 ui/__pycache__/field_renderer.cpython-313.pyc
 ui/__pycache__/base_renderer.cpython-313.pyc
 ui/__pycache__/battle_ui_renderer.cpython-313.pyc
+battle/__pycache__/traits.cpython-313.pyc
+battle/__pycache__/attributes.cpython-313.pyc
+battle/service/__pycache__/combat_service.cpython-313.pyc

@@ -1,8 +1,8 @@
 """入力処理システム"""
 
 from core.ecs import System
-from battle.utils import calculate_action_times, calculate_action_menu_layout
-from battle.constants import BattlePhase, ActionType, GaugeStatus, MENU_PART_ORDER, BattleTiming
+from battle.utils import calculate_action_menu_layout, apply_action_command
+from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER, BattleTiming
 
 class InputSystem(System):
     """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
@@ -36,7 +36,7 @@ class InputSystem(System):
             self._handle_action_selection(context, flow, input_comp)
 
     def _handle_log_wait(self, input_comp, context):
-        if input_comp.mouse_clicked or input_comp.key_z:
+        if input_comp.mouse_clicked or input_comp.btn_ok:
             if context.pending_logs:
                 context.battle_log.clear()
                 context.battle_log.append(context.pending_logs.pop(0))
@@ -45,29 +45,26 @@ class InputSystem(System):
 
     def _handle_attack_declaration_wait(self, input_comp, context, flow):
         """攻撃宣言メッセージの確認待ち"""
-        if input_comp.mouse_clicked or input_comp.key_z:
+        if input_comp.mouse_clicked or input_comp.btn_ok:
             context.battle_log.clear()
             flow.current_phase = BattlePhase.CUTIN
             flow.phase_timer = BattleTiming.CUTIN_ANIMATION
 
     def _handle_cutin_result(self, input_comp, context, flow):
         """カットイン後の結果ログ送り"""
-        # 最初の1回（遷移直後）でログが表示されていない場合の処理
+        # 自動送りなどが無い場合、手動送り
         if not context.battle_log and context.pending_logs:
              context.battle_log.append(context.pending_logs.pop(0))
 
-        if input_comp.mouse_clicked or input_comp.key_z:
+        if input_comp.mouse_clicked or input_comp.btn_ok:
             if context.pending_logs:
-                # 次のログへ
                 context.battle_log.clear()
                 context.battle_log.append(context.pending_logs.pop(0))
             else:
-                # ログ終了、カットイン終了、イベント削除
                 context.battle_log.clear()
                 flow.current_phase = BattlePhase.IDLE
                 flow.active_actor_id = None
                 
-                # イベントエンティティの削除
                 if flow.processing_event_id is not None:
                     self.world.delete_entity(flow.processing_event_id)
                     flow.processing_event_id = None
@@ -78,66 +75,39 @@ class InputSystem(System):
             flow.current_phase = BattlePhase.IDLE
             return
 
-        # メニュー項目数 = パーツ数 + スキップボタン(1)
         menu_items_count = len(MENU_PART_ORDER) + 1
-
-        # キー操作によるメニュー移動
         self._process_menu_navigation(input_comp, context, menu_items_count)
 
-        # 決定キーまたはクリック時の処理
-        if input_comp.key_z or input_comp.mouse_clicked:
-            self._confirm_action(eid, context, flow)
+        if input_comp.btn_ok or input_comp.mouse_clicked:
+            self._confirm_action(eid, context)
 
     def _process_menu_navigation(self, input_comp, context, item_count):
-        # キーボード
-        if input_comp.key_left:
+        if input_comp.btn_left:
             context.selected_menu_index = (context.selected_menu_index - 1) % item_count
-        elif input_comp.key_right:
+        elif input_comp.btn_right:
             context.selected_menu_index = (context.selected_menu_index + 1) % item_count
 
-        # マウスホバー
+        # マウスカーソルによる選択
         button_layout = calculate_action_menu_layout(item_count)
         for i, rect in enumerate(button_layout):
             if rect['x'] <= input_comp.mouse_x <= rect['x'] + rect['w'] and \
                rect['y'] <= input_comp.mouse_y <= rect['y'] + rect['h']:
                 context.selected_menu_index = i
 
-    def _confirm_action(self, eid, context, flow):
-        comps = self.world.entities[eid]
-        gauge = comps['gauge']
-        part_list = comps['partlist']
-
+    def _confirm_action(self, eid, context):
+        part_list = self.world.entities[eid]['partlist']
         action, part = None, None
         idx = context.selected_menu_index
         
-        # 選択インデックスに応じたアクション決定
         if idx < len(MENU_PART_ORDER):
             p_type = MENU_PART_ORDER[idx]
             p_id = part_list.parts.get(p_type)
-            # パーツが存在し、かつ破壊されていない場合のみ選択可能
+            # 生存チェック
             if p_id and self.world.entities[p_id]['health'].hp > 0:
                 action, part = ActionType.ATTACK, p_type
         else:
-            # 最後の項目はスキップ
             action = ActionType.SKIP
 
         if action:
-            self._apply_action(eid, action, part, gauge, part_list, context, flow)
-
-    def _apply_action(self, eid, action, part, gauge, part_list, context, flow):
-        gauge.selected_action, gauge.selected_part = action, part
-        
-        if part:
-            p_id = part_list.parts.get(part)
-            atk = self.world.entities[p_id]['attack'].attack
-            gauge.charging_time, gauge.cooldown_time = calculate_action_times(atk)
-
-        # チャージ開始
-        gauge.status, gauge.progress = GaugeStatus.CHARGING, 0.0
-        
-        # フェーズ遷移
-        context.current_turn_entity_id = None
-        flow.current_phase = BattlePhase.IDLE
-        
-        if context.waiting_queue and context.waiting_queue[0] == eid:
-            context.waiting_queue.pop(0)
+            # 共通関数を使ってコマンド適用（時間計算・ゲージ更新・フェーズ遷移）
+            apply_action_command(self.world, eid, action, part)

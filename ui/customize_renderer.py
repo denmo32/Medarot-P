@@ -3,6 +3,7 @@
 import pygame
 from config import COLORS, GAME_PARAMS
 from ui.base_renderer import BaseRenderer
+from data.parts_data_manager import get_parts_manager
 
 class CustomizeRenderer(BaseRenderer):
     """カスタマイズ画面の3カラムレイアウトを描画"""
@@ -48,11 +49,10 @@ class CustomizeRenderer(BaseRenderer):
     def _draw_column_2(self, data):
         self._draw_panel_base(1, data['machine_name'])
         col = self.cols[1]
+        mgr = get_parts_manager()
         
         # スロット
         slots = [("medal", "メダル"), ("head", "頭部"), ("right_arm", "右腕"), ("left_arm", "左腕"), ("legs", "脚部")]
-        from data.parts_data_manager import get_parts_manager
-        mgr = get_parts_manager()
 
         for i, (key, label) in enumerate(slots):
             bx, by, bw, bh = col['x'] + 10, self.y + 50 + i * 45, col['w'] - 20, 35
@@ -60,8 +60,12 @@ class CustomizeRenderer(BaseRenderer):
                 pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (bx, by, bw, bh))
             
             self.draw_text(label, (bx + 10, by + 7), (180, 190, 200))
+            
+            # パーツ情報の取得
             item_id = data['setup']['medal'] if key == "medal" else data['setup']['parts'][key]
-            self.draw_text(mgr.get_part_name(item_id), (bx + 100, by + 7))
+            part_name = mgr.get_part_name(item_id)
+            
+            self.draw_text(part_name, (bx + 80, by + 7))
 
         # 一覧
         list_y = self.y + 280
@@ -76,6 +80,8 @@ class CustomizeRenderer(BaseRenderer):
                 pygame.draw.rect(self.screen, (60, 80, 100), (col['x'] + 10, by - 2, col['w'] - 30, 28))
                 pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (col['x'] + 10, by - 2, 5, 28))
             
+            # アイテム情報
+            
             color = COLORS['TEXT'] if (data['state'] == "part_list_select" and data['part_list_idx'] == i) else (180, 180, 180)
             self.draw_text(mgr.get_part_name(item_id), (col['x'] + 25, by), color)
 
@@ -84,16 +90,31 @@ class CustomizeRenderer(BaseRenderer):
         self._draw_panel_base(2, title)
         col, fd = self.cols[2], data['focused_data']
         if not fd: return
+        mgr = get_parts_manager()
 
         self.draw_text(fd.get('name', '---'), (col['x'] + 15, self.y + 50), COLORS['SELECT_HIGHLIGHT'], 'medium')
         
+        attr = fd.get('attribute', 'undefined')
+        attr_label = mgr.get_attribute_label(attr)
+
         if data['slot_idx'] == 0:
-            stats = [("ニックネーム", fd.get('nickname', '---')), ("性格", fd.get('personality', 'random'))]
+            stats = [
+                ("ニックネーム", fd.get('nickname', '---')), 
+                ("性格", fd.get('personality', 'random')),
+                ("属性", attr_label)
+            ]
         else:
-            stats = [("装甲", fd.get('hp', 0)), ("威力", fd.get('attack', '---')), ("機動", fd.get('mobility', '---')), ("耐久", fd.get('defense', '---'))]
+            stats = [
+                ("属性", attr_label),
+                ("装甲", fd.get('hp', 0)), 
+                ("威力", fd.get('attack', '---')), 
+                ("機動", fd.get('mobility', '---')), 
+                ("耐久", fd.get('defense', '---'))
+            ]
         
         for i, (label, val) in enumerate(stats):
             by = self.y + 100 + i * 40
             pygame.draw.line(self.screen, (50, 60, 75), (col['x'] + 15, by + 30), (col['x'] + col['w'] - 15, by + 30))
             self.draw_text(label, (col['x'] + 15, by + 5), (150, 160, 180))
+            
             self.draw_text(str(val), (col['x'] + col['w'] - 20, by + 5), COLORS['TEXT'], 'medium', 'right')

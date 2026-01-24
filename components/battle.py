@@ -41,9 +41,10 @@ class RenderComponent(Component):
         self.gauge_height = gauge_height
 
 class PartComponent(Component):
-    """パーツの種類"""
-    def __init__(self, part_type: str):
+    """パーツの種類と属性"""
+    def __init__(self, part_type: str, attribute: str = "undefined"):
         self.part_type = part_type # "head", "right_arm", "left_arm", "legs"
+        self.attribute = attribute
 
 class HealthComponent(Component):
     """HPデータ"""
@@ -54,10 +55,12 @@ class HealthComponent(Component):
 
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
-    def __init__(self, attack: int, trait: str = None, success: int = 0):
-        self.attack = attack
+    def __init__(self, attack: int, trait: str = None, success: int = 0, base_attack: int = None, time_modifier: float = 1.0):
+        self.attack = attack # 現在の攻撃力（ボーナス込み）
+        self.base_attack = base_attack if base_attack is not None else attack # 時間計算用の基本攻撃力
         self.trait = trait # "ライフル", "ソード", "サンダー" 等
         self.success = success # 成功度
+        self.time_modifier = time_modifier # 充填・冷却時間の補正係数（属性一致ボーナス等）
 
 class MobilityComponent(Component):
     """機動・防御性能（脚部）"""
@@ -72,11 +75,12 @@ class PartListComponent(Component):
 
 class MedalComponent(Component):
     """メダル（頭脳）データ"""
-    def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random"):
+    def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random", attribute: str = "undefined"):
         self.medal_id = medal_id
         self.medal_name = medal_name
         self.nickname = nickname
         self.personality_id = personality_id
+        self.attribute = attribute
 
 class DefeatedComponent(Component):
     """敗北フラグ"""

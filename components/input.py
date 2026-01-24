@@ -3,19 +3,20 @@
 from core.ecs import Component
 
 class InputComponent(Component):
-    """ユーザー入力の状態を保持するコンポーネント"""
+    """ユーザー入力の状態（論理入力）を保持するコンポーネント"""
     def __init__(self):
-        # マウス
+        # マウス座標・クリック
         self.mouse_x: int = 0
         self.mouse_y: int = 0
         self.mouse_clicked: bool = False  # 左クリックされた瞬間
         
-        # キーボード（押下された瞬間のみTrue）
-        self.key_z: bool = False      # 決定
-        self.key_x: bool = False      # キャンセル
-        self.key_left: bool = False
-        self.key_right: bool = False
-        self.key_up: bool = False
-        self.key_down: bool = False
+        # 論理ボタンフラグ（押下された瞬間のみTrue）
+        self.btn_ok: bool = False      # 決定 (Z, Enter, Click)
+        self.btn_cancel: bool = False  # キャンセル (X, Backspace)
+        self.btn_menu: bool = False    # メニュー/中断 (Esc)
         
-        self.escape_pressed: bool = False
+        # 方向入力
+        self.btn_left: bool = False
+        self.btn_right: bool = False
+        self.btn_up: bool = False
+        self.btn_down: bool = False

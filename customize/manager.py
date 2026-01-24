@@ -37,32 +37,35 @@ class CustomizeManager:
         return None
 
     def _handle_machine_select(self, input_comp):
-        if input_comp.key_up:
+        if input_comp.btn_up:
             self.selected_machine_idx = (self.selected_machine_idx - 1) % 3
-        elif input_comp.key_down:
+        elif input_comp.btn_down:
             self.selected_machine_idx = (self.selected_machine_idx + 1) % 3
-        elif input_comp.key_z:
+        
+        elif input_comp.btn_ok:
             self.state = self.STATE_SLOT_SELECT
-        elif input_comp.key_x or input_comp.escape_pressed:
+        
+        elif input_comp.btn_cancel or input_comp.btn_menu:
             return "title"
+        
         return None
 
     def _handle_slot_select(self, input_comp):
-        if input_comp.key_up:
+        if input_comp.btn_up:
             self.selected_slot_idx = (self.selected_slot_idx - 1) % len(self.slots)
-        elif input_comp.key_down:
+        elif input_comp.btn_down:
             self.selected_slot_idx = (self.selected_slot_idx + 1) % len(self.slots)
         
         # 左右キーでクイック切り替え
-        elif input_comp.key_left or input_comp.key_right:
-            direction = 1 if input_comp.key_right else -1
+        elif input_comp.btn_left or input_comp.btn_right:
+            direction = 1 if input_comp.btn_right else -1
             slot_name = self.slots[self.selected_slot_idx]
             current_id = self._get_current_part_id(slot_name)
             
             new_id = self.parts_manager.get_next_part_id(current_id, direction)
             self.save_data.update_part(self.selected_machine_idx, slot_name, new_id)
 
-        elif input_comp.key_z:
+        elif input_comp.btn_ok:
             # リスト選択へ
             slot_name = self.slots[self.selected_slot_idx]
             available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
@@ -71,7 +74,7 @@ class CustomizeManager:
             self.selected_part_list_idx = available_ids.index(current_id) if current_id in available_ids else 0
             self.state = self.STATE_PART_LIST_SELECT
             
-        elif input_comp.key_x or input_comp.escape_pressed:
+        elif input_comp.btn_cancel or input_comp.btn_menu:
             self.state = self.STATE_MACHINE_SELECT
         return None
 
@@ -79,15 +82,17 @@ class CustomizeManager:
         slot_name = self.slots[self.selected_slot_idx]
         available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
         
-        if input_comp.key_up:
+        if input_comp.btn_up:
             self.selected_part_list_idx = (self.selected_part_list_idx - 1) % len(available_ids)
-        elif input_comp.key_down:
+        elif input_comp.btn_down:
             self.selected_part_list_idx = (self.selected_part_list_idx + 1) % len(available_ids)
-        elif input_comp.key_z:
+        
+        elif input_comp.btn_ok:
             new_id = available_ids[self.selected_part_list_idx]
             self.save_data.update_part(self.selected_machine_idx, slot_name, new_id)
             self.state = self.STATE_SLOT_SELECT
-        elif input_comp.key_x or input_comp.escape_pressed:
+        
+        elif input_comp.btn_cancel or input_comp.btn_menu:
             self.state = self.STATE_SLOT_SELECT
         return None
 
@@ -116,6 +121,11 @@ class CustomizeManager:
         if not focused_data:
             focused_data = self.parts_manager.get_medal_data(focused_id)
 
+        # 現在のメダル属性を取得（ボーナス一致判定用）
+        medal_id = setup["medal"]
+        medal_data = self.parts_manager.get_medal_data(medal_id)
+        current_medal_attr = medal_data.get("attribute", "undefined")
+
         return {
             "state": self.state,
             "machine_idx": self.selected_machine_idx,
@@ -125,5 +135,6 @@ class CustomizeManager:
             "setup": setup,
             "focused_id": focused_id,
             "focused_data": focused_data,
-            "available_ids": self.parts_manager.get_part_ids_for_type(slot_name)
+            "available_ids": self.parts_manager.get_part_ids_for_type(slot_name),
+            "current_medal_attr": current_medal_attr
         }

@@ -1,44 +1,44 @@
 {
   "parts": {
     "head": {
-      "head_001": { "name": "ヘッドライフル", "trait": "ライフル", "hp": 40, "attack": 15, "success": 30 },
-      "head_002": { "name": "ヘッドソード", "trait": "ソード", "hp": 50, "attack": 10, "success": 40 },
-      "head_003": { "name": "ヘッドガトリング", "trait": "ガトリング", "hp": 35, "attack": 12, "success": 25 },
-      "head_004": { "name": "ヘッドハンマー", "trait": "ハンマー", "hp": 35, "attack": 12, "success": 20 },
-      "head_005": { "name": "ヘッドサンダー", "trait": "サンダー", "hp": 40, "attack": 8, "success": 35 }
+      "head_001": { "name": "ヘッドライフル", "trait": "ライフル", "hp": 40, "attack": 15, "success": 30, "attribute": "speed" },
+      "head_002": { "name": "ヘッドソード", "trait": "ソード", "hp": 50, "attack": 10, "success": 40, "attribute": "speed" },
+      "head_003": { "name": "ヘッドガトリング", "trait": "ガトリング", "hp": 35, "attack": 12, "success": 25, "attribute": "power" },
+      "head_004": { "name": "ヘッドハンマー", "trait": "ハンマー", "hp": 35, "attack": 12, "success": 20, "attribute": "technique" },
+      "head_005": { "name": "ヘッドサンダー", "trait": "サンダー", "hp": 40, "attack": 8, "success": 35, "attribute": "technique" }
     },
     "right_arm": {
-      "rarm_001": { "name": "ライトライフル", "trait": "ライフル", "hp": 50, "attack": 25, "success": 35 },
-      "rarm_002": { "name": "ライトソード", "trait": "ソード", "hp": 50, "attack": 30, "success": 45 },
-      "rarm_003": { "name": "ライトガトリング", "trait": "ガトリング", "hp": 45, "attack": 20, "success": 30 },
-      "rarm_004": { "name": "ライトハンマー", "trait": "ハンマー", "hp": 45, "attack": 20, "success": 25 },
-      "rarm_005": { "name": "ライトサンダー", "trait": "サンダー", "hp": 45, "attack": 18, "success": 40 }
+      "rarm_001": { "name": "ライトライフル", "trait": "ライフル", "hp": 50, "attack": 25, "success": 35, "attribute": "speed" },
+      "rarm_002": { "name": "ライトソード", "trait": "ソード", "hp": 50, "attack": 30, "success": 45, "attribute": "speed" },
+      "rarm_003": { "name": "ライトガトリング", "trait": "ガトリング", "hp": 45, "attack": 20, "success": 30, "attribute": "power" },
+      "rarm_004": { "name": "ライトハンマー", "trait": "ハンマー", "hp": 45, "attack": 20, "success": 25, "attribute": "technique" },
+      "rarm_005": { "name": "ライトサンダー", "trait": "サンダー", "hp": 45, "attack": 18, "success": 40, "attribute": "technique" }
     },
     "left_arm": {
-      "larm_001": { "name": "レフトライフル", "trait": "ライフル", "hp": 50, "attack": 22, "success": 32 },
-      "larm_002": { "name": "レフトソード", "trait": "ソード", "hp": 50, "attack": 35, "success": 42 },
-      "larm_003": { "name": "レフトガトリング", "trait": "ガトリング", "hp": 45, "attack": 28, "success": 28 },
-      "larm_004": { "name": "レフトハンマー", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22 },
-      "larm_005": { "name": "レフトサンダー", "trait": "サンダー", "hp": 45, "attack": 16, "success": 38 }
+      "larm_001": { "name": "レフトライフル", "trait": "ライフル", "hp": 50, "attack": 22, "success": 32, "attribute": "speed" },
+      "larm_002": { "name": "レフトソード", "trait": "ソード", "hp": 50, "attack": 35, "success": 42, "attribute": "speed" },
+      "larm_003": { "name": "レフトガトリング", "trait": "ガトリング", "hp": 45, "attack": 28, "success": 28, "attribute": "power" },
+      "larm_004": { "name": "レフトハンマー", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22, "attribute": "technique" },
+      "larm_005": { "name": "レフトサンダー", "trait": "サンダー", "hp": 45, "attack": 16, "success": 38, "attribute": "technique" }
     },
     "legs": {
-      "legs_001": { "name": "ライフルレッグ", "hp": 60, "mobility": 35, "defense": 25 },
-      "legs_002": { "name": "ソードレッグ", "hp": 70, "mobility": 45, "defense": 30 },
-      "legs_003": { "name": "ガトリングレッグ", "hp": 50, "mobility": 25, "defense": 40 },
-      "legs_004": { "name": "ハンマーレッグ", "hp": 50, "mobility": 20, "defense": 45 },
-      "legs_005": { "name": "サンダーレッグ", "hp": 55, "mobility": 30, "defense": 30 }
+      "legs_001": { "name": "ライフルレッグ", "hp": 60, "mobility": 35, "defense": 25, "attribute": "speed" },
+      "legs_002": { "name": "ソードレッグ", "hp": 70, "mobility": 45, "defense": 30, "attribute": "speed" },
+      "legs_003": { "name": "ガトリングレッグ", "hp": 50, "mobility": 25, "defense": 40, "attribute": "power" },
+      "legs_004": { "name": "ハンマーレッグ", "hp": 50, "mobility": 20, "defense": 45, "attribute": "technique" },
+      "legs_005": { "name": "サンダーレッグ", "hp": 55, "mobility": 30, "defense": 30, "attribute": "technique" }
     }
   },
   "medals": {
-    "medal_001": { "name": "カブト", "nickname": "メタビー", "personality": "random" },
-    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ", "personality": "random" },
-    "medal_003": { "name": "テストメダル3", "nickname": "テストさん", "personality": "challenger" },
-    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー", "personality": "assassin" },
-    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "random" },
-    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ", "personality": "random" },
-    "medal_007": { "name": "テストメダル7", "nickname": "ななこ", "personality": "random" },
-    "medal_008": { "name": "テストメダル8", "nickname": "はちろー", "personality": "random" },
-    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた", "personality": "random" },
-    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "random" }
+    "medal_001": { "name": "カブト", "nickname": "メタビー", "personality": "random", "attribute": "speed" },
+    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ", "personality": "random", "attribute": "speed" },
+    "medal_003": { "name": "テストメダル3", "nickname": "テストさん", "personality": "challenger", "attribute": "power" },
+    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー", "personality": "assassin", "attribute": "technique" },
+    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "random", "attribute": "speed" },
+    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ", "personality": "random", "attribute": "power" },
+    "medal_007": { "name": "テストメダル7", "nickname": "ななこ", "personality": "random", "attribute": "technique" },
+    "medal_008": { "name": "テストメダル8", "nickname": "はちろー", "personality": "random", "attribute": "speed" },
+    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた", "personality": "random", "attribute": "power" },
+    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "random", "attribute": "technique" }
   }
 }
