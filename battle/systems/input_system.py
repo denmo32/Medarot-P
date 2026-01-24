@@ -1,12 +1,16 @@
 """入力処理システム"""
 
 from core.ecs import System
-from battle.utils import calculate_action_menu_layout, apply_action_command
+from battle.utils import apply_action_command
 from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER, BattleTiming
 
 class InputSystem(System):
     """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
     
+    def __init__(self, world, ui_renderer):
+        super().__init__(world)
+        self.ui_renderer = ui_renderer
+
     def update(self, dt: float):
         inputs = self.world.get_entities_with_components('input')
         if not inputs: return
@@ -44,15 +48,12 @@ class InputSystem(System):
                 context.battle_log.clear()
 
     def _handle_attack_declaration_wait(self, input_comp, context, flow):
-        """攻撃宣言メッセージの確認待ち"""
         if input_comp.mouse_clicked or input_comp.btn_ok:
             context.battle_log.clear()
             flow.current_phase = BattlePhase.CUTIN
             flow.phase_timer = BattleTiming.CUTIN_ANIMATION
 
     def _handle_cutin_result(self, input_comp, context, flow):
-        """カットイン後の結果ログ送り"""
-        # 自動送りなどが無い場合、手動送り
         if not context.battle_log and context.pending_logs:
              context.battle_log.append(context.pending_logs.pop(0))
 
@@ -64,7 +65,6 @@ class InputSystem(System):
                 context.battle_log.clear()
                 flow.current_phase = BattlePhase.IDLE
                 flow.active_actor_id = None
-                
                 if flow.processing_event_id is not None:
                     self.world.delete_entity(flow.processing_event_id)
                     flow.processing_event_id = None
@@ -82,17 +82,16 @@ class InputSystem(System):
             self._confirm_action(eid, context)
 
     def _process_menu_navigation(self, input_comp, context, item_count):
+        # 1. キーボードによる選択
         if input_comp.btn_left:
             context.selected_menu_index = (context.selected_menu_index - 1) % item_count
         elif input_comp.btn_right:
             context.selected_menu_index = (context.selected_menu_index + 1) % item_count
 
-        # マウスカーソルによる選択
-        button_layout = calculate_action_menu_layout(item_count)
-        for i, rect in enumerate(button_layout):
-            if rect['x'] <= input_comp.mouse_x <= rect['x'] + rect['w'] and \
-               rect['y'] <= input_comp.mouse_y <= rect['y'] + rect['h']:
-                context.selected_menu_index = i
+        # 2. マウス座標による選択（レンダラーに空間判定を委譲）
+        mouse_idx = self.ui_renderer.get_index_at_mouse((input_comp.mouse_x, input_comp.mouse_y), item_count)
+        if mouse_idx is not None:
+            context.selected_menu_index = mouse_idx
 
     def _confirm_action(self, eid, context):
         part_list = self.world.entities[eid]['partlist']
@@ -102,12 +101,10 @@ class InputSystem(System):
         if idx < len(MENU_PART_ORDER):
             p_type = MENU_PART_ORDER[idx]
             p_id = part_list.parts.get(p_type)
-            # 生存チェック
             if p_id and self.world.entities[p_id]['health'].hp > 0:
                 action, part = ActionType.ATTACK, p_type
         else:
             action = ActionType.SKIP
 
         if action:
-            # 共通関数を使ってコマンド適用（時間計算・ゲージ更新・フェーズ遷移）
             apply_action_command(self.world, eid, action, part)

@@ -5,7 +5,7 @@ from battle.entity_factory import BattleEntityFactory
 from battle.systems.gauge_system import GaugeSystem
 from battle.systems.target_selection_system import TargetSelectionSystem
 from battle.systems.turn_system import TurnSystem
-from battle.systems.ai_system import AISystem # 追加
+from battle.systems.ai_system import AISystem
 from battle.systems.action_initiation_system import ActionInitiationSystem
 from battle.systems.action_resolution_system import ActionResolutionSystem
 from battle.systems.battle_flow_system import BattleFlowSystem
@@ -36,22 +36,22 @@ class BattleSystem:
         self.field_renderer = FieldRenderer(screen)
         self.ui_renderer = BattleUIRenderer(screen)
         
-        # システム更新順序を整理
         self.systems = [
-            InputSystem(self.world),             # 1. 入力受付 (INPUT) -> apply_action
-            BattleFlowSystem(self.world),        # 2. 状態遷移管理
-            GaugeSystem(self.world),             # 3. ゲージ進行
-            TargetSelectionSystem(self.world),   # 4. ターゲット選定 (IDLE時)
-            TurnSystem(self.world),              # 5. ターン管理 (IDLE -> INPUT or ENEMY_TURN)
-            AISystem(self.world),                # 6. AI思考 (ENEMY_TURN) -> apply_action
-            ActionInitiationSystem(self.world),  # 7. 行動起案
-            TargetIndicatorSystem(self.world),   # 8. ターゲット演出
-            CutinAnimationSystem(self.world),    # 9. カットイン演出
-            ActionResolutionSystem(self.world),  # 10. 行動解決
-            DamageSystem(self.world),            # 11. ダメージ適用
-            HealthAnimationSystem(self.world),   # 12. HPバーのアニメーション
-            BattleStatusSystem(self.world),      # 13. 勝敗判定
-            RenderSystem(self.world, self.field_renderer, self.ui_renderer) # 14. 描画
+            # ui_renderer を InputSystem に渡すように変更
+            InputSystem(self.world, self.ui_renderer),
+            BattleFlowSystem(self.world),
+            GaugeSystem(self.world),
+            TargetSelectionSystem(self.world),
+            TurnSystem(self.world),
+            AISystem(self.world),
+            ActionInitiationSystem(self.world),
+            TargetIndicatorSystem(self.world),
+            CutinAnimationSystem(self.world),
+            ActionResolutionSystem(self.world),
+            DamageSystem(self.world),
+            HealthAnimationSystem(self.world),
+            BattleStatusSystem(self.world),
+            RenderSystem(self.world, self.field_renderer, self.ui_renderer)
         ]
 
     def update(self, dt: float = 0.016) -> None:
