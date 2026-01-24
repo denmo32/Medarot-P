@@ -14,7 +14,7 @@ class RenderSystem(System):
         super().__init__(world)
         self.field_renderer = field_renderer
         self.ui_renderer = ui_renderer
-        # CutinRendererの初期化を修正（screenのみを受け取るように変更）
+        # CutinRendererの初期化
         self.cutin_renderer = CutinRenderer(field_renderer.screen)
         self.hp_bar_order = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
 
@@ -25,14 +25,18 @@ class RenderSystem(System):
 
         self.field_renderer.clear()
         self.field_renderer.draw_field_guides()
+        
+        # 1. フィールド上のキャラクター描画
         char_positions = self._render_characters(context, flow)
         
+        # 2. ターゲットマーカーと指示線の描画
         self._render_target_marker(context, flow, char_positions)
         self._render_target_indication_line(context, flow, char_positions)
         
+        # 3. UIウィンドウとログの描画
         self._render_ui(context, flow)
 
-        # カットインはUIの上にさらに重ねる
+        # 4. カットイン演出の描画（オーバーレイ）
         if flow.current_phase == BattlePhase.CUTIN or flow.current_phase == BattlePhase.CUTIN_RESULT:
             self._render_cutin(context, flow)
 
@@ -43,6 +47,7 @@ class RenderSystem(System):
         for eid, comps in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'medal'):
             pos, gauge, team, medal = comps['position'], comps['gauge'], comps['team'], comps['medal']
             
+            # アイコンの現在位置計算 (Utils)
             icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
             char_positions[eid] = {'x': pos.x, 'y': pos.y, 'icon_x': icon_x}
             
@@ -50,7 +55,7 @@ class RenderSystem(System):
             self.field_renderer.draw_home_marker(pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0), pos.y)
             border = self._get_border_color(eid, gauge, context, flow)
             
-            # パーツごとの生存状況を取得して渡す
+            # パーツごとの生存状況
             part_status = self._get_part_status_map(comps['partlist'])
             self.field_renderer.draw_character_icon(icon_x, pos.y, team.team_color, part_status, border)
             
@@ -102,14 +107,12 @@ class RenderSystem(System):
             if eid and context.selected_menu_index < len(MENU_PART_ORDER):
                 target_data = self.world.entities[eid]['gauge'].part_targets.get(MENU_PART_ORDER[context.selected_menu_index])
                 if target_data: target_eid = target_data[0]
-        elif flow.processing_event_id is not None and flow.current_phase != BattlePhase.TARGET_INDICATION:
-             pass
         
-        if target_eid:
+        if target_eid and target_eid in char_positions:
             self.field_renderer.draw_target_marker(target_eid, char_positions)
 
     def _render_target_indication_line(self, context, flow, char_positions):
-        """TARGET_INDICATIONフェーズ、およびそれ以降のカットイン終了までのアニメーション描画"""
+        """TARGET_INDICATIONフェーズ等のアニメーションライン描画"""
         target_line_phases = [
             BattlePhase.TARGET_INDICATION,
             BattlePhase.ATTACK_DECLARATION,
@@ -133,21 +136,18 @@ class RenderSystem(System):
             start_pos = char_positions[attacker_id]
             end_pos = char_positions[target_id]
             
-            # アイコンの中心座標（icon_x, y+20 が中心）
             sp = (start_pos['icon_x'], start_pos['y'] + 20)
             ep = (end_pos['icon_x'], end_pos['y'] + 20)
             
-            # コンポーネントに保存された停止位置（オフセット）を使用して描画
             self.field_renderer.draw_flow_line(sp, ep, flow.target_line_offset)
 
     def _render_ui(self, context, flow):
-        # 入力待ち案内（「Zキー...」）を表示するかどうかのフラグ
+        # ログとガイドの表示
         show_input_guidance = (flow.current_phase == BattlePhase.LOG_WAIT or 
                                flow.current_phase == BattlePhase.ATTACK_DECLARATION or
                                flow.current_phase == BattlePhase.CUTIN_RESULT)
         
-        # ログを表示するかどうか
-        # CUTIN, CUTIN_RESULT のときは、結果がポップアップで出るためウィンドウ内のログテキストは非表示にする
+        # カットイン中はウィンドウ内のログを隠す
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
             display_logs = []
         else:
@@ -155,6 +155,7 @@ class RenderSystem(System):
 
         self.ui_renderer.draw_message_window(display_logs, show_input_guidance)
         
+        # コマンドメニュー
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid:
@@ -164,10 +165,16 @@ class RenderSystem(System):
                 buttons.append({'label': "スキップ", 'enabled': True})
                 self.ui_renderer.draw_action_menu(comps['medal'].nickname, buttons, context.selected_menu_index)
         
+        # ゲームオーバー
         if flow.current_phase == BattlePhase.GAME_OVER:
             self.ui_renderer.draw_game_over(flow.winner)
 
     def _render_cutin(self, context, flow):
+        """
+        カットイン演出に必要なデータを収集してRendererへ渡す。
+        RenderSystemは「何を描くか(データ)」のみを管理し、
+        「どう動くか(演出ロジック)」はRenderer(Cinematics)に委譲する。
+        """
         event_eid = flow.processing_event_id
         if event_eid is None: return
         
@@ -189,9 +196,10 @@ class RenderSystem(System):
                  if p_comps and 'attack' in p_comps:
                      attack_trait = p_comps['attack'].trait
 
-        # 進行度取得（CUTINフェーズ以外は1.0=終了）
+        # 進行度取得（CUTINフェーズ以外は1.0=演出終了状態）
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         
+        # データ構築（ViewModel）
         attacker_data = {
             'name': attacker_comps['medal'].nickname,
             'color': attacker_comps['team'].team_color
@@ -207,6 +215,7 @@ class RenderSystem(System):
         hit_result = event.calculation_result
         is_enemy_attack = (attacker_comps['team'].team_type == TeamType.ENEMY)
 
+        # 描画委譲
         self.cutin_renderer.draw(
             attacker_data, target_data, 
             attacker_hp_data, target_hp_data,
