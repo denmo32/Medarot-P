@@ -12,7 +12,7 @@ from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
 from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus
-from battle.attributes import AttributeLogic
+from battle.domain.attributes import AttributeLogic
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""

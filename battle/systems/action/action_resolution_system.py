@@ -3,7 +3,7 @@
 from core.ecs import System
 from components.battle import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
-from battle.utils import reset_gauge_to_cooldown
+from battle.domain.utils import reset_gauge_to_cooldown
 from battle.service.log_service import LogService
 
 class ActionResolutionSystem(System):

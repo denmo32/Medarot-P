@@ -3,7 +3,7 @@
 from typing import Dict, Any, List, Optional
 from config import COLORS, GAME_PARAMS
 from battle.constants import PartType, GaugeStatus, PART_LABELS, TeamType, BattlePhase
-from battle.utils import calculate_current_x
+from battle.domain.utils import calculate_current_x
 
 class BattleViewModel:
     """RenderSystemが使用する描画データの生成・加工を担当"""

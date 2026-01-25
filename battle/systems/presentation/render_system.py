@@ -3,7 +3,7 @@
 from core.ecs import System
 from config import GAME_PARAMS, COLORS
 from battle.constants import BattlePhase, MENU_PART_ORDER, TeamType
-from battle.view_model import BattleViewModel, CutinViewModel
+from battle.presentation.view_model import BattleViewModel, CutinViewModel
 from ui.cutin_renderer import CutinRenderer
 
 class RenderSystem(System):

@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase, ActionType
-from battle.utils import interrupt_gauge_return_home, is_target_valid
+from battle.domain.utils import interrupt_gauge_return_home, is_target_valid
 from battle.service.log_service import LogService
 
 class GaugeSystem(System):

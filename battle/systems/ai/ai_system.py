@@ -3,7 +3,7 @@
 from core.ecs import System
 from battle.constants import BattlePhase
 from battle.ai.strategy import get_strategy
-from battle.utils import apply_action_command
+from battle.domain.utils import apply_action_command
 
 class AISystem(System):
     """

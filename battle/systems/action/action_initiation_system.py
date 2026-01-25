@@ -3,12 +3,12 @@
 import random
 from core.ecs import System
 from components.action_event import ActionEventComponent
-from battle.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
+from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
-from battle.attributes import AttributeLogic
-from battle.traits import TraitManager
+from battle.domain.attributes import AttributeLogic
+from battle.domain.traits import TraitManager
 from battle.service.log_service import LogService
-from battle.calculator import (
+from battle.domain.calculator import (
     calculate_hit_probability, 
     calculate_break_probability, 
     check_is_hit,

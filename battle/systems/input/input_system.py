@@ -1,7 +1,7 @@
 """入力処理システム"""
 
 from core.ecs import System
-from battle.utils import apply_action_command
+from battle.domain.utils import apply_action_command
 from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER, BattleTiming
 
 class InputSystem(System):
