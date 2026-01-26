@@ -7,6 +7,7 @@ from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cool
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming, SkillType
 from battle.domain.attributes import AttributeLogic
 from battle.domain.traits import TraitManager
+from battle.domain.skills import SkillManager
 from battle.service.log_service import LogService
 from battle.domain.calculator import (
     calculate_hit_probability, 
@@ -101,7 +102,7 @@ class ActionInitiationSystem(System):
             
         attack_comp = atk_part_comps['attack']
 
-        # 自身の脚部性能（機動・防御）を取得（スキル効果の参照用）
+        # 自身の脚部性能（機動・防御）を取得
         my_mobility, my_defense = self._get_legs_stats(attacker_comps)
 
         # 属性情報の取得
@@ -117,19 +118,8 @@ class ActionInitiationSystem(System):
         atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
 
         # --- 攻撃側のスキル補正加算 ---
-        # skill_typeによるボーナス計算
-        skill_success_bonus = 0
-        skill_attack_bonus = 0
-        
-        if attack_comp.skill_type == SkillType.STRIKE:
-            # 殴る: 機動の25%を成功に加算
-            skill_success_bonus = int(my_mobility * 0.25)
-        elif attack_comp.skill_type == SkillType.AIMED_SHOT:
-            # 狙い撃ち: 耐久(防御)の50%を成功に加算
-            skill_success_bonus = int(my_defense * 0.50)
-        elif attack_comp.skill_type == SkillType.RECKLESS:
-            # 我武者羅: 機動の25% + 耐久の25% を威力に加算
-            skill_attack_bonus = int(my_mobility * 0.25) + int(my_defense * 0.25)
+        skill_behavior = SkillManager.get_behavior(attack_comp.skill_type)
+        skill_success_bonus, skill_attack_bonus = skill_behavior.get_offensive_bonuses(my_mobility, my_defense)
 
         # ステータス補正適用 (最小値クリップ含む)
         adjusted_success = max(1, attack_comp.success + atk_bonus + skill_success_bonus)
@@ -140,8 +130,8 @@ class ActionInitiationSystem(System):
         adjusted_defense = max(0, tgt_defense + def_bonus)
 
         # --- 防御側のペナルティ判定 ---
-        force_hit = False
         prevent_defense = False
+        force_hit = False
         force_critical = False
 
         tgt_gauge = target_comps.get('gauge')
@@ -154,19 +144,8 @@ class ActionInitiationSystem(System):
                 tgt_skill_type = tgt_p_comps['attack'].skill_type
         
         if tgt_gauge and tgt_skill_type:
-            # 殴る(strike): チャージ中は防御度0(防御不可)
-            if tgt_skill_type == SkillType.STRIKE and tgt_gauge.status == GaugeStatus.CHARGING:
-                prevent_defense = True
-            
-            # 狙い撃ち(aimed_shot): チャージ中は回避度0(命中確定)
-            elif tgt_skill_type == SkillType.AIMED_SHOT and tgt_gauge.status == GaugeStatus.CHARGING:
-                force_hit = True
-            
-            # 我武者羅(reckless): チャージ及びクールダウン中とも防御度回避度0(被弾確定クリティカル)
-            elif tgt_skill_type == SkillType.RECKLESS and tgt_gauge.status in [GaugeStatus.CHARGING, GaugeStatus.COOLDOWN]:
-                force_hit = True
-                prevent_defense = True
-                force_critical = True
+            tgt_skill_behavior = SkillManager.get_behavior(tgt_skill_type)
+            prevent_defense, force_hit, force_critical = tgt_skill_behavior.get_defensive_penalty(tgt_gauge.status)
 
         # 命中判定
         if force_hit:

@@ -6,9 +6,11 @@ class LogService:
     """バトルログのメッセージ生成を一元管理するクラス"""
 
     @staticmethod
-    def get_attack_declaration(attacker_name: str, trait_text: str = "") -> str:
-        """攻撃宣言ログ"""
-        return f"{attacker_name}の攻撃！{trait_text}"
+    def get_attack_declaration(attacker_name: str, skill_name: str, trait_text: str = "") -> str:
+        """攻撃宣言ログ
+        例: メタビーの狙い撃ち攻撃！ ライフル！
+        """
+        return f"{attacker_name}の{skill_name}攻撃！{trait_text}"
 
     @staticmethod
     def get_target_lost(actor_name: str) -> str:

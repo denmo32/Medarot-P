@@ -97,10 +97,14 @@ def get_closest_target_by_gauge(world, my_team_type: str):
     return best_target
 
 def reset_gauge_to_cooldown(gauge):
+    """
+    行動終了後、クールダウン状態へ移行する。
+    注意: クールダウン中もスキルのペナルティ判定（我武者羅など）が必要なため、
+    selected_action / selected_part はクリアせずに保持する。
+    """
     gauge.status = GaugeStatus.COOLDOWN
     gauge.progress = 0.0
-    gauge.selected_action = None
-    gauge.selected_part = None
+    # ここでの selected_action/part のクリアを削除
 
 def interrupt_gauge_return_home(gauge):
     current_p = gauge.progress

@@ -3,6 +3,7 @@
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
 from battle.service.log_service import LogService
+from battle.domain.skills import SkillManager
 
 class TargetIndicatorSystem(System):
     """
@@ -56,13 +57,20 @@ class TargetIndicatorSystem(System):
         # 攻撃者名
         attacker_name = attacker_comps['medal'].nickname
         
-        # 攻撃パーツ名と特性
+        # 攻撃パーツ名と特性、スキル名
         trait_text = ""
+        skill_name = "攻撃"
+        
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         if part_id:
             part_comps = self.world.try_get_entity(part_id)
             if part_comps and 'attack' in part_comps:
-                trait_text = f" {part_comps['attack'].trait}！"
+                attack_comp = part_comps['attack']
+                trait_text = f" {attack_comp.trait}！"
+                
+                # スキル日本語名の取得
+                skill_behavior = SkillManager.get_behavior(attack_comp.skill_type)
+                skill_name = skill_behavior.name
         
         # LogServiceを利用
-        context.battle_log.append(LogService.get_attack_declaration(attacker_name, trait_text))
+        context.battle_log.append(LogService.get_attack_declaration(attacker_name, skill_name, trait_text))

@@ -13,6 +13,7 @@ from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
 from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus, SkillType, TraitType
 from battle.domain.attributes import AttributeLogic
+from battle.domain.skills import SkillManager
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -48,10 +49,9 @@ class BattleEntityFactory:
         trait = data.get("trait")
         skill = data.get("skill")
         
-        time_modifier = 1.0
-        # 撃つ(SHOOT)の場合、充填・冷却速度アップ(時間は0.8倍)
-        if skill == SkillType.SHOOT:
-            time_modifier *= 0.8
+        # スキルによる時間補正を取得
+        skill_behavior = SkillManager.get_behavior(skill)
+        time_modifier = skill_behavior.get_time_modifier()
 
         stats = {
             "hp": data.get("hp", 0),

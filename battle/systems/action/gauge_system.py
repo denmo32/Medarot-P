@@ -104,5 +104,10 @@ class GaugeSystem(System):
             gauge.progress = 0.0
             gauge.status = GaugeStatus.ACTION_CHOICE
             gauge.part_targets = {} 
+            
+            # クールダウン完了時に、保持していたアクション情報をクリア
+            gauge.selected_action = None
+            gauge.selected_part = None
+            
             if eid not in context.waiting_queue:
                 context.waiting_queue.append(eid)
