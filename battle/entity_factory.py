@@ -11,7 +11,7 @@ from components.battle_flow import BattleFlowComponent
 from components.input import InputComponent
 from data.parts_data_manager import get_parts_manager
 from data.save_data_manager import get_save_manager
-from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus
+from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus, SkillType, TraitType
 from battle.domain.attributes import AttributeLogic
 
 class BattleEntityFactory:
@@ -45,6 +45,14 @@ class BattleEntityFactory:
     @staticmethod
     def _calculate_stats_with_bonus(data: dict, part_type: str, medal_attr: str) -> dict:
         """パーツデータとメダル属性に基づいて、ボーナス適用後のステータスを計算する"""
+        trait = data.get("trait")
+        skill = data.get("skill")
+        
+        time_modifier = 1.0
+        # 撃つ(SHOOT)の場合、充填・冷却速度アップ(時間は0.8倍)
+        if skill == SkillType.SHOOT:
+            time_modifier *= 0.8
+
         stats = {
             "hp": data.get("hp", 0),
             "attack": data.get("attack"), # None許容
@@ -52,9 +60,10 @@ class BattleEntityFactory:
             "success": data.get("success", 0),
             "mobility": data.get("mobility", 0),
             "defense": data.get("defense", 0),
-            "trait": data.get("trait"),
+            "trait": trait,
+            "skill": skill,
             "attribute": data.get("attribute", "undefined"),
-            "time_modifier": 1.0 # 充填・冷却時間補正 (デフォルト1.0)
+            "time_modifier": time_modifier
         }
         
         # 属性ボーナス計算ロジックを外部モジュールに委譲
@@ -76,7 +85,8 @@ class BattleEntityFactory:
                 stats["trait"], 
                 stats["success"], 
                 stats["base_attack"],
-                stats["time_modifier"]
+                stats["time_modifier"],
+                stats["skill"]
             ))
         
         if part_type == PartType.LEGS:

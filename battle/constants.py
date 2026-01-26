@@ -22,20 +22,27 @@ class TraitType:
     MELEE_TRAITS = [SWORD, HAMMER, THUNDER]
     SHOOTING_TRAITS = [RIFLE, GATLING]
 
+class SkillType:
+    """行動区分（スキルタイプ）"""
+    SHOOT = "shoot"           # 撃つ
+    STRIKE = "strike"         # 殴る
+    AIMED_SHOT = "aimed_shot" # 狙い撃ち
+    RECKLESS = "reckless"     # 我武者羅
+
 class ActionType:
     ATTACK = "attack"
     SKIP = "skip"
 
 class GaugeStatus:
-    CHARGING = "charging"
+    CHARGING = "charging" # 充填
     EXECUTING = "executing"
-    COOLDOWN = "cooldown"
+    COOLDOWN = "cooldown" # 冷却
     ACTION_CHOICE = "action_choice"
 
 class BattlePhase:
     IDLE = "idle"
     INPUT = "input"
-    ENEMY_TURN = "enemy_turn" # 追加: エネミー思考フェーズ
+    ENEMY_TURN = "enemy_turn"
     TARGET_INDICATION = "target_indication"
     ATTACK_DECLARATION = "attack_declaration"
     CUTIN = "cutin"

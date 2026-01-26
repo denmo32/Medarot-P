@@ -1,25 +1,25 @@
 {
   "parts": {
     "head": {
-      "head_001": { "name": "ヘッドライフル", "trait": "ライフル", "hp": 40, "attack": 15, "success": 30, "attribute": "speed" },
-      "head_002": { "name": "ヘッドソード", "trait": "ソード", "hp": 50, "attack": 10, "success": 40, "attribute": "speed" },
-      "head_003": { "name": "ヘッドガトリング", "trait": "ガトリング", "hp": 35, "attack": 12, "success": 25, "attribute": "power" },
-      "head_004": { "name": "ヘッドハンマー", "trait": "ハンマー", "hp": 35, "attack": 12, "success": 20, "attribute": "technique" },
-      "head_005": { "name": "ヘッドサンダー", "trait": "サンダー", "hp": 40, "attack": 8, "success": 35, "attribute": "technique" }
+      "head_001": { "name": "ヘッドライフル", "skill": "shoot", "trait": "ライフル", "hp": 40, "attack": 15, "success": 30, "attribute": "speed" },
+      "head_002": { "name": "ヘッドソード", "skill": "strike", "trait": "ソード", "hp": 50, "attack": 10, "success": 40, "attribute": "speed" },
+      "head_003": { "name": "ヘッドガトリング", "skill": "aimed_shot", "trait": "ガトリング", "hp": 35, "attack": 12, "success": 25, "attribute": "power" },
+      "head_004": { "name": "ヘッドハンマー", "skill": "reckless", "trait": "ハンマー", "hp": 35, "attack": 12, "success": 20, "attribute": "technique" },
+      "head_005": { "name": "ヘッドサンダー", "skill": "strike", "trait": "サンダー", "hp": 40, "attack": 8, "success": 35, "attribute": "technique" }
     },
     "right_arm": {
-      "rarm_001": { "name": "ライトライフル", "trait": "ライフル", "hp": 50, "attack": 25, "success": 35, "attribute": "speed" },
-      "rarm_002": { "name": "ライトソード", "trait": "ソード", "hp": 50, "attack": 30, "success": 45, "attribute": "speed" },
-      "rarm_003": { "name": "ライトガトリング", "trait": "ガトリング", "hp": 45, "attack": 20, "success": 30, "attribute": "power" },
-      "rarm_004": { "name": "ライトハンマー", "trait": "ハンマー", "hp": 45, "attack": 20, "success": 25, "attribute": "technique" },
-      "rarm_005": { "name": "ライトサンダー", "trait": "サンダー", "hp": 45, "attack": 18, "success": 40, "attribute": "technique" }
+      "rarm_001": { "name": "ライトライフル", "skill": "shoot", "trait": "ライフル", "hp": 50, "attack": 25, "success": 35, "attribute": "speed" },
+      "rarm_002": { "name": "ライトソード", "skill": "strike", "trait": "ソード", "hp": 50, "attack": 30, "success": 45, "attribute": "speed" },
+      "rarm_003": { "name": "ライトガトリング","skill": "aimed_shot",  "trait": "ガトリング", "hp": 45, "attack": 20, "success": 30, "attribute": "power" },
+      "rarm_004": { "name": "ライトハンマー", "skill": "reckless", "trait": "ハンマー", "hp": 45, "attack": 20, "success": 25, "attribute": "technique" },
+      "rarm_005": { "name": "ライトサンダー", "skill": "strike", "trait": "サンダー", "hp": 45, "attack": 18, "success": 40, "attribute": "technique" }
     },
     "left_arm": {
-      "larm_001": { "name": "レフトライフル", "trait": "ライフル", "hp": 50, "attack": 22, "success": 32, "attribute": "speed" },
-      "larm_002": { "name": "レフトソード", "trait": "ソード", "hp": 50, "attack": 35, "success": 42, "attribute": "speed" },
-      "larm_003": { "name": "レフトガトリング", "trait": "ガトリング", "hp": 45, "attack": 28, "success": 28, "attribute": "power" },
-      "larm_004": { "name": "レフトハンマー", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22, "attribute": "technique" },
-      "larm_005": { "name": "レフトサンダー", "trait": "サンダー", "hp": 45, "attack": 16, "success": 38, "attribute": "technique" }
+      "larm_001": { "name": "レフトライフル", "skill": "aimed_shot", "trait": "ライフル", "hp": 50, "attack": 22, "success": 32, "attribute": "speed" },
+      "larm_002": { "name": "レフトソード", "skill": "reckless", "trait": "ソード", "hp": 50, "attack": 35, "success": 42, "attribute": "speed" },
+      "larm_003": { "name": "レフトガトリング", "skill": "shoot", "trait": "ガトリング", "hp": 45, "attack": 28, "success": 28, "attribute": "power" },
+      "larm_004": { "name": "レフトハンマー", "skill": "strike", "trait": "ハンマー", "hp": 45, "attack": 28, "success": 22, "attribute": "technique" },
+      "larm_005": { "name": "レフトサンダー", "skill": "strike", "trait": "サンダー", "hp": 45, "attack": 16, "success": 38, "attribute": "technique" }
     },
     "legs": {
       "legs_001": { "name": "ライフルレッグ", "hp": 60, "mobility": 35, "defense": 25, "attribute": "speed" },

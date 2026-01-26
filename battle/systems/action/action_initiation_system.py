@@ -4,7 +4,7 @@ import random
 from core.ecs import System
 from components.action_event import ActionEventComponent
 from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
-from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming
+from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, PartType, BattleTiming, SkillType
 from battle.domain.attributes import AttributeLogic
 from battle.domain.traits import TraitManager
 from battle.service.log_service import LogService
@@ -101,6 +101,9 @@ class ActionInitiationSystem(System):
             
         attack_comp = atk_part_comps['attack']
 
+        # 自身の脚部性能（機動・防御）を取得（スキル効果の参照用）
+        my_mobility, my_defense = self._get_legs_stats(attacker_comps)
+
         # 属性情報の取得
         atk_medal = attacker_comps.get('medal')
         atk_part = atk_part_comps.get('part')
@@ -110,40 +113,100 @@ class ActionInitiationSystem(System):
         atk_part_attr = atk_part.attribute if atk_part else "undefined"
         tgt_medal_attr = tgt_medal.attribute if tgt_medal else "undefined"
 
-        # 相性補正の計算（Attributesロジックの使用）
+        # 相性補正の計算
         atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
 
-        # ステータス補正適用 (最小値クリップ含む)
-        adjusted_success = max(1, attack_comp.success + atk_bonus)
-        adjusted_attack = max(1, attack_comp.attack + atk_bonus)
+        # --- 攻撃側のスキル補正加算 ---
+        # skill_typeによるボーナス計算
+        skill_success_bonus = 0
+        skill_attack_bonus = 0
         
-        base_mobility, base_defense = self._get_target_legs_stats(target_comps)
-        adjusted_mobility = max(0, base_mobility + def_bonus)
-        adjusted_defense = max(0, base_defense + def_bonus)
+        if attack_comp.skill_type == SkillType.STRIKE:
+            # 殴る: 機動の25%を成功に加算
+            skill_success_bonus = int(my_mobility * 0.25)
+        elif attack_comp.skill_type == SkillType.AIMED_SHOT:
+            # 狙い撃ち: 耐久(防御)の50%を成功に加算
+            skill_success_bonus = int(my_defense * 0.50)
+        elif attack_comp.skill_type == SkillType.RECKLESS:
+            # 我武者羅: 機動の25% + 耐久の25% を威力に加算
+            skill_attack_bonus = int(my_mobility * 0.25) + int(my_defense * 0.25)
+
+        # ステータス補正適用 (最小値クリップ含む)
+        adjusted_success = max(1, attack_comp.success + atk_bonus + skill_success_bonus)
+        adjusted_attack = max(1, attack_comp.attack + atk_bonus + skill_attack_bonus)
+        
+        tgt_mobility, tgt_defense = self._get_legs_stats(target_comps)
+        adjusted_mobility = max(0, tgt_mobility + def_bonus)
+        adjusted_defense = max(0, tgt_defense + def_bonus)
+
+        # --- 防御側のペナルティ判定 ---
+        force_hit = False
+        prevent_defense = False
+        force_critical = False
+
+        tgt_gauge = target_comps.get('gauge')
+        # ターゲットが使用中のパーツスキルを確認
+        tgt_skill_type = None
+        if tgt_gauge and tgt_gauge.selected_part:
+            tgt_part_id = target_comps['partlist'].parts.get(tgt_gauge.selected_part)
+            tgt_p_comps = self.world.try_get_entity(tgt_part_id)
+            if tgt_p_comps and 'attack' in tgt_p_comps:
+                tgt_skill_type = tgt_p_comps['attack'].skill_type
+        
+        if tgt_gauge and tgt_skill_type:
+            # 殴る(strike): チャージ中は防御度0(防御不可)
+            if tgt_skill_type == SkillType.STRIKE and tgt_gauge.status == GaugeStatus.CHARGING:
+                prevent_defense = True
+            
+            # 狙い撃ち(aimed_shot): チャージ中は回避度0(命中確定)
+            elif tgt_skill_type == SkillType.AIMED_SHOT and tgt_gauge.status == GaugeStatus.CHARGING:
+                force_hit = True
+            
+            # 我武者羅(reckless): チャージ及びクールダウン中とも防御度回避度0(被弾確定クリティカル)
+            elif tgt_skill_type == SkillType.RECKLESS and tgt_gauge.status in [GaugeStatus.CHARGING, GaugeStatus.COOLDOWN]:
+                force_hit = True
+                prevent_defense = True
+                force_critical = True
 
         # 命中判定
-        hit_prob = calculate_hit_probability(adjusted_success, adjusted_mobility)
+        if force_hit:
+            hit_prob = 1.0
+            is_hit = True
+        else:
+            hit_prob = calculate_hit_probability(adjusted_success, adjusted_mobility)
+            is_hit = check_is_hit(hit_prob)
         
-        if not check_is_hit(hit_prob):
+        if not is_hit:
             event.calculation_result = self._create_result_data(False, False, False, 0, None, 0.0)
         else:
             event.calculation_result = self._calculate_hit_outcome(
                 attack_comp, adjusted_success, adjusted_attack, adjusted_mobility, adjusted_defense, 
-                hit_prob, target_comps, target_desired_part
+                hit_prob, target_comps, target_desired_part,
+                prevent_defense, force_critical
             )
 
-    def _calculate_hit_outcome(self, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part):
+    def _calculate_hit_outcome(self, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part, prevent_defense, force_critical):
         """命中時の詳細計算（クリティカル、防御、ダメージ）を行う"""
-        break_prob = calculate_break_probability(success, defense)
-        is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
         
+        if force_critical:
+            is_critical = True
+            is_defense = False
+        else:
+            break_prob = calculate_break_probability(success, defense)
+            is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
+            
+            if prevent_defense:
+                is_defense = False
+                # 防御不能でもクリティカル判定は維持（あるいは再判定）だが、
+                # check_attack_outcomeで is_defense=False ならクリティカル判定が行われているのでそのままで良い
+
         # 命中部位の決定（防御発生時は「かばう」挙動）
         hit_part = self._determine_hit_part(target_comps, target_desired_part, is_defense)
         
-        # ダメージ計算 (補正後の攻撃力とステータスを使用)
+        # ダメージ計算
         damage = calculate_damage(attack_power, success, mobility, defense, is_critical, is_defense)
         
-        # 特性に応じた追加効果（Traitsロジックの使用）
+        # 特性に応じた追加効果
         trait_behavior = TraitManager.get_behavior(attack_comp.trait)
         stop_duration = trait_behavior.get_stop_duration(success, mobility)
 
@@ -159,9 +222,9 @@ class ActionInitiationSystem(System):
             'stop_duration': stop_duration
         }
 
-    def _get_target_legs_stats(self, target_comps):
-        """ターゲットの脚部性能（機動・防御）を取得"""
-        legs_id = target_comps['partlist'].parts.get(PartType.LEGS)
+    def _get_legs_stats(self, comps):
+        """脚部性能（機動・防御）を取得"""
+        legs_id = comps['partlist'].parts.get(PartType.LEGS)
         legs_comps = self.world.try_get_entity(legs_id) if legs_id is not None else None
         
         if legs_comps:
