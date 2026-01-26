@@ -1,7 +1,8 @@
 """戦闘計算サービス"""
 
 import random
-from typing import Dict, Any, Optional
+from dataclasses import dataclass
+from typing import Optional, Tuple
 from battle.constants import PartType
 from battle.domain.attributes import AttributeLogic
 from battle.domain.traits import TraitManager
@@ -14,25 +15,25 @@ from battle.domain.calculator import (
     calculate_damage
 )
 
+@dataclass
+class CombatResult:
+    """戦闘計算結果を保持するデータクラス"""
+    is_hit: bool
+    is_critical: bool
+    is_defense: bool
+    damage: int
+    hit_part: Optional[str]
+    stop_duration: float
+
 class CombatService:
     """戦闘の命中・ダメージ計算を一括して行うサービス"""
 
     @staticmethod
     def calculate_combat_result(world, attacker_id: int, target_id: int, 
                               target_desired_part: Optional[str], 
-                              attacker_part_type: str) -> Optional[Dict[str, Any]]:
+                              attacker_part_type: str) -> Optional[CombatResult]:
         """
         戦闘結果を計算して返す
-        
-        Returns:
-            {
-                'is_hit': bool,
-                'is_critical': bool,
-                'is_defense': bool,
-                'damage': int,
-                'hit_part': str,
-                'stop_duration': float
-            }
         """
         attacker_comps = world.try_get_entity(attacker_id)
         target_comps = world.try_get_entity(target_id)
@@ -114,7 +115,7 @@ class CombatService:
             )
 
     @staticmethod
-    def _calculate_hit_outcome(world, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part, prevent_defense, force_critical):
+    def _calculate_hit_outcome(world, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part, prevent_defense, force_critical) -> CombatResult:
         """命中時の詳細計算（クリティカル、防御、ダメージ）を行う"""
         
         if force_critical:
@@ -127,7 +128,7 @@ class CombatService:
             if prevent_defense:
                 is_defense = False
 
-        # 命中部位の決定（防御発生時は「かばう」挙動）
+        # 命中部位の決定（防御時は部位置換）
         hit_part = CombatService._determine_hit_part(world, target_comps, target_desired_part, is_defense)
         
         # ダメージ計算
@@ -140,18 +141,18 @@ class CombatService:
         return CombatService._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)
 
     @staticmethod
-    def _create_result_data(is_hit, is_critical, is_defense, damage, hit_part, stop_duration):
-        return {
-            'is_hit': is_hit,
-            'is_critical': is_critical,
-            'is_defense': is_defense,
-            'damage': damage,
-            'hit_part': hit_part,
-            'stop_duration': stop_duration
-        }
+    def _create_result_data(is_hit, is_critical, is_defense, damage, hit_part, stop_duration) -> CombatResult:
+        return CombatResult(
+            is_hit=is_hit,
+            is_critical=is_critical,
+            is_defense=is_defense,
+            damage=damage,
+            hit_part=hit_part,
+            stop_duration=stop_duration
+        )
 
     @staticmethod
-    def _get_legs_stats(world, comps):
+    def _get_legs_stats(world, comps) -> Tuple[int, int]:
         """脚部性能（機動・防御）を取得"""
         legs_id = comps['partlist'].parts.get(PartType.LEGS)
         legs_comps = world.try_get_entity(legs_id) if legs_id is not None else None
@@ -163,7 +164,7 @@ class CombatService:
         return 0, 0
 
     @staticmethod
-    def _determine_hit_part(world, target_comps, desired_part, is_defense):
+    def _determine_hit_part(world, target_comps, desired_part, is_defense) -> str:
         """実際に命中する部位を決定する"""
         # 生存パーツのリストとマップ
         alive_parts_map = {}

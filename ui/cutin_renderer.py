@@ -197,7 +197,7 @@ class CutinCinematics:
                 prev_x = screen_center_x + 50
                 target_hit_x = self.right_pos_x
                 
-                is_hit = hit_result.get('is_hit', False) if hit_result else False
+                is_hit = hit_result.is_hit if hit_result else False
                 
                 if progress <= t['impact']:
                     bul['x'] = prev_x + (target_hit_x - prev_x) * ratio
@@ -389,10 +389,11 @@ class CutinRenderer(BaseRenderer):
                              (end_pos[0]-10, end_pos[1]), width // 2)
 
     def _draw_popup_result(self, x, y, hit_result):
-        is_hit = hit_result.get('is_hit', False)
-        is_critical = hit_result.get('is_critical', False)
-        is_defense = hit_result.get('is_defense', False)
-        damage = hit_result.get('damage', 0)
+        # CombatResult型オブジェクトからプロパティアクセス
+        is_hit = hit_result.is_hit if hit_result else False
+        is_critical = hit_result.is_critical if hit_result else False
+        is_defense = hit_result.is_defense if hit_result else False
+        damage = hit_result.damage if hit_result else 0
 
         lines = []
         if not is_hit:

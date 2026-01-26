@@ -75,7 +75,7 @@ class ActionResolutionSystem(System):
             context.battle_log.append(LogService.get_target_lost(attacker_name))
             return
 
-        if not res['is_hit']:
+        if not res.is_hit:
             # カットインで "MISS!" が表示されるためログは不要
             return
             
@@ -83,8 +83,8 @@ class ActionResolutionSystem(System):
         self.world.add_component(event.current_target_id, DamageEventComponent(
             attacker_id=event.attacker_id,
             attacker_part=event.part_type,
-            damage=res['damage'],
-            target_part=res['hit_part'],
-            is_critical=res['is_critical'],
-            stop_duration=res['stop_duration']
+            damage=res.damage,
+            target_part=res.hit_part,
+            is_critical=res.is_critical,
+            stop_duration=res.stop_duration
         ))

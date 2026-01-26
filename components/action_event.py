@@ -1,7 +1,10 @@
 """行動イベントを表すコンポーネント"""
 
-from typing import Optional, Dict, Any
+from typing import Optional, TYPE_CHECKING
 from core.ecs import Component
+
+if TYPE_CHECKING:
+    from battle.service.combat_service import CombatResult
 
 class ActionEventComponent(Component):
     """
@@ -15,12 +18,12 @@ class ActionEventComponent(Component):
         
         # ターゲット情報
         self.original_target_id = target_id
-        self.current_target_id = target_id # 「かばう」等で変更される可能性がある現在のターゲット
+        self.current_target_id = target_id # 防御で変更される可能性がある現在のターゲット
         
         self.desired_target_part = target_part # 攻撃側が狙った部位
         
         # 計算結果 (InitiationSystemで事前に計算して格納する)
-        self.calculation_result: Optional[Dict[str, Any]] = None
+        self.calculation_result: Optional['CombatResult'] = None
         
         # 状態
         self.status = "created"
