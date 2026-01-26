@@ -10,6 +10,12 @@ class PartType:
     LEFT_ARM = "left_arm"
     LEGS = "legs"
 
+class AttributeType:
+    SPEED = "speed"
+    POWER = "power"
+    TECHNIQUE = "technique"
+    UNDEFINED = "undefined"
+
 class TraitType:
     # 射撃系
     RIFLE = "ライフル"

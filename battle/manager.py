@@ -37,8 +37,8 @@ class BattleSystem:
         self.ui_renderer = BattleUIRenderer(screen)
         
         self.systems = [
-            # ui_renderer を InputSystem に渡すように変更
-            InputSystem(self.world, self.ui_renderer),
+            # ui_renderer の依存を削除
+            InputSystem(self.world),
             BattleFlowSystem(self.world),
             GaugeSystem(self.world),
             TargetSelectionSystem(self.world),

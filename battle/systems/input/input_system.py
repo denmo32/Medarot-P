@@ -2,14 +2,15 @@
 
 from core.ecs import System
 from battle.domain.utils import apply_action_command
-from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER, BattleTiming
+from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER
+from battle.presentation.layout_utils import calculate_action_menu_layout
 
 class InputSystem(System):
     """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
     
-    def __init__(self, world, ui_renderer):
+    # ui_rendererへの依存を削除
+    def __init__(self, world):
         super().__init__(world)
-        self.ui_renderer = ui_renderer
 
     def update(self, dt: float):
         inputs = self.world.get_entities_with_components('input')
@@ -51,6 +52,8 @@ class InputSystem(System):
         if input_comp.mouse_clicked or input_comp.btn_ok:
             context.battle_log.clear()
             flow.current_phase = BattlePhase.CUTIN
+            # タイマーはFlow制御側や演出システムで管理するが、初期値としてセット
+            from battle.constants import BattleTiming
             flow.phase_timer = BattleTiming.CUTIN_ANIMATION
 
     def _handle_cutin_result(self, input_comp, context, flow):
@@ -79,7 +82,15 @@ class InputSystem(System):
         self._process_menu_navigation(input_comp, context, menu_items_count)
 
         if input_comp.btn_ok or input_comp.mouse_clicked:
-            self._confirm_action(eid, context)
+            # マウスクリックの場合、カーソル下の項目が有効か確認してから決定
+            if input_comp.mouse_clicked:
+                idx = self._get_menu_index_at_mouse(input_comp.mouse_x, input_comp.mouse_y, menu_items_count)
+                if idx is not None:
+                    context.selected_menu_index = idx
+                    self._confirm_action(eid, context)
+            else:
+                # キー入力なら現在の選択位置で決定
+                self._confirm_action(eid, context)
 
     def _process_menu_navigation(self, input_comp, context, item_count):
         # 1. キーボードによる選択
@@ -88,10 +99,18 @@ class InputSystem(System):
         elif input_comp.btn_right:
             context.selected_menu_index = (context.selected_menu_index + 1) % item_count
 
-        # 2. マウス座標による選択（レンダラーに空間判定を委譲）
-        mouse_idx = self.ui_renderer.get_index_at_mouse((input_comp.mouse_x, input_comp.mouse_y), item_count)
+        # 2. マウス座標による選択 (layout_utilsを使用)
+        mouse_idx = self._get_menu_index_at_mouse(input_comp.mouse_x, input_comp.mouse_y, item_count)
         if mouse_idx is not None:
             context.selected_menu_index = mouse_idx
+
+    def _get_menu_index_at_mouse(self, mx, my, button_count) -> int | None:
+        """共有レイアウト計算ロジックを使用して判定"""
+        layout = calculate_action_menu_layout(button_count)
+        for i, rect in enumerate(layout):
+            if rect.collidepoint(mx, my):
+                return i
+        return None
 
     def _confirm_action(self, eid, context):
         part_list = self.world.entities[eid]['partlist']
@@ -101,9 +120,11 @@ class InputSystem(System):
         if idx < len(MENU_PART_ORDER):
             p_type = MENU_PART_ORDER[idx]
             p_id = part_list.parts.get(p_type)
+            # 生存チェック
             if p_id and self.world.entities[p_id]['health'].hp > 0:
                 action, part = ActionType.ATTACK, p_type
         else:
+            # スキップボタン
             action = ActionType.SKIP
 
         if action:

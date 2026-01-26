@@ -12,12 +12,12 @@
     },
     {
       "name": "機体2",
-      "medal": "medal_002",
+      "medal": "medal_004",
       "parts": {
-        "head": "head_002",
-        "right_arm": "rarm_002",
-        "left_arm": "larm_002",
-        "legs": "legs_002"
+        "head": "head_005",
+        "right_arm": "rarm_005",
+        "left_arm": "larm_005",
+        "legs": "legs_005"
       }
     },
     {

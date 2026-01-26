@@ -1,7 +1,7 @@
 """属性（Attribute）に関連するロジック"""
 
 from typing import Dict, Any, Tuple
-from battle.constants import PartType
+from battle.constants import PartType, AttributeType
 
 class AttributeLogic:
     """属性に関する計算ロジックを提供するステートレスクラス"""
@@ -9,17 +9,17 @@ class AttributeLogic:
     @staticmethod
     def _get_single_affinity_score(atk_attr: str, def_attr: str) -> int:
         """単体の属性相性スコアを計算 (Power > Technique > Speed > Power)"""
-        if atk_attr == "undefined" or def_attr == "undefined":
+        if atk_attr == AttributeType.UNDEFINED or def_attr == AttributeType.UNDEFINED:
             return 0
         if atk_attr == def_attr:
             return 0
         
-        if atk_attr == "power":
-            return 1 if def_attr == "technique" else -1
-        if atk_attr == "technique":
-            return 1 if def_attr == "speed" else -1
-        if atk_attr == "speed":
-            return 1 if def_attr == "power" else -1
+        if atk_attr == AttributeType.POWER:
+            return 1 if def_attr == AttributeType.TECHNIQUE else -1
+        if atk_attr == AttributeType.TECHNIQUE:
+            return 1 if def_attr == AttributeType.SPEED else -1
+        if atk_attr == AttributeType.SPEED:
+            return 1 if def_attr == AttributeType.POWER else -1
         return 0
 
     @staticmethod
@@ -52,27 +52,27 @@ class AttributeLogic:
         メダル属性とパーツ属性の一致によるパッシブボーナスをstats辞書に適用する。
         EntityFactoryで使用される。
         """
-        part_attr = stats.get("attribute", "undefined")
+        part_attr = stats.get("attribute", AttributeType.UNDEFINED)
         
         # 属性不一致なら何もしない
-        if medal_attr != part_attr or medal_attr == "undefined":
+        if medal_attr != part_attr or medal_attr == AttributeType.UNDEFINED:
             return
 
-        if medal_attr == "speed":
+        if medal_attr == AttributeType.SPEED:
             # スピード: 脚部の機動+20, 攻撃パーツの時間短縮(x0.8)
             if part_type == PartType.LEGS:
                 stats["mobility"] = stats.get("mobility", 0) + 20
             else:
                 stats["time_modifier"] = 0.8
 
-        elif medal_attr == "power":
+        elif medal_attr == AttributeType.POWER:
             # パワー: 全パーツHP+5, 脚部以外の攻撃+10
             stats["hp"] = stats.get("hp", 0) + 5
             if part_type != PartType.LEGS and stats["attack"] is not None:
                 stats["attack"] += 10
                 # base_attack は加算しない（時間計算への影響を避けるため）
 
-        elif medal_attr == "technique":
+        elif medal_attr == AttributeType.TECHNIQUE:
             # テクニック: 脚部以外の成功+20, 脚部の防御+10
             if part_type == PartType.LEGS:
                 stats["defense"] = stats.get("defense", 0) + 10
