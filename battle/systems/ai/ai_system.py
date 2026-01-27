@@ -3,21 +3,17 @@
 from core.ecs import System
 from battle.constants import BattlePhase
 from battle.ai.strategy import get_strategy
-from battle.domain.utils import apply_action_command
+from battle.domain.utils import get_battle_state
+from components.action_command import ActionCommandComponent
 
 class AISystem(System):
     """
-    エネミーのターン(ENEMY_TURN)に動作し、
-    コマンダーとしての意思決定（どのパーツで攻撃するか）を行う。
+    エネミーのターンにコマンダーとしての意思決定を行う。
+    結果をActionCommandComponentとして発行する。
     """
     def update(self, dt: float):
-        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
-        if not entities: return
-        context = entities[0][1]['battlecontext']
-        flow = entities[0][1]['battleflow']
-
-        # エネミー思考フェーズ以外は何もしない
-        if flow.current_phase != BattlePhase.ENEMY_TURN:
+        context, flow = get_battle_state(self.world)
+        if not context or flow.current_phase != BattlePhase.ENEMY_TURN:
             return
 
         eid = context.current_turn_entity_id
@@ -25,10 +21,9 @@ class AISystem(System):
             flow.current_phase = BattlePhase.IDLE
             return
 
-        # AIロジック実行（現状はランダムのみ）
-        # 将来的にはStrategyComponent等を持たせて個別に設定可能にすると良い
+        # 意思決定（パーツの選択）
         strategy = get_strategy("random")
         action, part = strategy.decide_action(self.world, eid)
 
-        # 決定したコマンドを適用（共通処理）
-        apply_action_command(self.world, eid, action, part)
+        # コマンドの発行
+        self.world.add_component(eid, ActionCommandComponent(action, part))

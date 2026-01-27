@@ -1,10 +1,11 @@
 """描画ロジック（データ加工）を担当するシステム"""
 
 from core.ecs import System
-from config import GAME_PARAMS, COLORS
-from battle.constants import BattlePhase, MENU_PART_ORDER, TeamType
+from config import GAME_PARAMS
+from battle.constants import BattlePhase, MENU_PART_ORDER
 from battle.presentation.view_model import BattleViewModel, CutinViewModel
 from ui.cutin_renderer import CutinRenderer
+from battle.domain.utils import get_battle_state
 
 class RenderSystem(System):
     """Worldのコンポーネントから描画用データを抽出しRendererへ渡す"""
@@ -16,9 +17,8 @@ class RenderSystem(System):
         self.cutin_renderer = CutinRenderer(field_renderer.screen)
 
     def update(self, dt: float):
-        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
-        if not entities: return
-        context, flow = entities[0][1]['battlecontext'], entities[0][1]['battleflow']
+        context, flow = get_battle_state(self.world)
+        if not context or not flow: return
 
         self.field_renderer.clear()
         self.field_renderer.draw_field_guides()
@@ -81,7 +81,6 @@ class RenderSystem(System):
     def _render_cutin(self, context, flow):
         state = CutinViewModel.build_action_state(self.world, flow)
         if not state: return
-
         self.cutin_renderer.draw(
             state['attacker_visual'], state['target_visual'],
             state['progress'], state['result'], 

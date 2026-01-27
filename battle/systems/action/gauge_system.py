@@ -2,17 +2,15 @@
 
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase, ActionType
-from battle.domain.utils import interrupt_gauge_return_home, transition_to_phase
+from battle.domain.utils import transition_to_phase, get_battle_state
 from battle.domain.targeting import TargetingLogic
 from battle.service.log_service import LogService
 
 class GaugeSystem(System):
     """ATBゲージの進行管理、およびチャージ中のアクション有効性監視を担当"""
     def update(self, dt: float):
-        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
-        if not entities: return
-        context = entities[0][1]['battlecontext']
-        flow = entities[0][1]['battleflow']
+        context, flow = get_battle_state(self.world)
+        if not context or not flow: return
 
         if flow.current_phase != BattlePhase.IDLE:
             return
@@ -55,10 +53,16 @@ class GaugeSystem(System):
                 return
 
     def _interrupt(self, eid, gauge, context, flow, message):
-        """アクションを中断し、その地点からホームへ戻る"""
+        """アクションを中断し、その地点からホームへ戻る（冷却状態への強制移行）"""
         context.battle_log.append(message)
         transition_to_phase(flow, BattlePhase.LOG_WAIT)
-        interrupt_gauge_return_home(gauge)
+        
+        # 中断ロジック：進行度を反転させて冷却へ
+        current_p = gauge.progress
+        gauge.status = GaugeStatus.COOLDOWN
+        gauge.progress = max(0.0, 100.0 - current_p)
+        gauge.selected_action = None
+        gauge.selected_part = None
         
         if eid in context.waiting_queue:
             context.waiting_queue.remove(eid)

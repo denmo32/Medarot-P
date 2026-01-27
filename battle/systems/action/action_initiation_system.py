@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from components.action_event import ActionEventComponent
-from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, transition_to_phase
+from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, transition_to_phase, get_battle_state
 from battle.domain.targeting import TargetingLogic
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, BattleTiming
 from battle.service.log_service import LogService
@@ -14,12 +14,8 @@ class ActionInitiationSystem(System):
     チャージ完了したエンティティに対し、ターゲットを確定し、事前戦闘計算を行う。
     """
     def update(self, dt: float):
-        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
-        if not entities: return
-        context = entities[0][1]['battlecontext']
-        flow = entities[0][1]['battleflow']
-
-        if flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
+        context, flow = get_battle_state(self.world)
+        if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
 
         actor_eid = context.waiting_queue[0]
@@ -89,12 +85,10 @@ class ActionInitiationSystem(System):
 
         attack_comp = p_comps['attack']
         if attack_comp.trait in TraitType.MELEE_TRAITS:
-            # 格闘：実行時に一番近い敵を狙う
             target_id = get_closest_target_by_gauge(self.world, actor_comps['team'].team_type)
             target_part = TargetingLogic.get_random_alive_part(self.world, target_id) if target_id else None
             return target_id, target_part
         else:
-            # 射撃：事前ターゲットを使用
             target_data = gauge.part_targets.get(gauge.selected_part)
             if target_data:
                 tid, tpart = target_data

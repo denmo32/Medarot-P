@@ -6,6 +6,7 @@ from battle.systems.action.gauge_system import GaugeSystem
 from battle.systems.action.target_selection_system import TargetSelectionSystem
 from battle.systems.flow.turn_system import TurnSystem
 from battle.systems.ai.ai_system import AISystem
+from battle.systems.action.action_command_system import ActionCommandSystem
 from battle.systems.action.action_initiation_system import ActionInitiationSystem
 from battle.systems.action.action_resolution_system import ActionResolutionSystem
 from battle.systems.flow.battle_flow_system import BattleFlowSystem
@@ -37,13 +38,13 @@ class BattleSystem:
         self.ui_renderer = BattleUIRenderer(screen)
         
         self.systems = [
-            # ui_renderer の依存を削除
             InputSystem(self.world),
             BattleFlowSystem(self.world),
             GaugeSystem(self.world),
             TargetSelectionSystem(self.world),
             TurnSystem(self.world),
             AISystem(self.world),
+            ActionCommandSystem(self.world),
             ActionInitiationSystem(self.world),
             TargetIndicatorSystem(self.world),
             CutinAnimationSystem(self.world),
