@@ -1,106 +1,115 @@
 """バトル固有のECSコンポーネント定義（純粋データ構造）"""
 
+from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 from core.ecs import Component
 from battle.constants import GaugeStatus
 
+@dataclass
 class GaugeComponent(Component):
     """ATBゲージコンポーネント"""
-    def __init__(self, value: float = 0.0, speed: float = 0.1, status: str = None):
-        self.value = value
-        self.speed = speed
-        self.status = status or GaugeStatus.ACTION_CHOICE
-        self.progress = 0.0
-        self.selected_action: Optional[str] = None
-        self.selected_part: Optional[str] = None
-        self.part_targets: Dict[str, Optional[int]] = {}
-        
-        self.charging_time = 2.0
-        self.cooldown_time = 2.0
-        
-        # 状態異常：停止用タイマー（秒）
-        self.stop_timer = 0.0
+    value: float = 0.0
+    speed: float = 0.1
+    status: str = GaugeStatus.ACTION_CHOICE
+    
+    progress: float = field(init=False, default=0.0)
+    selected_action: Optional[str] = field(init=False, default=None)
+    selected_part: Optional[str] = field(init=False, default=None)
+    part_targets: Dict[str, Optional[int]] = field(default_factory=dict)
+    
+    charging_time: float = field(init=False, default=2.0)
+    cooldown_time: float = field(init=False, default=2.0)
+    
+    # 状態異常：停止用タイマー（秒）
+    stop_timer: float = field(init=False, default=0.0)
 
+@dataclass
 class TeamComponent(Component):
     """チーム属性"""
-    def __init__(self, team_type: str, team_color: tuple, is_leader: bool = False):
-        self.team_type = team_type # "player", "enemy"
-        self.team_color = team_color
-        self.is_leader = is_leader
+    team_type: str            # "player", "enemy"
+    team_color: tuple
+    is_leader: bool = False
 
+@dataclass
 class RenderComponent(Component):
     """描画サイズ情報"""
-    def __init__(self, width: int, height: int, gauge_width: int, gauge_height: int):
-        self.width = width
-        self.height = height
-        self.gauge_width = gauge_width
-        self.gauge_height = gauge_height
+    width: int
+    height: int
+    gauge_width: int
+    gauge_height: int
 
+@dataclass
 class PartComponent(Component):
     """パーツの種類と属性"""
-    def __init__(self, part_type: str, attribute: str = "undefined"):
-        self.part_type = part_type # "head", "right_arm", "left_arm", "legs"
-        self.attribute = attribute
+    part_type: str            # "head", "right_arm", "left_arm", "legs"
+    attribute: str = "undefined"
 
+@dataclass
 class HealthComponent(Component):
     """HPデータ"""
-    def __init__(self, hp: int, max_hp: int):
-        self.hp = hp
-        self.max_hp = max_hp
-        self.display_hp = float(hp) # 表示上のアニメーション用HP
+    hp: int
+    max_hp: int
+    display_hp: float = field(init=False)
 
+    def __post_init__(self):
+        self.display_hp = float(self.hp)
+
+@dataclass
 class AttackComponent(Component):
     """攻撃性能（脚部以外）"""
-    def __init__(self, attack: int, trait: str = None, success: int = 0, base_attack: int = None, time_modifier: float = 1.0, skill_type: str = "shoot"):
-        self.attack = attack # 現在の攻撃力（ボーナス込み）
-        self.base_attack = base_attack if base_attack is not None else attack # 時間計算用の基本攻撃力
-        self.trait = trait # "ライフル", "ソード", "サンダー" 等
-        self.success = success # 成功度
-        self.time_modifier = time_modifier # 充填・冷却時間の補正係数（属性一致ボーナス等）
-        self.skill_type = skill_type # "shoot", "strike", "aimed_shot", "reckless"
+    attack: int                # 現在の攻撃力（ボーナス込み）
+    trait: Optional[str] = None     # "ライフル", "ソード", "サンダー" 等
+    success: int = 0           # 成功度
+    base_attack: Optional[int] = None # 時間計算用の基本攻撃力
+    time_modifier: float = 1.0 # 充填・冷却時間の補正係数（属性一致ボーナス等）
+    skill_type: str = "shoot"  # "shoot", "strike", "aimed_shot", "reckless"
 
+    def __post_init__(self):
+        if self.base_attack is None:
+            self.base_attack = self.attack
+
+@dataclass
 class MobilityComponent(Component):
     """機動・防御性能（脚部）"""
-    def __init__(self, mobility: int, defense: int = 0):
-        self.mobility = mobility
-        self.defense = defense
+    mobility: int
+    defense: int = 0
 
+@dataclass
 class PartListComponent(Component):
     """機体が構成するパーツエンティティIDの辞書"""
-    def __init__(self):
-        self.parts: Dict[str, int] = {} 
+    parts: Dict[str, int] = field(default_factory=dict)
 
+@dataclass
 class MedalComponent(Component):
     """メダル（頭脳）データ"""
-    def __init__(self, medal_id: str, medal_name: str, nickname: str, personality_id: str = "random", attribute: str = "undefined"):
-        self.medal_id = medal_id
-        self.medal_name = medal_name
-        self.nickname = nickname
-        self.personality_id = personality_id
-        self.attribute = attribute
+    medal_id: str
+    medal_name: str
+    nickname: str
+    personality_id: str = "random"
+    attribute: str = "undefined"
 
+@dataclass
 class DefeatedComponent(Component):
     """敗北フラグ"""
-    def __init__(self):
-        self.is_defeated = False
+    is_defeated: bool = False
 
+@dataclass
 class BattleContextComponent(Component):
     """
     バトルログや待機列などの共有データ。
     """
-    def __init__(self):
-        self.waiting_queue: List[int] = []
-        self.current_turn_entity_id: Optional[int] = None
-        self.battle_log: List[str] = []
-        self.pending_logs: List[str] = [] # ダメージ詳細などの一時バッファ
-        self.selected_menu_index: int = 0
+    waiting_queue: List[int] = field(default_factory=list)
+    current_turn_entity_id: Optional[int] = None
+    battle_log: List[str] = field(default_factory=list)
+    pending_logs: List[str] = field(default_factory=list) # ダメージ詳細などの一時バッファ
+    selected_menu_index: int = 0
 
+@dataclass
 class DamageEventComponent(Component):
     """ダメージ発生を伝える一時的なコンポーネント"""
-    def __init__(self, attacker_id: int, attacker_part: str, damage: int, target_part: str, is_critical: bool = False, stop_duration: float = 0.0):
-        self.attacker_id = attacker_id
-        self.attacker_part = attacker_part
-        self.damage = damage
-        self.target_part = target_part
-        self.is_critical = is_critical
-        self.stop_duration = stop_duration # 停止させる時間
+    attacker_id: int
+    attacker_part: str
+    damage: int
+    target_part: str
+    is_critical: bool = False
+    stop_duration: float = 0.0 # 停止させる時間
