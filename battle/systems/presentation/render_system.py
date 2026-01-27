@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from config import GAME_PARAMS
-from battle.constants import BattlePhase, MENU_PART_ORDER
+from battle.constants import BattlePhase
 from battle.presentation.view_model import BattleViewModel, CutinViewModel
 from ui.cutin_renderer import CutinRenderer
 from battle.domain.utils import get_battle_state
@@ -22,11 +22,18 @@ class RenderSystem(System):
 
         self.field_renderer.clear()
         self.field_renderer.draw_field_guides()
+        
+        # 1. 機体と基本アイコンの描画
         char_positions = self._render_characters(context, flow)
+        
+        # 2. 演出用マーカー・ラインの描画
         self._render_target_marker(context, flow, char_positions)
         self._render_target_indication_line(context, flow, char_positions)
+        
+        # 3. HUD・UIの描画
         self._render_ui(context, flow)
 
+        # 4. カットイン演出
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
             self._render_cutin(context, flow)
 
@@ -37,35 +44,37 @@ class RenderSystem(System):
         for eid, _ in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'medal'):
             view_data = BattleViewModel.get_character_view_data(self.world, eid, context, flow)
             char_positions[eid] = {'x': view_data['x'], 'y': view_data['y'], 'icon_x': view_data['icon_x']}
+            
             self.field_renderer.draw_home_marker(view_data['home_x'], view_data['home_y'])
-            self.field_renderer.draw_character_icon(view_data['icon_x'], view_data['y'], view_data['team_color'], view_data['part_status'], view_data['border_color'])
+            self.field_renderer.draw_character_icon(
+                view_data['icon_x'], view_data['y'], 
+                view_data['team_color'], view_data['part_status'], view_data['border_color']
+            )
             self.field_renderer.draw_text(view_data['name'], (view_data['x'] - 20, view_data['y'] - 25), font_type='medium')
         return char_positions
 
     def _render_target_marker(self, context, flow, char_positions):
-        target_eid = None
-        if flow.current_phase == BattlePhase.INPUT:
-            eid = context.current_turn_entity_id
-            if eid and context.selected_menu_index < len(MENU_PART_ORDER):
-                target_data = self.world.entities[eid]['gauge'].part_targets.get(MENU_PART_ORDER[context.selected_menu_index])
-                if target_data: target_eid = target_data[0]
+        """メニュー選択中に予定ターゲットを示すマーカーを表示"""
+        target_eid = BattleViewModel.get_active_target_eid(self.world, context, flow)
         if target_eid and target_eid in char_positions:
             self.field_renderer.draw_target_marker(target_eid, char_positions)
 
     def _render_target_indication_line(self, context, flow, char_positions):
-        if flow.current_phase not in [BattlePhase.TARGET_INDICATION, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]: return
-        event_eid = flow.processing_event_id
-        event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
-        if not event_comps or 'actionevent' not in event_comps: return
+        """攻撃実行前のターゲットライン表示"""
+        atk_id, tgt_id = BattleViewModel.get_event_actor_ids(self.world, flow)
         
-        event = event_comps['actionevent']
-        if event.attacker_id in char_positions and event.current_target_id in char_positions:
-            start_pos, end_pos = char_positions[event.attacker_id], char_positions[event.current_target_id]
-            self.field_renderer.draw_flow_line((start_pos['icon_x'], start_pos['y'] + 20), (end_pos['icon_x'], end_pos['y'] + 20), flow.target_line_offset)
+        if atk_id in char_positions and tgt_id in char_positions:
+            start_pos, end_pos = char_positions[atk_id], char_positions[tgt_id]
+            self.field_renderer.draw_flow_line(
+                (start_pos['icon_x'], start_pos['y'] + 20), 
+                (end_pos['icon_x'], end_pos['y'] + 20), 
+                flow.target_line_offset
+            )
 
     def _render_ui(self, context, flow):
         show_input_guidance = flow.current_phase in [BattlePhase.LOG_WAIT, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN_RESULT]
         display_logs = [] if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT] else context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
+        
         self.ui_renderer.draw_message_window(display_logs, show_input_guidance)
         
         if flow.current_phase == BattlePhase.INPUT:

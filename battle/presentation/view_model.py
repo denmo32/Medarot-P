@@ -1,6 +1,6 @@
 """描画用データ（ViewModel）の生成ロジック"""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from config import COLORS, GAME_PARAMS
 from battle.constants import PartType, GaugeStatus, PART_LABELS, TeamType, BattlePhase, MENU_PART_ORDER
 
@@ -36,6 +36,41 @@ class BattleViewModel:
             'border_color': border_color,
             'part_status': part_status
         }
+
+    @staticmethod
+    def get_active_target_eid(world, context, flow) -> Optional[int]:
+        """現在メニューで選択されているパーツのターゲット機体IDを取得"""
+        if flow.current_phase != BattlePhase.INPUT:
+            return None
+            
+        eid = context.current_turn_entity_id
+        if not eid or eid not in world.entities:
+            return None
+            
+        idx = context.selected_menu_index
+        if idx < len(MENU_PART_ORDER):
+            p_type = MENU_PART_ORDER[idx]
+            target_data = world.entities[eid]['gauge'].part_targets.get(p_type)
+            if target_data:
+                return target_data[0] # (target_id, part_type)
+        return None
+
+    @staticmethod
+    def get_event_actor_ids(world, flow) -> Tuple[Optional[int], Optional[int]]:
+        """現在実行中のイベントにおける (攻撃者ID, 対象者ID) を取得"""
+        if flow.current_phase not in [
+            BattlePhase.TARGET_INDICATION, BattlePhase.ATTACK_DECLARATION, 
+            BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT
+        ]:
+            return None, None
+            
+        event_eid = flow.processing_event_id
+        event_comps = world.try_get_entity(event_eid)
+        if not event_comps or 'actionevent' not in event_comps:
+            return None, None
+            
+        event = event_comps['actionevent']
+        return event.attacker_id, event.current_target_id
 
     @staticmethod
     def build_action_menu_data(world, eid: int) -> List[Dict[str, Any]]:
