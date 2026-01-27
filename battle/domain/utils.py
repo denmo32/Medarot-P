@@ -55,21 +55,6 @@ def calculate_current_x(base_x: int, status: str, progress: float, team_type: st
         target_x = center_x + offset
         return start_x + ratio * (target_x - start_x)
 
-def get_closest_target_by_gauge(world, my_team_type: str):
-    """ゲージ進行度に基づいて「最も中央に近い（手前にいる）」ターゲットを選定する。"""
-    target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
-    best_target = None
-    max_ratio = float('-inf')
-    
-    candidates = world.get_entities_with_components('team', 'defeated', 'gauge')
-    for teid, tcomps in candidates:
-        if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated:
-            ratio = calculate_gauge_ratio(tcomps['gauge'].status, tcomps['gauge'].progress)
-            if ratio > max_ratio:
-                max_ratio = ratio
-                best_target = teid
-    return best_target
-
 def reset_gauge_to_cooldown(gauge):
     """行動終了後、クールダウン状態へ移行する。"""
     gauge.status = GaugeStatus.COOLDOWN

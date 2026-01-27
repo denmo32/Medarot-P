@@ -2,7 +2,7 @@
 
 import random
 from typing import List, Optional, Tuple
-from battle.constants import TeamType, PartType
+from battle.constants import TeamType, PartType, ActionType, TraitType
 
 class TargetingLogic:
     """ターゲットの状態判定や取得に関するステートレスなロジック"""
@@ -79,3 +79,51 @@ class TargetingLogic:
         """生存パーツからランダムに1つ選択"""
         alive_parts = TargetingLogic.get_alive_parts(world, entity_id)
         return random.choice(alive_parts) if alive_parts else None
+
+    @staticmethod
+    def get_closest_target_by_gauge(world, my_team_type: str):
+        """ゲージ進行度に基づいて「最も中央に近い（手前にいる）」ターゲットを選定する。"""
+        from battle.domain.utils import calculate_gauge_ratio
+        target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
+        best_target = None
+        max_ratio = float('-inf')
+        
+        candidates = world.get_entities_with_components('team', 'defeated', 'gauge')
+        for teid, tcomps in candidates:
+            if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated:
+                ratio = calculate_gauge_ratio(tcomps['gauge'].status, tcomps['gauge'].progress)
+                if ratio > max_ratio:
+                    max_ratio = ratio
+                    best_target = teid
+        return best_target
+
+    @staticmethod
+    def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+        """
+        実行しようとしているアクションに基づき、最終的なターゲット(機体ID, 部位)を解決する。
+        """
+        if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
+            return None, None
+
+        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
+        p_comps = world.try_get_entity(part_id) if part_id else None
+        if not p_comps or 'attack' not in p_comps:
+            return None, None
+
+        attack_comp = p_comps['attack']
+        
+        # 格闘特性（近接攻撃）の場合：実行時に最も近い相手を狙う
+        if attack_comp.trait in TraitType.MELEE_TRAITS:
+            target_id = TargetingLogic.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
+            target_part = TargetingLogic.get_random_alive_part(world, target_id) if target_id else None
+            return target_id, target_part
+        
+        # 射撃特性（事前ターゲット）の場合：選定済みのターゲットが有効か確認
+        else:
+            target_data = gauge.part_targets.get(gauge.selected_part)
+            if target_data:
+                tid, tpart = target_data
+                if TargetingLogic.is_action_target_valid(world, tid, tpart):
+                    return tid, tpart
+        
+        return None, None

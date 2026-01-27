@@ -2,9 +2,9 @@
 
 from core.ecs import System
 from components.action_event import ActionEventComponent
-from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, transition_to_phase, get_battle_state
+from battle.domain.utils import reset_gauge_to_cooldown, transition_to_phase, get_battle_state
 from battle.domain.targeting import TargetingLogic
-from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, BattleTiming
+from battle.constants import GaugeStatus, ActionType, BattlePhase, BattleTiming
 from battle.service.log_service import LogService
 from battle.service.combat_service import CombatService
 
@@ -31,8 +31,8 @@ class ActionInitiationSystem(System):
     def _initiate_action(self, actor_eid, actor_comps, gauge, flow, context):
         flow.active_actor_id = actor_eid
 
-        # ターゲットの最終決定
-        target_id, target_part = self._resolve_target(actor_eid, actor_comps, gauge)
+        # ターゲットの最終決定をドメインロジックに委譲
+        target_id, target_part = TargetingLogic.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
         
         if gauge.selected_action == ActionType.ATTACK and not target_id:
             self._handle_target_loss(actor_eid, actor_comps, gauge, flow, context)
@@ -48,6 +48,7 @@ class ActionInitiationSystem(System):
             target_part=target_part
         )
         
+        # 攻撃なら戦闘計算サービスを実行
         if gauge.selected_action == ActionType.ATTACK:
             event.calculation_result = CombatService.calculate_combat_result(
                 self.world, actor_eid, target_id, target_part, gauge.selected_part
@@ -72,26 +73,3 @@ class ActionInitiationSystem(System):
         
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)
-
-    def _resolve_target(self, actor_eid, actor_comps, gauge):
-        """アクションタイプと武器特性に応じてターゲットを決定する"""
-        if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
-            return None, None
-
-        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
-        p_comps = self.world.try_get_entity(part_id) if part_id else None
-        if not p_comps or 'attack' not in p_comps:
-            return None, None
-
-        attack_comp = p_comps['attack']
-        if attack_comp.trait in TraitType.MELEE_TRAITS:
-            target_id = get_closest_target_by_gauge(self.world, actor_comps['team'].team_type)
-            target_part = TargetingLogic.get_random_alive_part(self.world, target_id) if target_id else None
-            return target_id, target_part
-        else:
-            target_data = gauge.part_targets.get(gauge.selected_part)
-            if target_data:
-                tid, tpart = target_data
-                if TargetingLogic.is_action_target_valid(self.world, tid, tpart):
-                    return tid, tpart
-        return None, None

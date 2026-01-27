@@ -79,3 +79,4 @@ battle/domain/__pycache__/targeting.cpython-313.pyc
 battle/systems/action/__pycache__/action_command_system.cpython-313.pyc
 components/__pycache__/action_command.cpython-313.pyc
 data/__pycache__/game_data_manager.cpython-313.pyc
+battle/systems/action/__pycache__/destruction_system.cpython-313.pyc

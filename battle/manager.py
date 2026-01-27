@@ -11,6 +11,7 @@ from battle.systems.action.action_initiation_system import ActionInitiationSyste
 from battle.systems.action.action_resolution_system import ActionResolutionSystem
 from battle.systems.flow.battle_flow_system import BattleFlowSystem
 from battle.systems.action.damage_system import DamageSystem
+from battle.systems.action.destruction_system import DestructionSystem
 from battle.systems.presentation.health_animation_system import HealthAnimationSystem
 from battle.systems.flow.battle_status_system import BattleStatusSystem
 from battle.systems.input.input_system import InputSystem
@@ -50,6 +51,7 @@ class BattleSystem:
             CutinAnimationSystem(self.world),
             ActionResolutionSystem(self.world),
             DamageSystem(self.world),
+            DestructionSystem(self.world),
             HealthAnimationSystem(self.world),
             BattleStatusSystem(self.world),
             RenderSystem(self.world, self.field_renderer, self.ui_renderer)
