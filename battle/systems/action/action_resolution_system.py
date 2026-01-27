@@ -3,7 +3,7 @@
 from core.ecs import System
 from components.battle import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
-from battle.domain.utils import reset_gauge_to_cooldown
+from battle.domain.utils import reset_gauge_to_cooldown, transition_to_phase
 from battle.service.log_service import LogService
 
 class ActionResolutionSystem(System):
@@ -24,8 +24,7 @@ class ActionResolutionSystem(System):
         event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
         
         if not event_comps or 'actionevent' not in event_comps:
-            flow.current_phase = BattlePhase.IDLE
-            flow.processing_event_id = None
+            transition_to_phase(flow, BattlePhase.IDLE)
             return
 
         event = event_comps['actionevent']
@@ -46,12 +45,11 @@ class ActionResolutionSystem(System):
 
         if event.action_type == ActionType.ATTACK:
             self._handle_attack_action(event, attacker_comps, context)
-            flow.current_phase = BattlePhase.CUTIN_RESULT
+            transition_to_phase(flow, BattlePhase.CUTIN_RESULT)
             
         elif event.action_type == ActionType.SKIP:
-            # LogService利用
             context.battle_log.append(LogService.get_skip_action(attacker_comps['medal'].nickname))
-            flow.current_phase = BattlePhase.LOG_WAIT
+            transition_to_phase(flow, BattlePhase.LOG_WAIT)
 
         # クールダウンへ
         if 'gauge' in attacker_comps:
@@ -64,19 +62,16 @@ class ActionResolutionSystem(System):
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         part_comps = self.world.try_get_entity(part_id) if part_id is not None else None
         if not part_comps or part_comps['health'].hp <= 0:
-            # LogService利用
             context.battle_log.append(LogService.get_part_broken_attack(attacker_name))
             return
 
         # 2. 事前計算結果の適用
         res = event.calculation_result
         if res is None:
-            # 計算が行われていない（ターゲットロスト等）
             context.battle_log.append(LogService.get_target_lost(attacker_name))
             return
 
         if not res.is_hit:
-            # カットインで "MISS!" が表示されるためログは不要
             return
             
         # ダメージイベント発行

@@ -4,6 +4,7 @@ from core.ecs import System
 from battle.constants import BattlePhase, ActionType
 from battle.service.log_service import LogService
 from battle.domain.skills import SkillManager
+from battle.domain.utils import transition_to_phase
 
 class TargetIndicatorSystem(System):
     """
@@ -41,12 +42,11 @@ class TargetIndicatorSystem(System):
             # 攻撃アクションの場合のみ宣言を行う
             if event.action_type == ActionType.ATTACK:
                 self._add_declaration_log(event, context)
-                flow.current_phase = BattlePhase.ATTACK_DECLARATION
+                transition_to_phase(flow, BattlePhase.ATTACK_DECLARATION)
             else:
-                # 攻撃以外なら即実行へ
-                flow.current_phase = BattlePhase.EXECUTING
+                transition_to_phase(flow, BattlePhase.EXECUTING)
         else:
-            flow.current_phase = BattlePhase.EXECUTING
+            transition_to_phase(flow, BattlePhase.EXECUTING)
 
     def _add_declaration_log(self, event, context):
         attacker_id = event.attacker_id
@@ -67,10 +67,6 @@ class TargetIndicatorSystem(System):
             if part_comps and 'attack' in part_comps:
                 attack_comp = part_comps['attack']
                 trait_text = f" {attack_comp.trait}！"
-                
-                # スキル日本語名の取得
-                skill_behavior = SkillManager.get_behavior(attack_comp.skill_type)
-                skill_name = skill_behavior.name
+                skill_name = SkillManager.get_behavior(attack_comp.skill_type).name
         
-        # LogServiceを利用
         context.battle_log.append(LogService.get_attack_declaration(attacker_name, skill_name, trait_text))

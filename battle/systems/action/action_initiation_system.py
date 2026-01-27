@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from components.action_event import ActionEventComponent
-from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, is_target_valid
+from battle.domain.utils import get_closest_target_by_gauge, reset_gauge_to_cooldown, transition_to_phase
 from battle.domain.targeting import TargetingLogic
 from battle.constants import GaugeStatus, ActionType, BattlePhase, TraitType, BattleTiming
 from battle.service.log_service import LogService
@@ -61,10 +61,9 @@ class ActionInitiationSystem(System):
         flow.processing_event_id = event_eid
         
         if gauge.selected_action == ActionType.ATTACK:
-            flow.current_phase = BattlePhase.TARGET_INDICATION
-            flow.phase_timer = BattleTiming.TARGET_INDICATION
+            transition_to_phase(flow, BattlePhase.TARGET_INDICATION, BattleTiming.TARGET_INDICATION)
         else:
-            flow.current_phase = BattlePhase.EXECUTING
+            transition_to_phase(flow, BattlePhase.EXECUTING)
         
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)
@@ -72,7 +71,7 @@ class ActionInitiationSystem(System):
     def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
         actor_name = actor_comps['medal'].nickname
         context.battle_log.append(LogService.get_target_lost(actor_name))
-        flow.current_phase = BattlePhase.LOG_WAIT
+        transition_to_phase(flow, BattlePhase.LOG_WAIT)
         reset_gauge_to_cooldown(gauge)
         
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
@@ -99,6 +98,6 @@ class ActionInitiationSystem(System):
             target_data = gauge.part_targets.get(gauge.selected_part)
             if target_data:
                 tid, tpart = target_data
-                if is_target_valid(self.world, tid, tpart):
+                if TargetingLogic.is_action_target_valid(self.world, tid, tpart):
                     return tid, tpart
         return None, None

@@ -2,8 +2,8 @@
 
 import random
 from dataclasses import dataclass
-from typing import Optional, Tuple
-from battle.constants import PartType
+from typing import Optional, Tuple, Dict
+from battle.constants import PartType, AttributeType
 from battle.domain.attributes import AttributeLogic
 from battle.domain.traits import TraitManager
 from battle.domain.skills import SkillManager
@@ -43,100 +43,105 @@ class CombatService:
 
         # 攻撃パーツ情報の取得
         atk_part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
-        if not atk_part_id:
-            return None
-            
-        atk_part_comps = world.try_get_entity(atk_part_id)
+        atk_part_comps = world.try_get_entity(atk_part_id) if atk_part_id else None
         if not atk_part_comps or 'attack' not in atk_part_comps:
             return None
             
         attack_comp = atk_part_comps['attack']
 
-        # 自身の脚部性能（機動・防御）を取得
-        my_mobility, my_defense = CombatService._get_legs_stats(world, attacker_comps)
-
-        # 属性情報の取得
-        atk_medal = attacker_comps.get('medal')
-        atk_part = atk_part_comps.get('part')
-        tgt_medal = target_comps.get('medal')
+        # 1. 各種補正後のステータスを算出
+        stats = CombatService._calculate_adjusted_stats(world, attacker_comps, atk_part_comps, target_comps)
         
-        atk_medal_attr = atk_medal.attribute if atk_medal else "undefined"
-        atk_part_attr = atk_part.attribute if atk_part else "undefined"
-        tgt_medal_attr = tgt_medal.attribute if tgt_medal else "undefined"
+        # 2. 防御側のペナルティ判定
+        penalty = CombatService._get_target_defensive_penalty(world, target_comps)
 
-        # 相性補正の計算
-        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
-
-        # --- 攻撃側のスキル補正加算 ---
-        skill_behavior = SkillManager.get_behavior(attack_comp.skill_type)
-        skill_success_bonus, skill_attack_bonus = skill_behavior.get_offensive_bonuses(my_mobility, my_defense)
-
-        # ステータス補正適用 (最小値クリップ含む)
-        adjusted_success = max(1, attack_comp.success + atk_bonus + skill_success_bonus)
-        adjusted_attack = max(1, attack_comp.attack + atk_bonus + skill_attack_bonus)
-        
-        tgt_mobility, tgt_defense = CombatService._get_legs_stats(world, target_comps)
-        adjusted_mobility = max(0, tgt_mobility + def_bonus)
-        adjusted_defense = max(0, tgt_defense + def_bonus)
-
-        # --- 防御側のペナルティ判定 ---
-        prevent_defense = False
-        force_hit = False
-        force_critical = False
-
-        tgt_gauge = target_comps.get('gauge')
-        # ターゲットが使用中のパーツスキルを確認
-        tgt_skill_type = None
-        if tgt_gauge and tgt_gauge.selected_part:
-            tgt_part_id = target_comps['partlist'].parts.get(tgt_gauge.selected_part)
-            tgt_p_comps = world.try_get_entity(tgt_part_id)
-            if tgt_p_comps and 'attack' in tgt_p_comps:
-                tgt_skill_type = tgt_p_comps['attack'].skill_type
-        
-        if tgt_gauge and tgt_skill_type:
-            tgt_skill_behavior = SkillManager.get_behavior(tgt_skill_type)
-            prevent_defense, force_hit, force_critical = tgt_skill_behavior.get_defensive_penalty(tgt_gauge.status)
-
-        # 命中判定
-        if force_hit:
+        # 3. 命中判定
+        if penalty['force_hit']:
             hit_prob = 1.0
             is_hit = True
         else:
-            hit_prob = calculate_hit_probability(adjusted_success, adjusted_mobility)
+            hit_prob = calculate_hit_probability(stats['success'], stats['tgt_mobility'])
             is_hit = check_is_hit(hit_prob)
         
         if not is_hit:
             return CombatService._create_result_data(False, False, False, 0, None, 0.0)
-        else:
-            return CombatService._calculate_hit_outcome(
-                world, attack_comp, adjusted_success, adjusted_attack, adjusted_mobility, adjusted_defense, 
-                hit_prob, target_comps, target_desired_part,
-                prevent_defense, force_critical
-            )
+        
+        # 4. 命中時の詳細計算（防御、ダメージ、部位）
+        return CombatService._calculate_hit_outcome(
+            world, attack_comp, stats, hit_prob, target_comps, target_desired_part, penalty
+        )
 
     @staticmethod
-    def _calculate_hit_outcome(world, attack_comp, success, attack_power, mobility, defense, hit_prob, target_comps, target_desired_part, prevent_defense, force_critical) -> CombatResult:
+    def _calculate_adjusted_stats(world, attacker_comps, atk_part_comps, target_comps) -> Dict[str, int]:
+        """補正計算済みのステータスセットを返す"""
+        attack_comp = atk_part_comps['attack']
+        my_mobility, my_defense = CombatService._get_legs_stats(world, attacker_comps)
+
+        # 属性相性
+        atk_medal_attr = attacker_comps['medal'].attribute
+        atk_part_attr = atk_part_comps['part'].attribute
+        tgt_medal_attr = target_comps['medal'].attribute
+        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
+
+        # スキル補正
+        skill_behavior = SkillManager.get_behavior(attack_comp.skill_type)
+        skill_success_bonus, skill_attack_bonus = skill_behavior.get_offensive_bonuses(my_mobility, my_defense)
+
+        # ターゲット脚部
+        tgt_mobility, tgt_defense = CombatService._get_legs_stats(world, target_comps)
+
+        return {
+            'success': max(1, attack_comp.success + atk_bonus + skill_success_bonus),
+            'attack': max(1, attack_comp.attack + atk_bonus + skill_attack_bonus),
+            'tgt_mobility': max(0, tgt_mobility + def_bonus),
+            'tgt_defense': max(0, tgt_defense + def_bonus)
+        }
+
+    @staticmethod
+    def _get_target_defensive_penalty(world, target_comps) -> Dict[str, bool]:
+        """ターゲットの状態（チャージ中スキル等）によるペナルティを判定"""
+        tgt_gauge = target_comps.get('gauge')
+        prevent_defense, force_hit, force_critical = False, False, False
+
+        if tgt_gauge and tgt_gauge.selected_part:
+            tgt_part_id = target_comps['partlist'].parts.get(tgt_gauge.selected_part)
+            tgt_p_comps = world.try_get_entity(tgt_part_id)
+            if tgt_p_comps and 'attack' in tgt_p_comps:
+                skill_behavior = SkillManager.get_behavior(tgt_p_comps['attack'].skill_type)
+                prevent_defense, force_hit, force_critical = skill_behavior.get_defensive_penalty(tgt_gauge.status)
+        
+        return {
+            'prevent_defense': prevent_defense,
+            'force_hit': force_hit,
+            'force_critical': force_critical
+        }
+
+    @staticmethod
+    def _calculate_hit_outcome(world, attack_comp, stats, hit_prob, target_comps, target_desired_part, penalty) -> CombatResult:
         """命中時の詳細計算（クリティカル、防御、ダメージ）を行う"""
         
-        if force_critical:
+        if penalty['force_critical']:
             is_critical = True
             is_defense = False
         else:
-            break_prob = calculate_break_probability(success, defense)
+            break_prob = calculate_break_probability(stats['success'], stats['tgt_defense'])
             is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
             
-            if prevent_defense:
+            if penalty['prevent_defense']:
                 is_defense = False
 
-        # 命中部位の決定（防御時は部位置換）
+        # 命中部位の決定
         hit_part = CombatService._determine_hit_part(world, target_comps, target_desired_part, is_defense)
         
         # ダメージ計算
-        damage = calculate_damage(attack_power, success, mobility, defense, is_critical, is_defense)
+        damage = calculate_damage(
+            stats['attack'], stats['success'], stats['tgt_mobility'], stats['tgt_defense'], 
+            is_critical, is_defense
+        )
         
         # 特性に応じた追加効果
         trait_behavior = TraitManager.get_behavior(attack_comp.trait)
-        stop_duration = trait_behavior.get_stop_duration(success, mobility)
+        stop_duration = trait_behavior.get_stop_duration(stats['success'], stats['tgt_mobility'])
 
         return CombatService._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)
 

@@ -27,7 +27,7 @@ class RenderSystem(System):
         self._render_target_indication_line(context, flow, char_positions)
         self._render_ui(context, flow)
 
-        if flow.current_phase == BattlePhase.CUTIN or flow.current_phase == BattlePhase.CUTIN_RESULT:
+        if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
             self._render_cutin(context, flow)
 
         self.field_renderer.present()
@@ -55,9 +55,9 @@ class RenderSystem(System):
     def _render_target_indication_line(self, context, flow, char_positions):
         if flow.current_phase not in [BattlePhase.TARGET_INDICATION, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]: return
         event_eid = flow.processing_event_id
-        if event_eid is None: return
-        event_comps = self.world.try_get_entity(event_eid)
+        event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
         if not event_comps or 'actionevent' not in event_comps: return
+        
         event = event_comps['actionevent']
         if event.attacker_id in char_positions and event.current_target_id in char_positions:
             start_pos, end_pos = char_positions[event.attacker_id], char_positions[event.current_target_id]
@@ -71,17 +71,14 @@ class RenderSystem(System):
         if flow.current_phase == BattlePhase.INPUT:
             eid = context.current_turn_entity_id
             if eid:
-                comps = self.world.entities[eid]
-                buttons = [{'label': self.world.entities[p_id]['name'].name, 'enabled': self.world.entities[p_id]['health'].hp > 0} 
-                           for p_id in [comps['partlist'].parts.get(k) for k in MENU_PART_ORDER] if p_id]
-                buttons.append({'label': "スキップ", 'enabled': True})
-                self.ui_renderer.draw_action_menu(comps['medal'].nickname, buttons, context.selected_menu_index)
+                actor_name = self.world.entities[eid]['medal'].nickname
+                buttons = BattleViewModel.build_action_menu_data(self.world, eid)
+                self.ui_renderer.draw_action_menu(actor_name, buttons, context.selected_menu_index)
         
         if flow.current_phase == BattlePhase.GAME_OVER:
             self.ui_renderer.draw_game_over(flow.winner)
 
     def _render_cutin(self, context, flow):
-        """ViewModelが構築した描画ステートをRendererに渡す"""
         state = CutinViewModel.build_action_state(self.world, flow)
         if not state: return
 

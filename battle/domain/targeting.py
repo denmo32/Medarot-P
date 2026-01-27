@@ -32,6 +32,19 @@ class TargetingLogic:
         return p_comps and p_comps['health'].hp > 0
 
     @staticmethod
+    def is_action_target_valid(world, target_id: Optional[int], target_part: Optional[str] = None) -> bool:
+        """
+        アクションのターゲット（機体および部位）が攻撃可能な状態か判定する。
+        """
+        if target_id is None: 
+            return False
+        if not TargetingLogic.is_entity_alive(world, target_id): 
+            return False
+        if target_part:
+            return TargetingLogic.is_part_alive(world, target_id, target_part)
+        return True
+
+    @staticmethod
     def get_alive_parts(world, entity_id: int) -> List[str]:
         """生存しているパーツ種別のリストを取得"""
         comps = world.try_get_entity(entity_id)

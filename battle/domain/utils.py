@@ -16,6 +16,16 @@ def calculate_action_times(attack_power: int) -> tuple:
     
     return charging_time, cooldown_time
 
+def transition_to_phase(flow, next_phase: str, timer: float = 0.0):
+    """バトルフェーズを遷移させ、タイマー等の関連状態を初期化する"""
+    flow.current_phase = next_phase
+    flow.phase_timer = timer
+    # 特定フェーズへの遷移時に行うリセット処理
+    if next_phase == BattlePhase.IDLE:
+        flow.processing_event_id = None
+        flow.active_actor_id = None
+        flow.cutin_progress = 0.0
+
 def apply_action_command(world, eid: int, action: str, part: Optional[str]):
     """
     コマンドを適用し、時間計算を行ってチャージを開始する共通関数
@@ -43,7 +53,7 @@ def apply_action_command(world, eid: int, action: str, part: Optional[str]):
     gauge.progress = 0.0
     
     context.current_turn_entity_id = None
-    flow.current_phase = BattlePhase.IDLE
+    transition_to_phase(flow, BattlePhase.IDLE)
     
     if context.waiting_queue and context.waiting_queue[0] == eid:
         context.waiting_queue.pop(0)
@@ -122,8 +132,4 @@ def is_target_valid(world, target_id: Optional[int], target_part: Optional[str] 
     ターゲットおよび指定部位が攻撃可能な状態か判定する。
     (TargetingLogicへのプロキシ)
     """
-    if target_id is None: return False
-    if not TargetingLogic.is_entity_alive(world, target_id): return False
-    if target_part:
-        return TargetingLogic.is_part_alive(world, target_id, target_part)
-    return True
+    return TargetingLogic.is_action_target_valid(world, target_id, target_part)

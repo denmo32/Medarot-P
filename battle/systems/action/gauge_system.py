@@ -2,7 +2,8 @@
 
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase, ActionType
-from battle.domain.utils import interrupt_gauge_return_home, is_target_valid
+from battle.domain.utils import interrupt_gauge_return_home, transition_to_phase
+from battle.domain.targeting import TargetingLogic
 from battle.service.log_service import LogService
 
 class GaugeSystem(System):
@@ -39,7 +40,7 @@ class GaugeSystem(System):
         
         # 1. 自身の予約パーツが破壊されたか
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            if not is_target_valid(self.world, eid, gauge.selected_part):
+            if not TargetingLogic.is_action_target_valid(self.world, eid, gauge.selected_part):
                 message = LogService.get_part_broken_interruption(actor_name)
                 self._interrupt(eid, gauge, context, flow, message)
                 return
@@ -48,7 +49,7 @@ class GaugeSystem(System):
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             target_id, target_part_type = target_data
-            if not is_target_valid(self.world, target_id, target_part_type):
+            if not TargetingLogic.is_action_target_valid(self.world, target_id, target_part_type):
                 message = LogService.get_target_lost(actor_name)
                 self._interrupt(eid, gauge, context, flow, message)
                 return
@@ -56,7 +57,7 @@ class GaugeSystem(System):
     def _interrupt(self, eid, gauge, context, flow, message):
         """アクションを中断し、その地点からホームへ戻る"""
         context.battle_log.append(message)
-        flow.current_phase = BattlePhase.LOG_WAIT
+        transition_to_phase(flow, BattlePhase.LOG_WAIT)
         interrupt_gauge_return_home(gauge)
         
         if eid in context.waiting_queue:

@@ -2,12 +2,12 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase, BattleTiming
+from battle.domain.utils import transition_to_phase
 
 class CutinAnimationSystem(System):
     """
     CUTINフェーズの時間管理を行い、
     演出が終了したらEXECUTINGフェーズへ遷移させる。
-    実際の描画はRenderSystemが行うが、ここでは「演出が進行している」状態を担保する。
     """
 
     def update(self, dt: float):
@@ -28,6 +28,5 @@ class CutinAnimationSystem(System):
         
         # 時間経過で次のフェーズ（実行）へ
         if flow.phase_timer <= 0:
-            flow.current_phase = BattlePhase.EXECUTING
-            flow.phase_timer = 0.0
+            transition_to_phase(flow, BattlePhase.EXECUTING)
             flow.cutin_progress = 1.0

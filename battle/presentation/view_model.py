@@ -2,8 +2,7 @@
 
 from typing import Dict, Any, List, Optional
 from config import COLORS, GAME_PARAMS
-from battle.constants import PartType, GaugeStatus, PART_LABELS, TeamType, BattlePhase
-from battle.domain.utils import calculate_current_x
+from battle.constants import PartType, GaugeStatus, PART_LABELS, TeamType, BattlePhase, MENU_PART_ORDER
 
 class BattleViewModel:
     """RenderSystemが使用する描画データの生成・加工を担当"""
@@ -20,6 +19,7 @@ class BattleViewModel:
         medal = comps['medal']
         part_list = comps['partlist']
 
+        from battle.domain.utils import calculate_current_x
         icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
         border_color = BattleViewModel._get_border_color(eid, gauge, flow, context)
         part_status = BattleViewModel._get_part_status_map(world, part_list)
@@ -36,6 +36,35 @@ class BattleViewModel:
             'border_color': border_color,
             'part_status': part_status
         }
+
+    @staticmethod
+    def build_action_menu_data(world, eid: int) -> List[Dict[str, Any]]:
+        """アクション選択メニューのボタン情報を構築する"""
+        comps = world.try_get_entity(eid)
+        if not comps: return []
+        
+        part_list = comps['partlist']
+        buttons = []
+        
+        # パーツ攻撃ボタン
+        for p_type in MENU_PART_ORDER:
+            p_id = part_list.parts.get(p_type)
+            p_comps = world.try_get_entity(p_id) if p_id is not None else None
+            
+            if p_comps:
+                is_alive = p_comps['health'].hp > 0
+                buttons.append({
+                    'label': p_comps['name'].name,
+                    'enabled': is_alive
+                })
+        
+        # スキップボタン
+        buttons.append({
+            'label': "スキップ",
+            'enabled': True
+        })
+        
+        return buttons
 
     @staticmethod
     def _get_border_color(eid, gauge, flow, context):
