@@ -9,7 +9,7 @@ from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
                                MobilityComponent)
 from components.battle_flow import BattleFlowComponent
 from components.input import InputComponent
-from data.parts_data_manager import get_parts_manager
+from data.game_data_manager import get_game_data_manager
 from data.save_data_manager import get_save_manager
 from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus, SkillType, TraitType
 from battle.domain.attributes import AttributeLogic
@@ -20,17 +20,17 @@ class BattleEntityFactory:
 
     @staticmethod
     def create_medabot_from_setup(world: World, setup: dict) -> dict:
-        pm = get_parts_manager()
+        dm = get_game_data_manager()
         parts = {}
         
         # メダルの属性を取得
         medal_attr = "undefined"
         if "medal" in setup:
-            medal_data = pm.get_medal_data(setup["medal"])
+            medal_data = dm.get_medal_data(setup["medal"])
             medal_attr = medal_data.get("attribute", "undefined")
 
         for p_type, p_id in setup["parts"].items():
-            data = pm.get_part_data(p_id)
+            data = dm.get_part_data(p_id)
             
             # ステータスとボーナスの計算
             stats = BattleEntityFactory._calculate_stats_with_bonus(data, p_type, medal_attr)
@@ -110,21 +110,21 @@ class BattleEntityFactory:
     @staticmethod
     def create_teams(world: World, player_count: int, enemy_count: int, px: int, ex: int, yoff: int, spacing: int, gw: int, gh: int):
         save_mgr = get_save_manager()
-        pm = get_parts_manager()
+        dm = get_game_data_manager()
 
         # プレイヤーチーム生成
         for i in range(player_count):
             setup = save_mgr.get_machine_setup(i)
             BattleEntityFactory._create_team_unit(
-                world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, pm
+                world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, dm
             )
 
         # エネミーチーム生成 (ランダム構成)
-        medal_ids = pm.get_part_ids_for_type("medal")
-        head_ids = pm.get_part_ids_for_type("head")
-        r_arm_ids = pm.get_part_ids_for_type("right_arm")
-        l_arm_ids = pm.get_part_ids_for_type("left_arm")
-        legs_ids = pm.get_part_ids_for_type("legs")
+        medal_ids = dm.get_part_ids_for_type("medal")
+        head_ids = dm.get_part_ids_for_type("head")
+        r_arm_ids = dm.get_part_ids_for_type("right_arm")
+        l_arm_ids = dm.get_part_ids_for_type("left_arm")
+        legs_ids = dm.get_part_ids_for_type("legs")
 
         for i in range(enemy_count):
             # メダルとパーツをランダムに取得
@@ -138,11 +138,11 @@ class BattleEntityFactory:
                 "medal": random.choice(medal_ids) if medal_ids else "medal_001"
             }
             BattleEntityFactory._create_team_unit(
-                world, i, setup, TeamType.ENEMY, ex, yoff, spacing, gw, gh, pm
+                world, i, setup, TeamType.ENEMY, ex, yoff, spacing, gw, gh, dm
             )
 
     @staticmethod
-    def _create_team_unit(world, index, setup, team_type, base_x, y_off, spacing, gw, gh, pm):
+    def _create_team_unit(world, index, setup, team_type, base_x, y_off, spacing, gw, gh, dm):
         """チームの1機体を生成するヘルパーメソッド"""
         # パーツ群（実体）の生成
         parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
@@ -150,7 +150,7 @@ class BattleEntityFactory:
         # メダロット（本体）の生成
         eid = world.create_entity()
         
-        medal_data = pm.get_medal_data(setup["medal"])
+        medal_data = dm.get_medal_data(setup["medal"])
         world.add_component(eid, MedalComponent(
             setup["medal"], 
             medal_data["name"], 

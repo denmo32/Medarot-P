@@ -4,8 +4,8 @@ import json
 import os
 from typing import Dict, Any, List
 
-class PartsDataManager:
-    """parts_data.jsonからパーツおよびメダルデータを管理するクラス"""
+class GameDataManager:
+    """parts_data.jsonおよびmedals_data.jsonからデータを管理するクラス"""
 
     # 部位・項目の表示名マッピング
     PART_TYPE_LABELS = {
@@ -26,24 +26,42 @@ class PartsDataManager:
 
     def __init__(self, json_path: str = None):
         """初期化"""
-        if json_path is None:
-            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            self.json_path = os.path.join(current_dir, 'data', 'parts_data.json')
-        else:
-            self.json_path = json_path
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        self.data = self._load_data()
+        # デフォルトのファイルパス
+        self.parts_json_path = os.path.join(current_dir, 'data', 'parts_data.json')
+        self.medals_json_path = os.path.join(current_dir, 'data', 'medals_data.json')
+
+        # 引数でパスが指定された場合は、それをパーツデータパスとして優先使用（テスト容易性のため）
+        if json_path is not None:
+            self.parts_json_path = json_path
+        
+        self.data = self._load_all_data()
     
-    def _load_data(self) -> Dict[str, Any]:
-        """JSONファイルからデータを読み込む"""
+    def _load_all_data(self) -> Dict[str, Any]:
+        """全データを読み込んで統合する"""
+        data = {}
+        
+        # パーツデータ読み込み
+        parts_data = self._load_json(self.parts_json_path)
+        data.update(parts_data)
+        
+        # メダルデータ読み込み
+        medals_data = self._load_json(self.medals_json_path)
+        data.update(medals_data)
+        
+        return data
+
+    def _load_json(self, path: str) -> Dict[str, Any]:
+        """単一のJSONファイルを読み込む"""
         try:
-            with open(self.json_path, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
-            print(f"警告: {self.json_path} が見つかりません")
+            print(f"警告: {path} が見つかりません")
             return {}
         except json.JSONDecodeError as e:
-            print(f"警告: JSON解析エラー: {e}")
+            print(f"警告: JSON解析エラー {path}: {e}")
             return {}
 
     def get_part_data(self, part_id: str) -> Dict[str, Any]:
@@ -113,14 +131,14 @@ class PartsDataManager:
 
     def reload_data(self) -> None:
         """データを再読み込み"""
-        self.data = self._load_data()
+        self.data = self._load_all_data()
 
 # グローバルインスタンス
-_parts_manager = None
+_game_data_manager = None
 
-def get_parts_manager() -> PartsDataManager:
-    """PartsDataManagerのグローバルインスタンスを取得"""
-    global _parts_manager
-    if _parts_manager is None:
-        _parts_manager = PartsDataManager()
-    return _parts_manager
+def get_game_data_manager() -> GameDataManager:
+    """GameDataManagerのグローバルインスタンスを取得"""
+    global _game_data_manager
+    if _game_data_manager is None:
+        _game_data_manager = GameDataManager()
+    return _game_data_manager

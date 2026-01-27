@@ -1,7 +1,7 @@
 """カスタマイズ画面のロジック管理"""
 
 from data.save_data_manager import get_save_manager
-from data.parts_data_manager import get_parts_manager
+from data.game_data_manager import get_game_data_manager
 
 class CustomizeManager:
     """カスタマイズ画面の状態管理と操作ロジック"""
@@ -12,7 +12,7 @@ class CustomizeManager:
 
     def __init__(self):
         self.save_data = get_save_manager()
-        self.parts_manager = get_parts_manager()
+        self.data_manager = get_game_data_manager()
         self.state = self.STATE_MACHINE_SELECT
         self.selected_machine_idx = 0
         self.selected_slot_idx = 0
@@ -42,11 +42,11 @@ class CustomizeManager:
             direction = 1 if input_comp.btn_right else -1
             slot_name = self.slots[self.selected_slot_idx]
             current_id = self._get_current_part_id(slot_name)
-            new_id = self.parts_manager.get_next_part_id(current_id, direction)
+            new_id = self.data_manager.get_next_part_id(current_id, direction)
             self.save_data.update_part(self.selected_machine_idx, slot_name, new_id)
         elif input_comp.btn_ok:
             slot_name = self.slots[self.selected_slot_idx]
-            available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
+            available_ids = self.data_manager.get_part_ids_for_type(slot_name)
             current_id = self._get_current_part_id(slot_name)
             self.selected_part_list_idx = available_ids.index(current_id) if current_id in available_ids else 0
             self.state = self.STATE_PART_LIST_SELECT
@@ -56,7 +56,7 @@ class CustomizeManager:
 
     def _handle_part_list_select(self, input_comp):
         slot_name = self.slots[self.selected_slot_idx]
-        available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
+        available_ids = self.data_manager.get_part_ids_for_type(slot_name)
         if input_comp.btn_up: self.selected_part_list_idx = (self.selected_part_list_idx - 1) % len(available_ids)
         elif input_comp.btn_down: self.selected_part_list_idx = (self.selected_part_list_idx + 1) % len(available_ids)
         elif input_comp.btn_ok:
@@ -81,26 +81,26 @@ class CustomizeManager:
         for s_name in self.slots:
             item_id = setup["medal"] if s_name == "medal" else setup["parts"][s_name]
             slots_info.append({
-                'label': self.parts_manager.PART_TYPE_LABELS.get(s_name, s_name),
-                'part_name': self.parts_manager.get_part_name(item_id)
+                'label': self.data_manager.PART_TYPE_LABELS.get(s_name, s_name),
+                'part_name': self.data_manager.get_part_name(item_id)
             })
 
         # 2. フォーカスデータの取得
         if self.state == self.STATE_PART_LIST_SELECT:
-            available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
+            available_ids = self.data_manager.get_part_ids_for_type(slot_name)
             focused_id = available_ids[self.selected_part_list_idx]
         else:
             focused_id = self._get_current_part_id(slot_name)
 
-        focused_data = self.parts_manager.get_part_data(focused_id) or self.parts_manager.get_medal_data(focused_id)
-        attr_label = self.parts_manager.get_attribute_label(focused_data.get('attribute', 'undefined'))
+        focused_data = self.data_manager.get_part_data(focused_id) or self.data_manager.get_medal_data(focused_id)
+        attr_label = self.data_manager.get_attribute_label(focused_data.get('attribute', 'undefined'))
 
         # 3. リスト情報の事前構築
-        available_ids = self.parts_manager.get_part_ids_for_type(slot_name)
-        available_list = [{'name': self.parts_manager.get_part_name(pid)} for pid in available_ids]
+        available_ids = self.data_manager.get_part_ids_for_type(slot_name)
+        available_list = [{'name': self.data_manager.get_part_name(pid)} for pid in available_ids]
 
         # 4. メダル属性（ボーナス判定用）
-        medal_data = self.parts_manager.get_medal_data(setup["medal"])
+        medal_data = self.data_manager.get_medal_data(setup["medal"])
         current_medal_attr = medal_data.get("attribute", "undefined")
 
         return {

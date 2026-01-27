@@ -1,0 +1,14 @@
+{
+  "medals": {
+    "medal_001": { "name": "カブト", "nickname": "メタビー", "personality": "random", "attribute": "speed" },
+    "medal_002": { "name": "クワガタ", "nickname": "ロクショウ", "personality": "random", "attribute": "speed" },
+    "medal_003": { "name": "テストメダル3", "nickname": "テストさん", "personality": "challenger", "attribute": "power" },
+    "medal_004": { "name": "テストメダル4", "nickname": "よんたろー", "personality": "assassin", "attribute": "technique" },
+    "medal_005": { "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "random", "attribute": "speed" },
+    "medal_006": { "name": "テストメダル6", "nickname": "ろくべえ", "personality": "random", "attribute": "power" },
+    "medal_007": { "name": "テストメダル7", "nickname": "ななこ", "personality": "random", "attribute": "technique" },
+    "medal_008": { "name": "テストメダル8", "nickname": "はちろー", "personality": "random", "attribute": "speed" },
+    "medal_009": { "name": "テストメダル9", "nickname": "きゅうた", "personality": "random", "attribute": "power" },
+    "medal_010": { "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "random", "attribute": "technique" }
+  }
+}

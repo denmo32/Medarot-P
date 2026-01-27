@@ -3,7 +3,7 @@
 import json
 import os
 from typing import List, Dict
-from data.parts_data_manager import get_parts_manager
+from data.game_data_manager import get_game_data_manager
 
 class SaveDataManager:
     """プレイヤーのゲーム進行データ（現在は編成のみ）を保持"""
@@ -42,18 +42,18 @@ class SaveDataManager:
 
     def _get_default_team(self) -> List[Dict]:
         """デフォルトの3機編成を作成"""
-        pm = get_parts_manager()
+        dm = get_game_data_manager()
         team = []
         
         # 3機分作成
         names = ["機体1", "機体2", "機体3"]
         
         # パーツIDリストを取得（空の場合は安全策としてダミーIDを使用）
-        medal_ids = pm.get_part_ids_for_type("medal") or ["medal_001"]
-        head_ids = pm.get_part_ids_for_type("head") or ["head_001"]
-        r_arm_ids = pm.get_part_ids_for_type("right_arm") or ["rarm_001"]
-        l_arm_ids = pm.get_part_ids_for_type("left_arm") or ["larm_001"]
-        legs_ids = pm.get_part_ids_for_type("legs") or ["legs_001"]
+        medal_ids = dm.get_part_ids_for_type("medal") or ["medal_001"]
+        head_ids = dm.get_part_ids_for_type("head") or ["head_001"]
+        r_arm_ids = dm.get_part_ids_for_type("right_arm") or ["rarm_001"]
+        l_arm_ids = dm.get_part_ids_for_type("left_arm") or ["larm_001"]
+        legs_ids = dm.get_part_ids_for_type("legs") or ["legs_001"]
 
         for i in range(3):
             setup = {
