@@ -4,7 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List, Tuple
 from battle.constants import TraitType, PartType
-from battle.domain.targeting import TargetingLogic
+from battle.service.targeting_service import TargetingService
 
 class Personality(ABC):
     """性格の基底クラス"""
@@ -17,7 +17,7 @@ class RandomPersonality(Personality):
     """ランダム：各パーツが独立してランダムにターゲット（機体と部位）を選ぶ性格"""
     def select_targets(self, world, entity_id: int) -> Dict[str, Optional[Tuple[int, str]]]:
         targets = {}
-        valid_enemies = TargetingLogic.get_enemy_team_entities(world, entity_id)
+        valid_enemies = TargetingService.get_enemy_team_entities(world, entity_id)
         
         my_comps = world.try_get_entity(entity_id)
         part_list = my_comps.get('partlist')
@@ -37,7 +37,7 @@ class RandomPersonality(Personality):
             # 射撃系（ライフル・ガトリング）の場合のみ、事前にターゲットを固定する
             if attack_comp.trait in TraitType.SHOOTING_TRAITS:
                 target_eid = random.choice(valid_enemies)
-                target_part = TargetingLogic.get_random_alive_part(world, target_eid)
+                target_part = TargetingService.get_random_alive_part(world, target_eid)
                 
                 if target_part:
                     targets[part_type] = (target_eid, target_part)
@@ -51,7 +51,7 @@ class WeightedHPPersonality(Personality):
 
     def select_targets(self, world, entity_id: int) -> Dict[str, Optional[Tuple[int, str]]]:
         targets = {}
-        valid_enemies = TargetingLogic.get_enemy_team_entities(world, entity_id)
+        valid_enemies = TargetingService.get_enemy_team_entities(world, entity_id)
         
         my_comps = world.try_get_entity(entity_id)
         part_list = my_comps.get('partlist')
@@ -100,10 +100,15 @@ class AssassinPersonality(WeightedHPPersonality):
     def __init__(self):
         super().__init__(reverse_sort=False)
 
-def get_personality(personality_id: str) -> Personality:
-    """IDに応じた性格インスタンスを返す"""
-    if personality_id == "challenger":
-        return ChallengerPersonality()
-    if personality_id == "assassin":
-        return AssassinPersonality()
-    return RandomPersonality()
+class PersonalityRegistry:
+    """性格インスタンスのカタログ（Registry）"""
+    _personalities = {
+        "challenger": ChallengerPersonality(),
+        "assassin": AssassinPersonality(),
+        "random": RandomPersonality()
+    }
+    
+    @classmethod
+    def get(cls, personality_id: str) -> Personality:
+        """IDに応じた性格インスタンスを返す"""
+        return cls._personalities.get(personality_id, cls._personalities["random"])

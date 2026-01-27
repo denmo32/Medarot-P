@@ -13,10 +13,10 @@ from data.game_data_manager import get_game_data_manager
 from data.save_data_manager import get_save_manager
 from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus, SkillType, TraitType
 from battle.domain.attributes import AttributeLogic
-from battle.domain.skills import SkillManager
+from battle.domain.skills import SkillRegistry
 
 class BattleEntityFactory:
-    """バトルに必要なエンティティを生成するファクトリ"""
+    """バトルに必要なエンティティを生成するファクトリ（Manager）"""
 
     @staticmethod
     def create_medabot_from_setup(world: World, setup: dict) -> dict:
@@ -49,8 +49,8 @@ class BattleEntityFactory:
         trait = data.get("trait")
         skill = data.get("skill")
         
-        # スキルによる時間補正を取得
-        skill_behavior = SkillManager.get_behavior(skill)
+        # スキルによる時間補正を取得 (SkillRegistry: Registry)
+        skill_behavior = SkillRegistry.get(skill)
         time_modifier = skill_behavior.get_time_modifier()
 
         stats = {
@@ -66,7 +66,7 @@ class BattleEntityFactory:
             "time_modifier": time_modifier
         }
         
-        # 属性ボーナス計算ロジックを外部モジュールに委譲
+        # 属性ボーナス計算 (AttributeLogic: Logic)
         AttributeLogic.apply_passive_stats_bonus(stats, part_type, medal_attr)
                     
         return stats

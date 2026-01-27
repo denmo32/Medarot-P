@@ -1,11 +1,11 @@
-"""ターゲット選定と有効性判定のドメインロジック"""
+"""ターゲット選定と有効性判定のドメインサービス"""
 
 import random
 from typing import List, Optional, Tuple
 from battle.constants import TeamType, PartType, ActionType, TraitType
 
-class TargetingLogic:
-    """ターゲットの状態判定や取得に関するステートレスなロジック"""
+class TargetingService:
+    """World（状態）を探索・クエリするためのサービス。ステートレス。"""
 
     @staticmethod
     def is_entity_alive(world, entity_id: int) -> bool:
@@ -20,7 +20,7 @@ class TargetingLogic:
     @staticmethod
     def is_part_alive(world, entity_id: int, part_type: str) -> bool:
         """指定した部位が生存しているか確認"""
-        if not TargetingLogic.is_entity_alive(world, entity_id):
+        if not TargetingService.is_entity_alive(world, entity_id):
             return False
         
         comps = world.try_get_entity(entity_id)
@@ -38,10 +38,10 @@ class TargetingLogic:
         """
         if target_id is None: 
             return False
-        if not TargetingLogic.is_entity_alive(world, target_id): 
+        if not TargetingService.is_entity_alive(world, target_id): 
             return False
         if target_part:
-            return TargetingLogic.is_part_alive(world, target_id, target_part)
+            return TargetingService.is_part_alive(world, target_id, target_part)
         return True
 
     @staticmethod
@@ -77,7 +77,7 @@ class TargetingLogic:
     @staticmethod
     def get_random_alive_part(world, entity_id: int) -> Optional[str]:
         """生存パーツからランダムに1つ選択"""
-        alive_parts = TargetingLogic.get_alive_parts(world, entity_id)
+        alive_parts = TargetingService.get_alive_parts(world, entity_id)
         return random.choice(alive_parts) if alive_parts else None
 
     @staticmethod
@@ -114,8 +114,8 @@ class TargetingLogic:
         
         # 格闘特性（近接攻撃）の場合：実行時に最も近い相手を狙う
         if attack_comp.trait in TraitType.MELEE_TRAITS:
-            target_id = TargetingLogic.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
-            target_part = TargetingLogic.get_random_alive_part(world, target_id) if target_id else None
+            target_id = TargetingService.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
+            target_part = TargetingService.get_random_alive_part(world, target_id) if target_id else None
             return target_id, target_part
         
         # 射撃特性（事前ターゲット）の場合：選定済みのターゲットが有効か確認
@@ -123,7 +123,7 @@ class TargetingLogic:
             target_data = gauge.part_targets.get(gauge.selected_part)
             if target_data:
                 tid, tpart = target_data
-                if TargetingLogic.is_action_target_valid(world, tid, tpart):
+                if TargetingService.is_action_target_valid(world, tid, tpart):
                     return tid, tpart
         
         return None, None

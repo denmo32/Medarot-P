@@ -3,7 +3,7 @@
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
 from battle.service.log_service import LogService
-from battle.domain.skills import SkillManager
+from battle.domain.skills import SkillRegistry
 from battle.domain.utils import transition_to_phase, get_battle_state
 
 class TargetIndicatorSystem(System):
@@ -50,6 +50,7 @@ class TargetIndicatorSystem(System):
             if part_comps and 'attack' in part_comps:
                 attack_comp = part_comps['attack']
                 trait_text = f" {attack_comp.trait}！"
-                skill_name = SkillManager.get_behavior(attack_comp.skill_type).name
+                # スキル名の取得はRegistryへ委譲
+                skill_name = SkillRegistry.get(attack_comp.skill_type).name
         
         context.battle_log.append(LogService.get_attack_declaration(attacker_name, skill_name, trait_text))

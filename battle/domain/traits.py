@@ -15,10 +15,6 @@ class TraitBehavior(ABC):
         """
         return 0.0
 
-    # 将来的に「貫通」「必中」「乱撃」などのロジックフックをここに追加可能
-    # def modify_hit_probability(...)
-    # def on_damage_calculated(...)
-
 class NormalTrait(TraitBehavior):
     """特別な効果を持たない標準的な特性（ライフル、ソードなど）"""
     def get_stop_duration(self, success: int, mobility: int) -> float:
@@ -31,8 +27,8 @@ class ThunderTrait(TraitBehavior):
         return max(0.5, (success - mobility) * 0.05)
 
 
-class TraitManager:
-    """TraitBehaviorのファクトリ兼管理クラス"""
+class TraitRegistry:
+    """TraitBehaviorのカタログ（Registry）"""
     
     _behaviors = {
         TraitType.RIFLE: NormalTrait(),
@@ -45,5 +41,6 @@ class TraitManager:
     _default = NormalTrait()
 
     @classmethod
-    def get_behavior(cls, trait_name: str) -> TraitBehavior:
+    def get(cls, trait_name: str) -> TraitBehavior:
+        """IDに応じた特性振る舞いを返す"""
         return cls._behaviors.get(trait_name, cls._default)

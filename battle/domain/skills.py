@@ -93,8 +93,8 @@ class RecklessSkill(SkillBehavior):
         return False, False, False
 
 
-class SkillManager:
-    """SkillBehaviorのファクトリクラス"""
+class SkillRegistry:
+    """SkillBehaviorのカタログ（Registry）"""
     
     _behaviors = {
         SkillType.SHOOT: ShootSkill(),
@@ -107,5 +107,6 @@ class SkillManager:
     _default = ShootSkill()
 
     @classmethod
-    def get_behavior(cls, skill_type: str) -> SkillBehavior:
+    def get(cls, skill_type: str) -> SkillBehavior:
+        """IDに応じたスキル振る舞いを返す"""
         return cls._behaviors.get(skill_type, cls._default)

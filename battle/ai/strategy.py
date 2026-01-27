@@ -30,8 +30,13 @@ class RandomStrategy(Strategy):
             
         return "attack", random.choice(available_parts)
 
-def get_strategy(strategy_id: str) -> Strategy:
-    """IDに応じた方針インスタンスを返す（現在はrandomのみ）"""
-    if strategy_id == "random":
-        return RandomStrategy()
-    return RandomStrategy()
+class StrategyRegistry:
+    """意思決定アルゴリズムのカタログ（Registry）"""
+    _strategies = {
+        "random": RandomStrategy()
+    }
+    
+    @classmethod
+    def get(cls, strategy_id: str) -> Strategy:
+        """IDに応じた方針インスタンスを返す"""
+        return cls._strategies.get(strategy_id, cls._strategies["random"])

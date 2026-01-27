@@ -82,3 +82,4 @@ data/__pycache__/game_data_manager.cpython-313.pyc
 battle/systems/action/__pycache__/destruction_system.cpython-313.pyc
 battle/presentation/__pycache__/battle_view_model.cpython-313.pyc
 battle/presentation/__pycache__/cutin_view_model.cpython-313.pyc
+battle/service/__pycache__/targeting_service.cpython-313.pyc

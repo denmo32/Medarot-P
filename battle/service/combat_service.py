@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Dict
 from battle.constants import PartType, AttributeType
 from battle.domain.attributes import AttributeLogic
-from battle.domain.traits import TraitManager
-from battle.domain.skills import SkillManager
+from battle.domain.traits import TraitRegistry
+from battle.domain.skills import SkillRegistry
 from battle.domain.calculator import (
     calculate_hit_probability, 
     calculate_break_probability, 
@@ -33,7 +33,8 @@ class CombatService:
                               target_desired_part: Optional[str], 
                               attacker_part_type: str) -> Optional[CombatResult]:
         """
-        戦闘結果を計算して返す
+        戦闘結果を計算して返す。
+        RegistryやLogic（純粋関数）を組み合わせて結果を構築する。
         """
         attacker_comps = world.try_get_entity(attacker_id)
         target_comps = world.try_get_entity(target_id)
@@ -77,14 +78,14 @@ class CombatService:
         attack_comp = atk_part_comps['attack']
         my_mobility, my_defense = CombatService._get_legs_stats(world, attacker_comps)
 
-        # 属性相性
+        # 属性相性 (AttributeLogic: Logic)
         atk_medal_attr = attacker_comps['medal'].attribute
         atk_part_attr = atk_part_comps['part'].attribute
         tgt_medal_attr = target_comps['medal'].attribute
         atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
 
-        # スキル補正
-        skill_behavior = SkillManager.get_behavior(attack_comp.skill_type)
+        # スキル補正 (SkillRegistry: Registry)
+        skill_behavior = SkillRegistry.get(attack_comp.skill_type)
         skill_success_bonus, skill_attack_bonus = skill_behavior.get_offensive_bonuses(my_mobility, my_defense)
 
         # ターゲット脚部
@@ -107,7 +108,8 @@ class CombatService:
             tgt_part_id = target_comps['partlist'].parts.get(tgt_gauge.selected_part)
             tgt_p_comps = world.try_get_entity(tgt_part_id)
             if tgt_p_comps and 'attack' in tgt_p_comps:
-                skill_behavior = SkillManager.get_behavior(tgt_p_comps['attack'].skill_type)
+                # 振る舞いの取得はRegistryへ委譲
+                skill_behavior = SkillRegistry.get(tgt_p_comps['attack'].skill_type)
                 prevent_defense, force_hit, force_critical = skill_behavior.get_defensive_penalty(tgt_gauge.status)
         
         return {
@@ -133,14 +135,14 @@ class CombatService:
         # 命中部位の決定
         hit_part = CombatService._determine_hit_part(world, target_comps, target_desired_part, is_defense)
         
-        # ダメージ計算
+        # ダメージ計算 (Calculator: Logic)
         damage = calculate_damage(
             stats['attack'], stats['success'], stats['tgt_mobility'], stats['tgt_defense'], 
             is_critical, is_defense
         )
         
-        # 特性に応じた追加効果
-        trait_behavior = TraitManager.get_behavior(attack_comp.trait)
+        # 特性に応じた追加効果 (TraitRegistry: Registry)
+        trait_behavior = TraitRegistry.get(attack_comp.trait)
         stop_duration = trait_behavior.get_stop_duration(stats['success'], stats['tgt_mobility'])
 
         return CombatService._create_result_data(True, is_critical, is_defense, damage, hit_part, stop_duration)

@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase
-from battle.ai.strategy import get_strategy
+from battle.ai.strategy import StrategyRegistry
 from battle.domain.utils import get_battle_state
 from components.action_command import ActionCommandComponent
 
@@ -21,8 +21,8 @@ class AISystem(System):
             flow.current_phase = BattlePhase.IDLE
             return
 
-        # 意思決定（パーツの選択）
-        strategy = get_strategy("random")
+        # 意思決定アルゴリズムをRegistryから取得
+        strategy = StrategyRegistry.get("random")
         action, part = strategy.decide_action(self.world, eid)
 
         # コマンドの発行

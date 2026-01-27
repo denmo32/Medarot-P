@@ -1,7 +1,7 @@
 """ターゲット選定システム"""
 
 from core.ecs import System
-from battle.ai.personality import get_personality
+from battle.ai.personality import PersonalityRegistry
 from components.battle_flow import BattleFlowComponent
 from battle.constants import BattlePhase, GaugeStatus
 
@@ -13,7 +13,7 @@ class TargetSelectionSystem(System):
         if not entities: return
         flow = entities[0][1]['battleflow']
 
-        # IDLE状態のときのみターゲット選定更新を行う（演出中などに変更されないように）
+        # IDLE状態のときのみターゲット選定更新を行う
         if flow.current_phase != BattlePhase.IDLE:
             return
 
@@ -23,5 +23,6 @@ class TargetSelectionSystem(System):
             
             gauge = comps['gauge']
             if gauge.status == GaugeStatus.ACTION_CHOICE and not gauge.part_targets:
-                personality = get_personality(comps['medal'].personality_id)
+                # 性格振る舞いの取得はRegistryへ委譲
+                personality = PersonalityRegistry.get(comps['medal'].personality_id)
                 gauge.part_targets = personality.select_targets(self.world, eid)
