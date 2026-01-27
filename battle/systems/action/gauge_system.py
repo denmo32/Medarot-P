@@ -18,7 +18,6 @@ class GaugeSystem(System):
 
         gauge_entities = self.world.get_entities_with_components('gauge', 'defeated', 'medal', 'partlist')
 
-        # 1. チャージ中の割り込みチェック
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
             if comps['gauge'].status == GaugeStatus.CHARGING:
@@ -27,15 +26,12 @@ class GaugeSystem(System):
         if flow.current_phase == BattlePhase.LOG_WAIT:
             return
 
-        # 2. 待機列（ACTION_CHOICE / CHARGE完了）の機体を確認・更新
         self._update_waiting_queue(gauge_entities, context)
 
-        # 3. 処理待ちがいる場合はゲージ停止（ウェイト式）
         if context.waiting_queue:
             return
 
-        # 4. ゲージ進行処理
-        self._advance_gauges(gauge_entities, dt, context)
+        self._advance_gauges(gauge_entities, dt)
 
     def _check_interruption(self, eid, comps, gauge, context, flow):
         """チャージ中の継続条件をチェックし、満たさない場合は中断させる"""
@@ -61,7 +57,6 @@ class GaugeSystem(System):
         """アクションを中断し、その地点からホームへ戻る"""
         context.battle_log.append(message)
         flow.current_phase = BattlePhase.LOG_WAIT
-        
         interrupt_gauge_return_home(gauge)
         
         if eid in context.waiting_queue:
@@ -70,44 +65,33 @@ class GaugeSystem(System):
     def _update_waiting_queue(self, gauge_entities, context):
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
-            # 行動選択待ち状態ならキューへ
             if comps['gauge'].status == GaugeStatus.ACTION_CHOICE:
                 if eid not in context.waiting_queue:
                     context.waiting_queue.append(eid)
 
-    def _advance_gauges(self, gauge_entities, dt, context):
+    def _advance_gauges(self, gauge_entities, dt):
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
             gauge = comps['gauge']
             
-            # 状態異常：停止中
             if gauge.stop_timer > 0:
                 gauge.stop_timer = max(0.0, gauge.stop_timer - dt)
                 continue
             
             if gauge.status == GaugeStatus.CHARGING:
-                self._process_charging(eid, gauge, dt, context)
+                gauge.progress += dt / gauge.charging_time * 100.0
+                if gauge.progress >= 100.0:
+                    gauge.progress = 100.0
+                    if eid not in self.world.entities[0]['battlecontext'].waiting_queue:
+                        self.world.entities[0]['battlecontext'].waiting_queue.append(eid)
             
             elif gauge.status == GaugeStatus.COOLDOWN:
-                self._process_cooldown(eid, gauge, dt, context)
-
-    def _process_charging(self, eid, gauge, dt, context):
-        gauge.progress += dt / gauge.charging_time * 100.0
-        if gauge.progress >= 100.0:
-            gauge.progress = 100.0
-            if eid not in context.waiting_queue:
-                context.waiting_queue.append(eid)
-
-    def _process_cooldown(self, eid, gauge, dt, context):
-        gauge.progress += dt / gauge.cooldown_time * 100.0
-        if gauge.progress >= 100.0:
-            gauge.progress = 0.0
-            gauge.status = GaugeStatus.ACTION_CHOICE
-            gauge.part_targets = {} 
-            
-            # クールダウン完了時に、保持していたアクション情報をクリア
-            gauge.selected_action = None
-            gauge.selected_part = None
-            
-            if eid not in context.waiting_queue:
-                context.waiting_queue.append(eid)
+                gauge.progress += dt / gauge.cooldown_time * 100.0
+                if gauge.progress >= 100.0:
+                    gauge.progress = 0.0
+                    gauge.status = GaugeStatus.ACTION_CHOICE
+                    gauge.part_targets = {} 
+                    gauge.selected_action = None
+                    gauge.selected_part = None
+                    if eid not in self.world.entities[0]['battlecontext'].waiting_queue:
+                        self.world.entities[0]['battlecontext'].waiting_queue.append(eid)

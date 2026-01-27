@@ -2,18 +2,14 @@
 
 from typing import List, Optional, Dict
 from core.ecs import Component
+from battle.constants import GaugeStatus
 
 class GaugeComponent(Component):
     """ATBゲージコンポーネント"""
-    ACTION_CHOICE = "action_choice"
-    CHARGING = "charging"
-    EXECUTING = "executing"
-    COOLDOWN = "cooldown"
-
     def __init__(self, value: float = 0.0, speed: float = 0.1, status: str = None):
         self.value = value
         self.speed = speed
-        self.status = status or self.ACTION_CHOICE
+        self.status = status or GaugeStatus.ACTION_CHOICE
         self.progress = 0.0
         self.selected_action: Optional[str] = None
         self.selected_part: Optional[str] = None
@@ -91,7 +87,6 @@ class DefeatedComponent(Component):
 class BattleContextComponent(Component):
     """
     バトルログや待機列などの共有データ。
-    ※ 状態管理フラグは BattleFlowComponent に移動しました。
     """
     def __init__(self):
         self.waiting_queue: List[int] = []
