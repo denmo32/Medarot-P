@@ -47,53 +47,74 @@ def apply_action_command(world, eid: int, action: str, part: Optional[str]):
     if context.waiting_queue and context.waiting_queue[0] == eid:
         context.waiting_queue.pop(0)
 
+def calculate_gauge_ratio(status: str, progress: float) -> float:
+    """
+    現在の状態と進捗から、中央への到達度（ポジションレシオ）を計算する。
+    Returns:
+        float: 0.0 (ベースポジション) 〜 1.0 (中央ライン)
+    """
+    if status == GaugeStatus.EXECUTING:
+        return 1.0
+    
+    if status == GaugeStatus.CHARGING:
+        # 0% -> 100% で 中央へ近づく (0.0 -> 1.0)
+        return max(0.0, min(1.0, progress / 100.0))
+        
+    if status == GaugeStatus.COOLDOWN:
+        # 0% -> 100% で ベースへ戻る (1.0 -> 0.0)
+        return max(0.0, min(1.0, 1.0 - (progress / 100.0)))
+        
+    # ACTION_CHOICE など
+    return 0.0
+
 def calculate_current_x(base_x: int, status: str, progress: float, team_type: str) -> float:
     """エンティティの現在のアイコンX座標を計算する（ゲージ進行に基づく視覚的座標）"""
     center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
     offset = 40
     
+    # 進行度(0.0~1.0)を取得
+    ratio = calculate_gauge_ratio(status, progress)
+    
     if team_type == TeamType.PLAYER:
+        # プレイヤー: Base(左) -> Target(中央左)
         target_x = center_x - offset
-        if status == GaugeStatus.CHARGING:
-            return base_x + (progress / 100.0) * (target_x - base_x)
-        if status == GaugeStatus.EXECUTING:
-            return target_x
-        if status == GaugeStatus.COOLDOWN:
-            return target_x - (progress / 100.0) * (target_x - base_x)
-        return base_x
+        return base_x + ratio * (target_x - base_x)
     else:
+        # エネミー: Base(右) -> Target(中央右)
+        # エネミーのbase_xは描画開始位置(左端)だが、ゲージ表示上のStart位置は右端相当
         start_x = base_x + GAME_PARAMS['GAUGE_WIDTH']
         target_x = center_x + offset
-        if status == GaugeStatus.CHARGING:
-            return start_x - (progress / 100.0) * (start_x - target_x)
-        if status == GaugeStatus.EXECUTING:
-            return target_x
-        if status == GaugeStatus.COOLDOWN:
-            return target_x + (progress / 100.0) * (start_x - target_x)
-        return start_x
+        
+        # エネミーは Start(Right) -> Target(Left/Center) へ移動
+        # ratio 0.0 => Start, ratio 1.0 => Target
+        return start_x + ratio * (target_x - start_x)
 
 def get_closest_target_by_gauge(world, my_team_type: str):
+    """
+    ゲージ進行度に基づいて「最も中央に近い（手前にいる）」ターゲットを選定する。
+    ピクセル座標ではなく、正規化された到達度(ratio)で判定を行う。
+    """
     target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
     best_target = None
-    extreme_x = float('inf') if my_team_type == TeamType.PLAYER else float('-inf')
-    candidates = world.get_entities_with_components('team', 'defeated', 'position', 'gauge')
+    
+    # 最も中央に近い = ratioが最も大きい
+    max_ratio = float('-inf')
+    
+    candidates = world.get_entities_with_components('team', 'defeated', 'gauge')
     
     for teid, tcomps in candidates:
         if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated:
-            cur_x = calculate_current_x(
-                tcomps['position'].x, 
+            ratio = calculate_gauge_ratio(
                 tcomps['gauge'].status, 
-                tcomps['gauge'].progress, 
-                tcomps['team'].team_type
+                tcomps['gauge'].progress
             )
-            if my_team_type == TeamType.PLAYER:
-                if cur_x < extreme_x:
-                    extreme_x = cur_x
-                    best_target = teid
-            else:
-                if cur_x > extreme_x:
-                    extreme_x = cur_x
-                    best_target = teid
+            
+            # 中央に近いほど優先（ratioが高いほど優先）
+            # 同じratioの場合はエンティティIDなどで安定させることも可能だが、ここではシンプルに
+            if ratio > max_ratio:
+                max_ratio = ratio
+                best_target = teid
+                
     return best_target
 
 def reset_gauge_to_cooldown(gauge):
