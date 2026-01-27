@@ -3,7 +3,8 @@
 from core.ecs import System
 from config import GAME_PARAMS
 from battle.constants import BattlePhase
-from battle.presentation.view_model import BattleViewModel, CutinViewModel
+from battle.presentation.battle_view_model import BattleViewModel
+from battle.presentation.cutin_view_model import CutinViewModel
 from ui.cutin_renderer import CutinRenderer
 from battle.domain.utils import get_battle_state
 
@@ -61,7 +62,7 @@ class RenderSystem(System):
 
     def _render_target_indication_line(self, context, flow, char_positions):
         """攻撃実行前のターゲットライン表示"""
-        atk_id, tgt_id = BattleViewModel.get_event_actor_ids(self.world, flow)
+        atk_id, tgt_id = CutinViewModel.get_event_actor_ids(self.world, flow)
         
         if atk_id in char_positions and tgt_id in char_positions:
             start_pos, end_pos = char_positions[atk_id], char_positions[tgt_id]

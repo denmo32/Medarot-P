@@ -1,149 +1,12 @@
-"""描画用データ（ViewModel）の生成ロジック"""
+"""カットイン演出用のデータ生成ロジック"""
 
 from typing import Dict, Any, List, Optional, Tuple
-from config import COLORS, GAME_PARAMS
-from battle.constants import PartType, GaugeStatus, PART_LABELS, TeamType, BattlePhase, MENU_PART_ORDER, TraitType
-
-class BattleViewModel:
-    """RenderSystemが使用する描画データの生成・加工を担当"""
-
-    HP_BAR_ORDER = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]
-
-    @staticmethod
-    def get_character_view_data(world, eid: int, context, flow) -> Dict[str, Any]:
-        """キャラクター（機体）の描画用データを収集"""
-        comps = world.entities[eid]
-        pos = comps['position']
-        gauge = comps['gauge']
-        team = comps['team']
-        medal = comps['medal']
-        part_list = comps['partlist']
-
-        from battle.domain.utils import calculate_current_x
-        icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
-        border_color = BattleViewModel._get_border_color(eid, gauge, flow, context)
-        part_status = BattleViewModel._get_part_status_map(world, part_list)
-        home_x = pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0)
-
-        return {
-            'id': eid,
-            'x': pos.x,
-            'y': pos.y,
-            'icon_x': icon_x,
-            'home_x': home_x,
-            'home_y': pos.y,
-            'team_color': team.team_color,
-            'name': medal.nickname,
-            'border_color': border_color,
-            'part_status': part_status
-        }
-
-    @staticmethod
-    def get_active_target_eid(world, context, flow) -> Optional[int]:
-        """現在メニューで選択されているパーツのターゲット機体IDを取得"""
-        if flow.current_phase != BattlePhase.INPUT:
-            return None
-            
-        eid = context.current_turn_entity_id
-        if not eid or eid not in world.entities:
-            return None
-            
-        idx = context.selected_menu_index
-        if idx < len(MENU_PART_ORDER):
-            p_type = MENU_PART_ORDER[idx]
-            target_data = world.entities[eid]['gauge'].part_targets.get(p_type)
-            if target_data:
-                return target_data[0] # (target_id, part_type)
-        return None
-
-    @staticmethod
-    def get_event_actor_ids(world, flow) -> Tuple[Optional[int], Optional[int]]:
-        """現在実行中のイベントにおける (攻撃者ID, 対象者ID) を取得"""
-        if flow.current_phase not in [
-            BattlePhase.TARGET_INDICATION, BattlePhase.ATTACK_DECLARATION, 
-            BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT
-        ]:
-            return None, None
-            
-        event_eid = flow.processing_event_id
-        event_comps = world.try_get_entity(event_eid)
-        if not event_comps or 'actionevent' not in event_comps:
-            return None, None
-            
-        event = event_comps['actionevent']
-        return event.attacker_id, event.current_target_id
-
-    @staticmethod
-    def build_action_menu_data(world, eid: int) -> List[Dict[str, Any]]:
-        """アクション選択メニューのボタン情報を構築する"""
-        comps = world.try_get_entity(eid)
-        if not comps: return []
-        
-        part_list = comps['partlist']
-        buttons = []
-        
-        # パーツ攻撃ボタン
-        for p_type in MENU_PART_ORDER:
-            p_id = part_list.parts.get(p_type)
-            p_comps = world.try_get_entity(p_id) if p_id is not None else None
-            
-            if p_comps:
-                is_alive = p_comps['health'].hp > 0
-                buttons.append({
-                    'label': p_comps['name'].name,
-                    'enabled': is_alive
-                })
-        
-        # スキップボタン
-        buttons.append({
-            'label': "スキップ",
-            'enabled': True
-        })
-        
-        return buttons
-
-    @staticmethod
-    def _get_border_color(eid, gauge, flow, context):
-        if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
-            return COLORS.get('BORDER_WAIT')
-        if gauge.status == GaugeStatus.CHARGING:
-            return COLORS.get('BORDER_CHARGE')
-        if gauge.status == GaugeStatus.COOLDOWN:
-            return COLORS.get('BORDER_COOLDOWN')
-        return None
-
-    @staticmethod
-    def _get_part_status_map(world, part_list_comp) -> Dict[str, bool]:
-        status = {}
-        for p_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]:
-            p_id = part_list_comp.parts.get(p_type)
-            is_alive = False
-            if p_id:
-                hp = world.entities[p_id]['health'].hp
-                if hp > 0:
-                    is_alive = True
-            status[p_type] = is_alive
-        return status
-
-    @staticmethod
-    def build_hp_data(world, part_list_comp) -> List[Dict[str, Any]]:
-        hp_data = []
-        for p_key in BattleViewModel.HP_BAR_ORDER:
-            p_id = part_list_comp.parts.get(p_key)
-            if p_id is not None:
-                h = world.entities[p_id]['health']
-                hp_data.append({
-                    'key': p_key,
-                    'label': PART_LABELS.get(p_key, ""),
-                    'current': int(h.display_hp),
-                    'max': h.max_hp,
-                    'ratio': h.display_hp / h.max_hp if h.max_hp > 0 else 0
-                })
-        return hp_data
-
+from config import GAME_PARAMS
+from battle.constants import TeamType, BattlePhase, TraitType
+from .battle_view_model import BattleViewModel
 
 class CutinViewModel:
-    """カットイン演出用のデータ生成を担当（プレゼンテーション・ロジック）"""
+    """演出用の座標計算や進行度管理を担当"""
 
     # 座標計算用定数
     SW = GAME_PARAMS['SCREEN_WIDTH']
@@ -171,8 +34,25 @@ class CutinViewModel:
     }
 
     @staticmethod
+    def get_event_actor_ids(world, flow) -> Tuple[Optional[int], Optional[int]]:
+        """現在実行中のイベントにおける (攻撃者ID, 対象者ID) を取得"""
+        if flow.current_phase not in [
+            BattlePhase.TARGET_INDICATION, BattlePhase.ATTACK_DECLARATION, 
+            BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT
+        ]:
+            return None, None
+            
+        event_eid = flow.processing_event_id
+        event_comps = world.try_get_entity(event_eid)
+        if not event_comps or 'actionevent' not in event_comps:
+            return None, None
+            
+        event = event_comps['actionevent']
+        return event.attacker_id, event.current_target_id
+
+    @staticmethod
     def build_action_state(world, flow) -> Optional[Dict[str, Any]]:
-        """現在の行動イベントからカットイン描画に必要な情報を計算し、確定済みの描画指示データを返す"""
+        """現在の行動イベントからカットイン描画に必要な情報を計算"""
         event_eid = flow.processing_event_id
         if event_eid is None: return None
         
@@ -199,10 +79,10 @@ class CutinViewModel:
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         is_enemy = (attacker_comps['team'].team_type == TeamType.ENEMY)
         
-        # 演出座標計算ロジックの呼び出し
+        # 演出座標計算
         frame_state = CutinViewModel._calculate_frame_state(progress, trait, is_enemy, event.calculation_result)
 
-        # キャラクター固有の描画リソース(色・HP等)と座標を合成
+        # キャラクター固有のビジュアル状態を合成
         frame_state['attacker'].update(CutinViewModel.create_character_visual_state(
             CutinViewModel.create_character_data(world, attacker_id),
             BattleViewModel.build_hp_data(world, attacker_comps['partlist']),
@@ -222,14 +102,11 @@ class CutinViewModel:
 
     @staticmethod
     def _calculate_frame_state(progress, attack_trait, is_enemy, hit_result):
-        """進行度に基づき、ピクセル座標やアルファ値を計算する（旧Cinematicsの移植）"""
-        
-        # 1. 全体フェード
+        """進行度に基づき、座標やアルファ値を計算"""
         fade_ratio = min(1.0, progress / CutinViewModel.T_ENTER)
         bg_alpha = int(150 * fade_ratio)
         bar_height = int((CutinViewModel.SH // 8) * fade_ratio)
 
-        # 2. 座標計算
         is_melee = (attack_trait in TraitType.MELEE_TRAITS)
         if is_melee:
             char_state = CutinViewModel._calc_melee_positions(progress)
@@ -238,10 +115,8 @@ class CutinViewModel:
             char_state = CutinViewModel._calc_shooting_positions(progress, hit_result, attack_trait)
             t_impact = CutinViewModel.SHOOTING_TIMING['impact']
 
-        # 3. ポップアップ
         popup_state = CutinViewModel._calc_popup_state(progress, t_impact, hit_result)
 
-        # 4. ミラーリング（攻撃者がエネミーの場合）
         if is_enemy:
             char_state['attacker']['x'] = CutinViewModel.SW - char_state['attacker']['x']
             char_state['defender']['x'] = CutinViewModel.SW - char_state['defender']['x']
