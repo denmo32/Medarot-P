@@ -88,11 +88,8 @@ class RenderSystem(System):
             self.ui_renderer.draw_game_over(flow.winner)
 
     def _render_cutin(self, context, flow):
+        # ViewModelが座標計算を全て終わらせた「State」を生成する
         state = CutinViewModel.build_action_state(self.world, flow)
         if not state: return
-        self.cutin_renderer.draw(
-            state['attacker_visual'], state['target_visual'],
-            state['progress'], state['result'], 
-            mirror=state['is_enemy'],
-            attack_trait=state['trait']
-        )
+        # Rendererは渡されたStateをそのまま描画する
+        self.cutin_renderer.draw(state)
