@@ -3,8 +3,9 @@
 from core.ecs import System
 from components.battle import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
-from battle.domain.utils import reset_gauge_to_cooldown, transition_to_phase, get_battle_state
+from battle.domain.utils import transition_to_phase, get_battle_state
 from battle.service.log_service import LogService
+from battle.service.action_service import ActionService
 
 class ActionResolutionSystem(System):
     """
@@ -43,12 +44,13 @@ class ActionResolutionSystem(System):
             transition_to_phase(flow, BattlePhase.LOG_WAIT)
 
         if 'gauge' in attacker_comps:
-            reset_gauge_to_cooldown(attacker_comps['gauge'])
+            ActionService.reset_to_cooldown(attacker_comps['gauge'])
 
     def _handle_attack_action(self, event, attacker_comps, context):
         attacker_name = attacker_comps['medal'].nickname
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         part_comps = self.world.try_get_entity(part_id) if part_id is not None else None
+        
         if not part_comps or part_comps['health'].hp <= 0:
             context.battle_log.append(LogService.get_part_broken_attack(attacker_name))
             return

@@ -17,6 +17,7 @@ def calculate_action_times(attack_power: int) -> tuple:
     base_time = 1
     log_modifier = math.log10(attack_power) if attack_power > 0 else 0
     
+    # 攻撃力が高いほど時間がかかる
     charging_time = base_time + log_modifier
     cooldown_time = base_time + log_modifier
     
@@ -54,8 +55,3 @@ def calculate_current_x(base_x: int, status: str, progress: float, team_type: st
         start_x = base_x + GAME_PARAMS['GAUGE_WIDTH']
         target_x = center_x + offset
         return start_x + ratio * (target_x - start_x)
-
-def reset_gauge_to_cooldown(gauge):
-    """行動終了後、クールダウン状態へ移行する。"""
-    gauge.status = GaugeStatus.COOLDOWN
-    gauge.progress = 0.0

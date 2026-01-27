@@ -2,11 +2,12 @@
 
 from core.ecs import System
 from components.action_event import ActionEventComponent
-from battle.domain.utils import reset_gauge_to_cooldown, transition_to_phase, get_battle_state
+from battle.domain.utils import transition_to_phase, get_battle_state
 from battle.service.targeting_service import TargetingService
 from battle.constants import GaugeStatus, ActionType, BattlePhase, BattleTiming
 from battle.service.log_service import LogService
 from battle.service.combat_service import CombatService
+from battle.service.action_service import ActionService
 
 class ActionInitiationSystem(System):
     """
@@ -32,7 +33,7 @@ class ActionInitiationSystem(System):
         """行動開始ハンドラ"""
         flow.active_actor_id = actor_eid
 
-        # ターゲットの最終決定をドメインサービスに委譲
+        # ターゲットの最終決定
         target_id, target_part = TargetingService.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
         
         if gauge.selected_action == ActionType.ATTACK and not target_id:
@@ -49,7 +50,6 @@ class ActionInitiationSystem(System):
             target_part=target_part
         )
         
-        # 攻撃なら戦闘計算サービスを実行
         if gauge.selected_action == ActionType.ATTACK:
             event.calculation_result = CombatService.calculate_combat_result(
                 self.world, actor_eid, target_id, target_part, gauge.selected_part
@@ -71,7 +71,7 @@ class ActionInitiationSystem(System):
         actor_name = actor_comps['medal'].nickname
         context.battle_log.append(LogService.get_target_lost(actor_name))
         transition_to_phase(flow, BattlePhase.LOG_WAIT)
-        reset_gauge_to_cooldown(gauge)
+        ActionService.reset_to_cooldown(gauge)
         
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)
