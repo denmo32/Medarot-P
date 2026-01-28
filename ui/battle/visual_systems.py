@@ -1,4 +1,4 @@
-"""HP表示用アニメーションシステム"""
+"""表示専用のシステム群"""
 
 from core.ecs import System
 
@@ -6,6 +6,7 @@ class HealthAnimationSystem(System):
     """
     HealthComponentのhp（真値）とdisplay_hp（描画用）を同期させる。
     ダメージを受けた際、表示上のHPを少しずつ減らすアニメーションを行う。
+    ロジックには影響せず、ユーザーインターフェースのためだけに存在する。
     """
     def update(self, dt: float):
         # バトルシーン内の全HPコンポーネントを対象とする
@@ -18,7 +19,6 @@ class HealthAnimationSystem(System):
                 diff = h.hp - h.display_hp
                 
                 # 変化の速さ（1秒間に最大どれだけHPを動かすか、または割合で動かす）
-                # ここでは「残りの差分の一定割合」を動かすことで、減り始めが速く、徐々にゆっくりになる演出にする
                 lerp_speed = 5.0
                 change = diff * lerp_speed * dt
                 

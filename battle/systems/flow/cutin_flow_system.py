@@ -1,13 +1,14 @@
-"""カットイン演出管理システム"""
+"""カットイン演出のフロー制御システム（ロジック）"""
 
 from core.ecs import System
 from battle.constants import BattlePhase, BattleTiming
 from battle.service.flow_service import transition_to_phase, get_battle_state
 
-class CutinAnimationSystem(System):
+class CutinFlowSystem(System):
     """
     CUTINフェーズの時間管理を行い、
-    演出が終了したらEXECUTINGフェーズへ遷移させる。
+    演出時間(BattleTiming.CUTIN_ANIMATION)が経過したらEXECUTINGフェーズへ遷移させる。
+    純粋な時間管理のみを行う。
     """
     def update(self, dt: float):
         _, flow = get_battle_state(self.world)

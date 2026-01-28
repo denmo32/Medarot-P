@@ -2,6 +2,8 @@
 
 from core.ecs import World
 from battle.battle_entity_factory import BattleEntityFactory
+
+# Systems (Logic)
 from battle.systems.action.gauge_system import GaugeSystem
 from battle.systems.action.target_selection_system import TargetSelectionSystem
 from battle.systems.flow.turn_system import TurnSystem
@@ -12,14 +14,14 @@ from battle.systems.action.action_resolution_system import ActionResolutionSyste
 from battle.systems.flow.battle_flow_system import BattleFlowSystem
 from battle.systems.action.damage_system import DamageSystem
 from battle.systems.action.destruction_system import DestructionSystem
-from battle.systems.presentation.health_animation_system import HealthAnimationSystem
 from battle.systems.flow.battle_status_system import BattleStatusSystem
 from battle.systems.input.input_system import InputSystem
-from battle.systems.presentation.render_system import RenderSystem
-from battle.systems.presentation.target_indicator_system import TargetIndicatorSystem
-from battle.systems.presentation.cutin_animation_system import CutinAnimationSystem
-from ui.field_renderer import FieldRenderer
-from ui.battle_ui_renderer import BattleUIRenderer
+from battle.systems.flow.target_indicator_system import TargetIndicatorSystem
+from battle.systems.flow.cutin_flow_system import CutinFlowSystem
+
+# Systems (UI Layer)
+from ui.battle.visual_systems import HealthAnimationSystem
+from ui.battle.system import BattleRenderSystem
 
 class BattleSystem:
     def __init__(self, screen, player_count: int = 3, enemy_count: int = 3,
@@ -34,9 +36,6 @@ class BattleSystem:
             player_team_x, enemy_team_x, team_y_offset, character_spacing,
             gauge_width, gauge_height
         )
-
-        self.field_renderer = FieldRenderer(screen)
-        self.ui_renderer = BattleUIRenderer(screen)
         
         self.systems = [
             InputSystem(self.world),
@@ -47,14 +46,16 @@ class BattleSystem:
             AISystem(self.world),
             ActionCommandSystem(self.world),
             ActionInitiationSystem(self.world),
-            TargetIndicatorSystem(self.world),
-            CutinAnimationSystem(self.world),
+            TargetIndicatorSystem(self.world), # ロジックのみ
+            CutinFlowSystem(self.world),       # ロジックのみ
             ActionResolutionSystem(self.world),
             DamageSystem(self.world),
             DestructionSystem(self.world),
-            HealthAnimationSystem(self.world),
             BattleStatusSystem(self.world),
-            RenderSystem(self.world, self.field_renderer, self.ui_renderer)
+            
+            # UI系システム
+            HealthAnimationSystem(self.world),
+            BattleRenderSystem(self.world, screen)
         ]
 
     def update(self, dt: float = 0.016) -> None:

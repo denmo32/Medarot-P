@@ -2,7 +2,8 @@
 
 import pygame
 from config import COLORS, GAME_PARAMS
-from ui.base_renderer import BaseRenderer
+# インポート先を変更
+from ui.base.renderer import BaseRenderer
 
 class CustomizeRenderer(BaseRenderer):
     """カスタマイズ画面の3カラムレイアウトを描画"""

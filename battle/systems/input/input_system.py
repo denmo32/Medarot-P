@@ -3,7 +3,7 @@
 from core.ecs import System
 from components.action_command_component import ActionCommandComponent
 from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER
-from battle.presentation.layout_utils import calculate_action_menu_layout
+from ui.battle.layout_utils import calculate_action_menu_layout
 from battle.service.flow_service import get_battle_state
 
 class InputSystem(System):

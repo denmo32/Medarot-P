@@ -1,13 +1,13 @@
+"""
+全シーン共通の描画基盤
+ECSの状態を一切知らず、受け取った値の描画のみを行う低レベルなラッパー。
+"""
+
 import pygame
 from config import COLORS, FONT_NAMES
 from battle.constants import PartType
 
 class BaseRenderer:
-    """
-    低レベルな描画プリミティブと、共通のUIパーツを提供する基底クラス。
-    ECSの状態を一切知らず、受け取った値の描画のみを行う。
-    """
-
     def __init__(self, screen):
         self.screen = screen
         # 共通フォントの初期化
