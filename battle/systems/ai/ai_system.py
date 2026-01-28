@@ -3,8 +3,8 @@
 from core.ecs import System
 from battle.constants import BattlePhase
 from battle.ai.strategy import StrategyRegistry
-from battle.domain.utils import get_battle_state
-from components.action_command import ActionCommandComponent
+from battle.domain.battle_helper import get_battle_state
+from components.action_command_component import ActionCommandComponent
 
 class AISystem(System):
     """

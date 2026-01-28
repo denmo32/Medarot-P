@@ -1,8 +1,8 @@
 """パーツのステータス計算に関するドメインロジック"""
 
 from typing import Dict, Any
-from battle.domain.attributes import AttributeLogic
-from battle.domain.skills import SkillRegistry
+from battle.domain.attribute_logic import AttributeLogic
+from battle.domain.skill_registry import SkillRegistry
 
 class StatsLogic:
     """パーツ生成時やステータス更新時の計算ロジックを統合する"""

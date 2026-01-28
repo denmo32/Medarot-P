@@ -6,7 +6,7 @@ from battle.constants import BattlePhase
 from battle.presentation.battle_view_model import BattleViewModel
 from battle.presentation.cutin_view_model import CutinViewModel
 from ui.cutin_renderer import CutinRenderer
-from battle.domain.utils import get_battle_state
+from battle.domain.battle_helper import get_battle_state
 
 class RenderSystem(System):
     """Worldのコンポーネントから描画用データを抽出しRendererへ渡す"""

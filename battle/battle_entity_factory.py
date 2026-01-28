@@ -2,13 +2,13 @@
 
 import random
 from core.ecs import World
-from components.common import NameComponent, PositionComponent
-from components.battle import (GaugeComponent, TeamComponent, RenderComponent,
+from components.common_component import NameComponent, PositionComponent
+from components.battle_component import (GaugeComponent, TeamComponent, RenderComponent,
                                BattleContextComponent, PartComponent, HealthComponent,
                                AttackComponent, PartListComponent, MedalComponent, DefeatedComponent,
                                MobilityComponent)
-from components.battle_flow import BattleFlowComponent
-from components.input import InputComponent
+from components.battle_flow_component import BattleFlowComponent
+from components.input_component import InputComponent
 from data.game_data_manager import get_game_data_manager
 from data.save_data_manager import get_save_manager
 from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus

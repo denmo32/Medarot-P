@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import TeamType, GaugeStatus, BattlePhase
-from battle.domain.utils import get_battle_state
+from battle.domain.battle_helper import get_battle_state
 
 class TurnSystem(System):
     """

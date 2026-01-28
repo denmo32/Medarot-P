@@ -19,7 +19,7 @@ class BattleViewModel:
         medal = comps['medal']
         part_list = comps['partlist']
 
-        from battle.domain.utils import calculate_current_x
+        from battle.domain.battle_helper import calculate_current_x
         icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
         border_color = BattleViewModel._get_border_color(eid, gauge, flow, context)
         part_status = BattleViewModel._get_part_status_map(world, part_list)

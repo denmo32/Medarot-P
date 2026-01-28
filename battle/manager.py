@@ -1,7 +1,7 @@
 """ECSアーキテクチャに基づくバトルシステム構成"""
 
 from core.ecs import World
-from battle.entity_factory import BattleEntityFactory
+from battle.battle_entity_factory import BattleEntityFactory
 from battle.systems.action.gauge_system import GaugeSystem
 from battle.systems.action.target_selection_system import TargetSelectionSystem
 from battle.systems.flow.turn_system import TurnSystem

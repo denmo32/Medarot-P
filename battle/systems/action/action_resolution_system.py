@@ -1,9 +1,9 @@
 """行動解決システム"""
 
 from core.ecs import System
-from components.battle import DamageEventComponent
+from components.battle_component import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
-from battle.domain.utils import transition_to_phase, get_battle_state
+from battle.domain.battle_helper import transition_to_phase, get_battle_state
 from battle.service.log_service import LogService
 from battle.service.action_service import ActionService
 

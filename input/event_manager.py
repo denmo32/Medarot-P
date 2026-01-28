@@ -2,7 +2,7 @@
 
 import pygame
 from core.ecs import World
-from components.input import InputComponent
+from components.input_component import InputComponent
 
 class EventManager:
     """Pygameイベントを論理入力（InputComponent）に変換する"""

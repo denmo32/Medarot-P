@@ -1,10 +1,10 @@
 """入力処理システム"""
 
 from core.ecs import System
-from components.action_command import ActionCommandComponent
+from components.action_command_component import ActionCommandComponent
 from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER
 from battle.presentation.layout_utils import calculate_action_menu_layout
-from battle.domain.utils import get_battle_state
+from battle.domain.battle_helper import get_battle_state
 
 class InputSystem(System):
     """ユーザー入力を処理し、バトルフローに応じた操作を行う"""
