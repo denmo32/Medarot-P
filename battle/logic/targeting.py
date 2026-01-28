@@ -1,4 +1,4 @@
-"""ターゲット選定と有効性判定のドメインサービス"""
+"""ターゲット選定と有効性判定のサービス"""
 
 import random
 from typing import List, Optional, Tuple

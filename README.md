@@ -13,16 +13,13 @@
 - **Entity = ID**: 整数(int)で表現し、コンポーネントの入れ物としての役割に限定する。
 - **World = データベース**: 全エンティティとコンポーネントを一元管理する。
 
-# ファイル命名例
-- **`_component.py`**: ロジックを持たない、純粋なデータクラス。
+# 基本となるファイル命名方針
+- **`_component.py`**: 純粋なデータクラス。
 - **`_system.py`**: `update(dt)`を持ち、Componentを持つEntityを操作。
-- **`_engine.py` / `_scene.py`**: WorldのライフサイクルとSystemの実行順序を管理。
-- **`_logic.py`**: Worldに依存しない、純粋な計算ロジック。
 - **`_service.py`**: WorldやEntityを操作する、ステートレスな機能群。
-- **`_registry.py`**: 条件に応じた振る舞いのカタログ。
+- **`_logic.py`**: Worldに依存しない、純粋な計算ロジック。
 - **`_view_model.py`**: ECSデータを、描画用中間データ構造に変換。
 - **`_renderer.py`**: ECSに関知しない、Pygameへの描画命令。
-- **`_factory.py`**: Entityの生成、Componentの組み立て。
 - **`_helper.py` / `_utils.py`**: (非推奨) 可能な限り具体的責務を持つファイルに分割することを目指す。
 
 # ゲームルール

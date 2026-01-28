@@ -1,4 +1,4 @@
-"""ゲージ計算や時間計算に関連するドメインロジック"""
+"""ゲージ計算や時間計算に関連するロジック"""
 
 import math
 from battle.constants import GaugeStatus
