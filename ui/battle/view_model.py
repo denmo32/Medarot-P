@@ -6,7 +6,7 @@ from battle.constants import (
     BattlePhase, GaugeStatus, TeamType, PartType, 
     MENU_PART_ORDER, PART_LABELS, TraitType, BattleTiming
 )
-from battle.logic.gauge_process import calculate_current_x
+from battle.logic.gauge_process import calculate_gauge_ratio
 from .snapshot import (
     BattleStateSnapshot, CharacterViewData, LogWindowData, 
     ActionMenuData, ActionButtonData, GameOverData, CutinStateData
@@ -62,7 +62,9 @@ class BattleViewModel:
             medal = comps['medal']
             part_list = comps['partlist']
 
-            icon_x = calculate_current_x(pos.x, gauge.status, gauge.progress, team.team_type)
+            # 座標計算のUI層への移譲
+            icon_x = self._calculate_icon_screen_x(pos.x, gauge, team.team_type)
+            
             border_color = self._get_border_color(eid, gauge, flow, context)
             part_status = self._get_part_status_map(part_list)
             home_x = pos.x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0)
@@ -80,6 +82,21 @@ class BattleViewModel:
                 part_status=part_status
             )
         return chars
+
+    def _calculate_icon_screen_x(self, base_x: int, gauge, team_type: str) -> float:
+        """ゲージの進行度に基づき、現在のアイコンX座標（ピクセル）を計算する"""
+        center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
+        offset = 40
+        ratio = calculate_gauge_ratio(gauge.status, gauge.progress)
+        
+        if team_type == TeamType.PLAYER:
+            target_x = center_x - offset
+            return base_x + ratio * (target_x - base_x)
+        else:
+            # 敵側は右端から中央に向かって進む
+            start_x = base_x + GAME_PARAMS['GAUGE_WIDTH']
+            target_x = center_x + offset
+            return start_x + ratio * (target_x - start_x)
 
     def _get_border_color(self, eid, gauge, flow, context):
         if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
@@ -133,15 +150,12 @@ class BattleViewModel:
         atk_id, tgt_id = event.attacker_id, event.current_target_id
         
         if atk_id in characters and tgt_id in characters:
-            # 時間経過からオフセットを計算 (演出時間 TARGET_INDICATION は0.8秒)
-            # phase_timerは減っていくので、逆算して経過時間を出す
             elapsed = max(0, BattleTiming.TARGET_INDICATION - flow.phase_timer)
             return (characters[atk_id], characters[tgt_id], elapsed)
         return None
 
     def _build_log_window(self, context, flow) -> LogWindowData:
         show_guide = flow.current_phase in [BattlePhase.LOG_WAIT, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN_RESULT]
-        # カットイン中はログを非表示（空リスト）
         logs = [] if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT] else context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
         
         return LogWindowData(
@@ -189,8 +203,6 @@ class BattleViewModel:
             is_active=(flow.current_phase == BattlePhase.GAME_OVER)
         )
 
-    # --- Cutin Logic (旧 CutinViewModel) ---
-
     def _build_cutin_state(self, flow) -> CutinStateData:
         event_eid = flow.processing_event_id
         if event_eid is None: return CutinStateData(False)
@@ -216,10 +228,8 @@ class BattleViewModel:
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         is_enemy = (attacker_comps['team'].team_type == TeamType.ENEMY)
         
-        # 座標計算
         state = self._calculate_cutin_frame(progress, trait, is_enemy, event.calculation_result)
         
-        # ビジュアル付加
         state.attacker.update(self._create_char_visual(attacker_id, attacker_comps, show_hp=False))
         state.defender.update(self._create_char_visual(target_id, target_comps, show_hp=True))
         
@@ -251,7 +261,6 @@ class BattleViewModel:
         }
 
     def _calculate_cutin_frame(self, progress, attack_trait, is_enemy, hit_result):
-        # 定数定義
         SW = GAME_PARAMS['SCREEN_WIDTH']
         SH = GAME_PARAMS['SCREEN_HEIGHT']
         CENTER_Y = SH // 2 - 20
@@ -266,13 +275,10 @@ class BattleViewModel:
 
         is_melee = (attack_trait in TraitType.MELEE_TRAITS)
         
-        # 攻撃タイプ別計算
         if is_melee:
-            # 格闘タイミング
             t_dash = 0.35
             t_hit = 0.55
             t_leave = 0.75
-            t_impact = 0.55
             
             atk = {'x': -1000, 'y': CENTER_Y, 'visible': True}
             defn = {'x': SW + 1000, 'y': CENTER_Y, 'visible': True}
@@ -304,7 +310,6 @@ class BattleViewModel:
                 defn['x'] = RIGHT_POS_X
 
         else:
-            # 射撃タイミング
             t_sw_start = 0.45
             t_sw_end = 0.7
             t_fire = 0.25
@@ -355,7 +360,6 @@ class BattleViewModel:
                             r_miss = (progress - t_impact) / (1.0 - t_impact)
                             bul['x'] = RIGHT_POS_X + (SW - RIGHT_POS_X + 100) * r_miss
 
-        # ポップアップ計算
         popup = {'visible': False}
         impact_time = t_impact if not is_melee else 0.55
         if progress > impact_time and hit_result:
@@ -367,7 +371,6 @@ class BattleViewModel:
                 'result': hit_result
             }
 
-        # 敵側（ミラー）座標変換
         if is_enemy:
             atk['x'] = SW - atk['x']
             defn['x'] = SW - defn['x']
