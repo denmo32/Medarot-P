@@ -8,7 +8,7 @@ from battle.mechanics.log import LogBuilder
 from battle.mechanics.action import ActionMechanics
 
 class ActionResolutionSystem(System):
-    """事前に計算された ActionEvent の結果に基づき、DamageEventを発行する"""
+    """計算済みの ActionEvent に基づき、世界に結果（ダメージ等）を反映する"""
     
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
@@ -22,20 +22,19 @@ class ActionResolutionSystem(System):
             transition_to_phase(flow, BattlePhase.IDLE)
             return
 
-        event = event_comps['actionevent']
-        self._resolve_action(event, context, flow)
+        self._resolve_action(event_comps['actionevent'], context, flow)
         
+        # カットイン結果待ちフェーズに移行していないなら、このイベントは完了
         if flow.current_phase != BattlePhase.CUTIN_RESULT:
             self.world.delete_entity(event_eid)
             flow.processing_event_id = None
 
     def _resolve_action(self, event, context, flow):
-        attacker_id = event.attacker_id
-        attacker_comps = self.world.try_get_entity(attacker_id)
+        attacker_comps = self.world.try_get_entity(event.attacker_id)
         if not attacker_comps: return
 
         if event.action_type == ActionType.ATTACK:
-            self._handle_attack_action(event, attacker_comps, context)
+            self._handle_attack_resolution(event, attacker_comps, context)
             transition_to_phase(flow, BattlePhase.CUTIN_RESULT)
         elif event.action_type == ActionType.SKIP:
             context.battle_log.append(LogBuilder.get_skip_action(attacker_comps['medal'].nickname))
@@ -44,23 +43,22 @@ class ActionResolutionSystem(System):
         if 'gauge' in attacker_comps:
             ActionMechanics.reset_to_cooldown(attacker_comps['gauge'])
 
-    def _handle_attack_action(self, event, attacker_comps, context):
+    def _handle_attack_resolution(self, event, attacker_comps, context):
         attacker_name = attacker_comps['medal'].nickname
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
-        part_comps = self.world.try_get_entity(part_id) if part_id is not None else None
+        part_comps = self.world.try_get_entity(part_id)
         
+        # 実行時のパーツ破壊チェック（念のため）
         if not part_comps or part_comps['health'].hp <= 0:
             context.battle_log.append(LogBuilder.get_part_broken_attack(attacker_name))
             return
 
         res = event.calculation_result
-        if res is None:
-            context.battle_log.append(LogBuilder.get_target_lost(attacker_name))
-            return
-
-        if not res.is_hit:
+        if res is None or not res.is_hit:
+            # ミスやターゲットロストの場合は何もしない（ログは演出側で処理される想定）
             return
             
+        # ダメージイベントの発行
         self.world.add_component(event.current_target_id, DamageEventComponent(
             attacker_id=event.attacker_id,
             attacker_part=event.part_type,
