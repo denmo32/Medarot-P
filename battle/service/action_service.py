@@ -10,7 +10,7 @@ class ActionService:
 
     @staticmethod
     def reset_to_cooldown(gauge):
-        """行動終了後、または非戦闘的な中断時にクールダウン状態へ移行する。"""
+        """行動終了後、または非戦闘的な中断時に放熱状態へ移行する。"""
         gauge.status = GaugeStatus.COOLDOWN
         gauge.progress = 0.0
         gauge.selected_action = None
@@ -65,7 +65,7 @@ class ActionService:
 
     @staticmethod
     def interrupt_action(world, entity_id: int, context, flow, message: str):
-        """アクションを中断させ、進行度を反転させて強制的に冷却へ移行させる"""
+        """アクションを中断させ、進行度を反転させて強制的に放熱へ移行させる"""
         context.battle_log.append(message)
         transition_to_phase(flow, BattlePhase.LOG_WAIT)
         
@@ -75,7 +75,7 @@ class ActionService:
 
         gauge = comps['gauge']
         
-        # 中断ロジック：現在のチャージ進行度を冷却の残り時間に変換する
+        # 中断ロジック：現在の充填進行度を放熱の残り時間に変換する
         current_p = gauge.progress
         gauge.status = GaugeStatus.COOLDOWN
         gauge.progress = max(0.0, 100.0 - current_p)

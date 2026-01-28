@@ -7,7 +7,7 @@ from battle.service.flow_service import transition_to_phase, get_battle_state
 
 class ActionCommandSystem(System):
     """
-    ActionCommandComponentを監視し、コマンドを受理してチャージ（充填）を開始する。
+    ActionCommandComponentを監視し、コマンドを受理して充填を開始する。
     """
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)

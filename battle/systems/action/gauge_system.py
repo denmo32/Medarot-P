@@ -6,7 +6,7 @@ from battle.service.flow_service import get_battle_state
 from battle.service.action_service import ActionService
 
 class GaugeSystem(System):
-    """ATBゲージの進行管理、およびチャージ中のアクション有効性監視を担当"""
+    """ATBゲージの進行管理、および充填中のアクション有効性監視を担当"""
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
         if not context or not flow: return

@@ -100,7 +100,7 @@ class CombatService:
 
     @staticmethod
     def _get_target_defensive_penalty(world, target_comps) -> Dict[str, bool]:
-        """ターゲットの状態（チャージ中スキル等）によるペナルティを判定"""
+        """ターゲットの状態によるペナルティを判定"""
         tgt_gauge = target_comps.get('gauge')
         prevent_defense, force_hit, force_critical = False, False, False
 

@@ -8,7 +8,7 @@ from core.ecs import Component
 class ActionCommandComponent(Component):
     """
     プレイヤーまたはAIの「決定」を保持する。
-    CommandSystemによってチャージ開始処理が行われたあと削除される。
+    CommandSystemによって充填開始処理が行われたあと削除される。
     """
     action_type: str            # "attack", "skip"
     part_type: Optional[str] = None # "head", "right_arm", "left_arm"

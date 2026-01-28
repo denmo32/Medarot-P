@@ -11,7 +11,7 @@ from battle.service.action_service import ActionService
 class ActionInitiationSystem(System):
     """
     1. 行動開始の起案システム
-    チャージ完了したエンティティに対し、ターゲットを確定し、事前戦闘計算を行う。
+    充填完了したエンティティに対し、ターゲットを確定し、事前戦闘計算を行う。
     """
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)

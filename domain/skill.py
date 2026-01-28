@@ -14,7 +14,7 @@ class SkillBehavior(ABC):
         pass
 
     def get_time_modifier(self) -> float:
-        """充填・冷却時間の補正係数を返す（デフォルト1.0）"""
+        """充填・放熱時間の補正係数を返す（デフォルト1.0）"""
         return 1.0
 
     def get_offensive_bonuses(self, my_mobility: int, my_defense: int) -> Tuple[int, int]:
@@ -36,7 +36,7 @@ class SkillBehavior(ABC):
 
 
 class ShootSkill(SkillBehavior):
-    """撃つ：充填・冷却時間が短縮される"""
+    """撃つ：充填・放熱時間が短縮される"""
     @property
     def name(self) -> str:
         return "撃つ"
@@ -45,7 +45,7 @@ class ShootSkill(SkillBehavior):
         return 0.8
 
 class StrikeSkill(SkillBehavior):
-    """殴る：機動に応じて成功アップ。チャージ中は防御不可。"""
+    """殴る：機動に応じて成功アップ。充填中は防御不可。"""
     @property
     def name(self) -> str:
         return "殴る"
@@ -55,13 +55,13 @@ class StrikeSkill(SkillBehavior):
         return int(my_mobility * 0.25), 0
 
     def get_defensive_penalty(self, gauge_status: str) -> Tuple[bool, bool, bool]:
-        # チャージ中は防御不可
+        # 充填中は防御不可
         if gauge_status == GaugeStatus.CHARGING:
             return True, False, False
         return False, False, False
 
 class AimedShotSkill(SkillBehavior):
-    """狙い撃ち：耐久(防御)に応じて成功アップ。チャージ中は回避不可。"""
+    """狙い撃ち：耐久(防御)に応じて成功アップ。充填中は回避不可。"""
     @property
     def name(self) -> str:
         return "狙い撃ち"
@@ -71,13 +71,13 @@ class AimedShotSkill(SkillBehavior):
         return int(my_defense * 0.50), 0
 
     def get_defensive_penalty(self, gauge_status: str) -> Tuple[bool, bool, bool]:
-        # チャージ中は回避不可（命中確定）
+        # 充填中は回避不可（命中確定）
         if gauge_status == GaugeStatus.CHARGING:
             return False, True, False
         return False, False, False
 
 class RecklessSkill(SkillBehavior):
-    """我武者羅：機動と耐久に応じて威力アップ。チャージ・冷却中は防御回避不可かつ被クリティカル。"""
+    """我武者羅：機動と耐久に応じて威力アップ。充填・放熱中は防御回避不可かつ被クリティカル。"""
     @property
     def name(self) -> str:
         return "我武者羅"
@@ -87,7 +87,7 @@ class RecklessSkill(SkillBehavior):
         return 0, int(my_mobility * 0.25) + int(my_defense * 0.25)
 
     def get_defensive_penalty(self, gauge_status: str) -> Tuple[bool, bool, bool]:
-        # チャージ中および冷却中は絶対ヒット、防御不可、クリティカル確定
+        # 充填中および放熱中は絶対ヒット、防御不可、クリティカル確定
         if gauge_status in [GaugeStatus.CHARGING, GaugeStatus.COOLDOWN]:
             return True, True, True
         return False, False, False

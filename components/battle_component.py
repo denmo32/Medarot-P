@@ -60,7 +60,7 @@ class AttackComponent(Component):
     trait: Optional[str] = None     # "ライフル", "ソード", "サンダー" 等
     success: int = 0           # 成功度
     base_attack: Optional[int] = None # 時間計算用の基本攻撃力
-    time_modifier: float = 1.0 # 充填・冷却時間の補正係数（属性一致ボーナス等）
+    time_modifier: float = 1.0 # 充填・放熱時間の補正係数（属性一致ボーナス等）
     skill_type: str = "shoot"  # "shoot", "strike", "aimed_shot", "reckless"
 
     def __post_init__(self):

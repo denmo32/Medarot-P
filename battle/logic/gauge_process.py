@@ -4,7 +4,7 @@ import math
 from battle.constants import GaugeStatus
 
 def calculate_action_times(attack_power: int) -> tuple:
-    """攻撃力に基づいてチャージ時間とクールダウン時間を計算（対数スケール）"""
+    """攻撃力に基づいて充填時間と放熱時間を計算（対数スケール）"""
     base_time = 1
     log_modifier = math.log10(attack_power) if attack_power > 0 else 0
     

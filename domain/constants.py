@@ -42,5 +42,5 @@ class ActionType:
 class GaugeStatus:
     CHARGING = "charging" # 充填
     EXECUTING = "executing"
-    COOLDOWN = "cooldown" # 冷却
+    COOLDOWN = "cooldown" # 放熱
     ACTION_CHOICE = "action_choice"
