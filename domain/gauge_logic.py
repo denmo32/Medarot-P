@@ -1,7 +1,7 @@
-"""ゲージ計算や時間計算に関連するロジック"""
+"""ゲージ計算や時間計算に関連する純粋な計算ロジック"""
 
 import math
-from battle.constants import GaugeStatus
+from domain.constants import GaugeStatus
 
 def calculate_action_times(attack_power: int) -> tuple:
     """攻撃力に基づいて充填時間と放熱時間を計算（対数スケール）"""

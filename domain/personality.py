@@ -4,7 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List, Tuple
 from domain.constants import TraitType, PartType
-from battle.logic.targeting import TargetingService
+from battle.service.targeting_service import TargetingService
 
 class Personality(ABC):
     """性格の基底クラス"""

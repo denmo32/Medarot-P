@@ -1,8 +1,9 @@
 """行動コマンド適用システム"""
 
 from core.ecs import System
-from battle.constants import ActionType, GaugeStatus, BattlePhase
-from battle.logic.gauge_process import calculate_action_times
+from domain.constants import ActionType, GaugeStatus
+from battle.constants import BattlePhase
+from domain.gauge_logic import calculate_action_times
 from battle.service.flow_service import transition_to_phase, get_battle_state
 
 class ActionCommandSystem(System):

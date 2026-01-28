@@ -1,4 +1,4 @@
-"""コマンダーの方針に基づく行動決定ロジック"""
+"""コマンダーの方針に基づく行動決定サービス"""
 
 import random
 from abc import ABC, abstractmethod

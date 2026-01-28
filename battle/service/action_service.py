@@ -1,8 +1,9 @@
 """アクションの状態遷移を管理するサービス"""
 
-from battle.constants import GaugeStatus, BattlePhase, ActionType
+from domain.constants import GaugeStatus, ActionType
+from battle.constants import BattlePhase
 from battle.service.flow_service import transition_to_phase
-from battle.logic.targeting import TargetingService
+from battle.service.targeting_service import TargetingService
 from battle.service.log_service import LogService
 
 class ActionService:

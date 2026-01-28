@@ -3,10 +3,12 @@
 from typing import Dict, Any, List, Optional, Tuple
 from config import GAME_PARAMS, COLORS
 from battle.constants import (
-    BattlePhase, GaugeStatus, TeamType, PartType, 
-    MENU_PART_ORDER, PART_LABELS, TraitType, BattleTiming
+    BattlePhase, BattleTiming, PART_LABELS, MENU_PART_ORDER
 )
-from battle.logic.gauge_process import calculate_gauge_ratio
+from domain.constants import (
+    GaugeStatus, TeamType, PartType, TraitType
+)
+from domain.gauge_logic import calculate_gauge_ratio
 from .snapshot import (
     BattleStateSnapshot, CharacterViewData, LogWindowData, 
     ActionMenuData, ActionButtonData, GameOverData, CutinStateData

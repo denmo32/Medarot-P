@@ -2,7 +2,8 @@
 
 import random
 from typing import List, Optional, Tuple
-from battle.constants import TeamType, PartType, ActionType, TraitType
+from domain.constants import TeamType, PartType, ActionType, TraitType
+from domain.gauge_logic import calculate_gauge_ratio
 
 class TargetingService:
     """World（状態）を探索・クエリするためのサービス。ステートレス。"""
@@ -83,7 +84,6 @@ class TargetingService:
     @staticmethod
     def get_closest_target_by_gauge(world, my_team_type: str):
         """ゲージ進行度に基づいて「最も中央に近い（手前にいる）」ターゲットを選定する。"""
-        from battle.logic.gauge_process import calculate_gauge_ratio
         target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
         best_target = None
         max_ratio = float('-inf')
