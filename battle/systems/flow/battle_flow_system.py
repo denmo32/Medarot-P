@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase
-from battle.domain.battle_helper import transition_to_phase, get_battle_state
+from battle.service.flow_service import transition_to_phase, get_battle_state
 
 class BattleFlowSystem(System):
     """

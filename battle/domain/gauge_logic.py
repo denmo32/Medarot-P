@@ -1,16 +1,8 @@
-"""バトル関連のユーティリティ関数"""
+"""ゲージ計算や時間計算に関連するドメインロジック"""
 
 import math
-from typing import Optional, Tuple
 from config import GAME_PARAMS
-from battle.constants import GaugeStatus, TeamType, BattlePhase
-
-def get_battle_state(world) -> Tuple[Optional[any], Optional[any]]:
-    """バトル全体の共通コンポーネント(context, flow)を安全に取得する"""
-    entities = world.get_entities_with_components('battlecontext', 'battleflow')
-    if not entities:
-        return None, None
-    return entities[0][1]['battlecontext'], entities[0][1]['battleflow']
+from battle.constants import GaugeStatus, TeamType
 
 def calculate_action_times(attack_power: int) -> tuple:
     """攻撃力に基づいてチャージ時間とクールダウン時間を計算（対数スケール）"""
@@ -22,15 +14,6 @@ def calculate_action_times(attack_power: int) -> tuple:
     cooldown_time = base_time + log_modifier
     
     return charging_time, cooldown_time
-
-def transition_to_phase(flow, next_phase: str, timer: float = 0.0):
-    """バトルフェーズを遷移させ、タイマー等の関連状態を初期化する"""
-    flow.current_phase = next_phase
-    flow.phase_timer = timer
-    if next_phase == BattlePhase.IDLE:
-        flow.processing_event_id = None
-        flow.active_actor_id = None
-        flow.cutin_progress = 0.0
 
 def calculate_gauge_ratio(status: str, progress: float) -> float:
     """現在の状態と進捗から、中央への到達度（ポジションレシオ）を計算する。"""

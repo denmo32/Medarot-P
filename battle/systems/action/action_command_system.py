@@ -2,7 +2,8 @@
 
 from core.ecs import System
 from battle.constants import ActionType, GaugeStatus, BattlePhase
-from battle.domain.battle_helper import calculate_action_times, transition_to_phase, get_battle_state
+from battle.domain.gauge_logic import calculate_action_times
+from battle.service.flow_service import transition_to_phase, get_battle_state
 
 class ActionCommandSystem(System):
     """

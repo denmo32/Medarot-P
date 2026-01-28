@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase, TeamType
-from battle.domain.battle_helper import get_battle_state
+from battle.service.flow_service import get_battle_state
 
 class BattleStatusSystem(System):
     """バトル状態管理システム（勝敗判定など）"""

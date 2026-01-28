@@ -1,7 +1,7 @@
 """アクションの状態遷移を管理するサービス"""
 
 from battle.constants import GaugeStatus, BattlePhase
-from battle.domain.battle_helper import transition_to_phase
+from battle.service.flow_service import transition_to_phase
 
 class ActionService:
     """ゲージのリセット、中断処理などの状態遷移ロジックを統合"""

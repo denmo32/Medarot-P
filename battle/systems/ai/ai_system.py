@@ -2,8 +2,8 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase
-from battle.ai.strategy import StrategyRegistry
-from battle.domain.battle_helper import get_battle_state
+from battle.domain.strategy import StrategyRegistry
+from battle.service.flow_service import get_battle_state
 from components.action_command_component import ActionCommandComponent
 
 class AISystem(System):
