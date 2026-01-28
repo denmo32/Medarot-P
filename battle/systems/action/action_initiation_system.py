@@ -5,7 +5,6 @@ from components.action_event_component import ActionEventComponent
 from battle.service.flow_service import transition_to_phase, get_battle_state
 from battle.logic.targeting import TargetingService
 from battle.constants import GaugeStatus, ActionType, BattlePhase, BattleTiming
-from battle.service.log_service import LogService
 from battle.service.combat_service import CombatService
 from battle.service.action_service import ActionService
 
@@ -37,7 +36,7 @@ class ActionInitiationSystem(System):
         target_id, target_part = TargetingService.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
         
         if gauge.selected_action == ActionType.ATTACK and not target_id:
-            self._handle_target_loss(actor_eid, actor_comps, gauge, flow, context)
+            ActionService.handle_target_loss(self.world, actor_eid, context, flow)
             return
 
         # ActionEventエンティティ生成
@@ -62,16 +61,6 @@ class ActionInitiationSystem(System):
             transition_to_phase(flow, BattlePhase.TARGET_INDICATION, BattleTiming.TARGET_INDICATION)
         else:
             transition_to_phase(flow, BattlePhase.EXECUTING)
-        
-        if context.waiting_queue and context.waiting_queue[0] == actor_eid:
-            context.waiting_queue.pop(0)
-
-    def _handle_target_loss(self, actor_eid, actor_comps, gauge, flow, context):
-        """ターゲット消失時のハンドリング"""
-        actor_name = actor_comps['medal'].nickname
-        context.battle_log.append(LogService.get_target_lost(actor_name))
-        transition_to_phase(flow, BattlePhase.LOG_WAIT)
-        ActionService.reset_to_cooldown(gauge)
         
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)

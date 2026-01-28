@@ -51,6 +51,19 @@ class ActionService:
         return True
 
     @staticmethod
+    def handle_target_loss(world, entity_id: int, context, flow):
+        """
+        ターゲットが消失（または解決不能）になった際の中断処理。
+        """
+        comps = world.try_get_entity(entity_id)
+        if not comps: return
+        
+        actor_name = comps['medal'].nickname
+        message = LogService.get_target_lost(actor_name)
+        
+        ActionService.interrupt_action(world, entity_id, context, flow, message)
+
+    @staticmethod
     def interrupt_action(world, entity_id: int, context, flow, message: str):
         """アクションを中断させ、進行度を反転させて強制的に冷却へ移行させる"""
         context.battle_log.append(message)

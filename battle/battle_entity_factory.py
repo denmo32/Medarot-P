@@ -124,7 +124,7 @@ class BattleEntityFactory:
         
         world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))
         settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS[TeamType.ENEMY])
-        world.add_component(eid, GaugeComponent(1.0, settings['gauge_speed'], GaugeStatus.ACTION_CHOICE))
+        world.add_component(eid, GaugeComponent(status=GaugeStatus.ACTION_CHOICE))
         
         is_leader = (index == 0)
         world.add_component(eid, TeamComponent(team_type, settings['color'], is_leader=is_leader))

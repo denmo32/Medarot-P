@@ -30,14 +30,12 @@ PART_LABELS = {
 # アクションメニューのパーツ表示順序
 MENU_PART_ORDER = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]
 
-# チームごとの設定（ゲージ速度、カラー）
+# チームごとの設定（カラー）
 TEAM_SETTINGS = {
     TeamType.PLAYER: {
-        'gauge_speed': 0.3,
         'color': (0, 100, 200) # Blue
     },
     TeamType.ENEMY: {
-        'gauge_speed': 0.25,
         'color': (200, 0, 0)   # Red
     }
 }

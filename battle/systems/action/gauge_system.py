@@ -33,7 +33,7 @@ class GaugeSystem(System):
             return
 
         # 3. ゲージの進捗加算
-        self._advance_gauges(gauge_entities, dt)
+        self._advance_gauges(gauge_entities, context, dt)
 
     def _update_waiting_queue(self, gauge_entities, context):
         """行動選択可能になったエンティティをキューに追加"""
@@ -43,7 +43,7 @@ class GaugeSystem(System):
                 if eid not in context.waiting_queue:
                     context.waiting_queue.append(eid)
 
-    def _advance_gauges(self, gauge_entities, dt):
+    def _advance_gauges(self, gauge_entities, context, dt):
         """時間経過によるゲージの更新"""
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
@@ -58,8 +58,8 @@ class GaugeSystem(System):
                 gauge.progress += dt / gauge.charging_time * 100.0
                 if gauge.progress >= 100.0:
                     gauge.progress = 100.0
-                    if eid not in self.world.entities[0]['battlecontext'].waiting_queue:
-                        self.world.entities[0]['battlecontext'].waiting_queue.append(eid)
+                    if eid not in context.waiting_queue:
+                        context.waiting_queue.append(eid)
             
             elif gauge.status == GaugeStatus.COOLDOWN:
                 gauge.progress += dt / gauge.cooldown_time * 100.0
@@ -69,5 +69,5 @@ class GaugeSystem(System):
                     gauge.part_targets = {} 
                     gauge.selected_action = None
                     gauge.selected_part = None
-                    if eid not in self.world.entities[0]['battlecontext'].waiting_queue:
-                        self.world.entities[0]['battlecontext'].waiting_queue.append(eid)
+                    if eid not in context.waiting_queue:
+                        context.waiting_queue.append(eid)

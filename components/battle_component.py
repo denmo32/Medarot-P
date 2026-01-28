@@ -9,7 +9,6 @@ from battle.constants import GaugeStatus
 class GaugeComponent(Component):
     """ATBゲージコンポーネント"""
     value: float = 0.0
-    speed: float = 0.1
     status: str = GaugeStatus.ACTION_CHOICE
     
     progress: float = field(init=False, default=0.0)
