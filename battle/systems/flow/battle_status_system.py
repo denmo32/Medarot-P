@@ -1,12 +1,10 @@
-"""バトル状態管理システム（統一された敗北判定システム）"""
+"""バトル状態管理システム"""
 
 from core.ecs import System
 from battle.constants import BattlePhase, TeamType
-from battle.service.flow_service import get_battle_state
+from battle.mechanics.flow import get_battle_state
 
 class BattleStatusSystem(System):
-    """バトル状態管理システム（勝敗判定など）"""
-    
     def update(self, dt: float = 0.016):
         context, flow = get_battle_state(self.world)
         if not flow or flow.current_phase == BattlePhase.GAME_OVER:

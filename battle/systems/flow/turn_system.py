@@ -2,12 +2,9 @@
 
 from core.ecs import System
 from battle.constants import TeamType, GaugeStatus, BattlePhase
-from battle.service.flow_service import get_battle_state
+from battle.mechanics.flow import get_battle_state
 
 class TurnSystem(System):
-    """
-    IDLEフェーズにおいて待機列の先頭を確認し、手番を割り振る。
-    """
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
         if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:

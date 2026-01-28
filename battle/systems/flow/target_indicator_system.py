@@ -1,23 +1,17 @@
-"""ターゲット演出のフロー制御システム（ロジック）"""
+"""ターゲット演出のフロー制御システム"""
 
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
-from battle.service.log_service import LogService
-from domain.skill import SkillRegistry
-from battle.service.flow_service import transition_to_phase, get_battle_state
+from battle.mechanics.log import LogBuilder
+from battle.mechanics.skill import SkillRegistry
+from battle.mechanics.flow import transition_to_phase, get_battle_state
 
 class TargetIndicatorSystem(System):
-    """
-    TARGET_INDICATIONフェーズの時間管理を行う。
-    演出終了後、ATTACK_DECLARATIONフェーズへ遷移し、攻撃宣言メッセージを発行する。
-    描画オフセット計算などのUI責務は排除されている。
-    """
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
         if not context or flow.current_phase != BattlePhase.TARGET_INDICATION:
             return
 
-        # 純粋なフェーズタイマーの減算のみ
         flow.phase_timer -= dt
         
         if flow.phase_timer <= 0:
@@ -53,4 +47,4 @@ class TargetIndicatorSystem(System):
                 trait_text = f" {attack_comp.trait}！"
                 skill_name = SkillRegistry.get(attack_comp.skill_type).name
         
-        context.battle_log.append(LogService.get_attack_declaration(attacker_name, skill_name, trait_text))
+        context.battle_log.append(LogBuilder.get_attack_declaration(attacker_name, skill_name, trait_text))

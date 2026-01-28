@@ -124,3 +124,13 @@ ui/battle/__pycache__/layout_utils.cpython-313.pyc
 battle/systems/action/__pycache__/interruption_system.cpython-313.pyc
 battle/service/__pycache__/ai_strategy_service.cpython-313.pyc
 domain/__pycache__/gauge_logic.cpython-313.pyc
+battle/mechanics/__pycache__/ai.cpython-313.pyc
+.gitignore
+battle/mechanics/__pycache__/skill.cpython-313.pyc
+battle/mechanics/__pycache__/trait.cpython-313.pyc
+battle/mechanics/__pycache__/targeting.cpython-313.pyc
+battle/mechanics/__pycache__/status.cpython-313.pyc
+battle/mechanics/__pycache__/log.cpython-313.pyc
+battle/mechanics/__pycache__/flow.cpython-313.pyc
+battle/mechanics/__pycache__/combat.cpython-313.pyc
+battle/mechanics/__pycache__/action.cpython-313.pyc

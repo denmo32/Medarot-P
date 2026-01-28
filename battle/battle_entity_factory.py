@@ -29,8 +29,6 @@ class BattleEntityFactory:
 
         for p_type, p_id in setup["parts"].items():
             data = dm.get_part_data(p_id)
-            
-            # ステータス計算をドメインロジックへ委譲
             stats = StatsLogic.calculate_initial_stats(data, p_type, medal_attr)
 
             parts[p_type] = BattleEntityFactory._create_part_entity(
@@ -43,7 +41,6 @@ class BattleEntityFactory:
 
     @staticmethod
     def _create_part_entity(world: World, part_type: str, name: str, stats: dict) -> int:
-        """内部用パーツ生成ヘルパー"""
         eid = world.create_entity()
         world.add_component(eid, NameComponent(name))
         world.add_component(eid, PartComponent(part_type, stats["attribute"]))

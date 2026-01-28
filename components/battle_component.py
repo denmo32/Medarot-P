@@ -1,9 +1,16 @@
 """バトル固有のECSコンポーネント定義（純粋データ構造）"""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from core.ecs import Component
 from battle.constants import GaugeStatus
+
+@dataclass
+class StatusEffect:
+    """汎用的な状態異常データ"""
+    type_id: str             # "stop", "burn", "virus" 等
+    duration: float          # 残り時間
+    params: Dict[str, Any] = field(default_factory=dict) # 任意のパラメータ
 
 @dataclass
 class GaugeComponent(Component):
@@ -19,8 +26,8 @@ class GaugeComponent(Component):
     charging_time: float = field(init=False, default=2.0)
     cooldown_time: float = field(init=False, default=2.0)
     
-    # 状態異常：停止用タイマー（秒）
-    stop_timer: float = field(init=False, default=0.0)
+    # 状態異常：汎用リストに変更
+    active_effects: List[StatusEffect] = field(default_factory=list)
 
 @dataclass
 class TeamComponent(Component):
@@ -111,4 +118,5 @@ class DamageEventComponent(Component):
     damage: int
     target_part: str
     is_critical: bool = False
-    stop_duration: float = 0.0 # 停止させる時間
+    # 追加効果のリスト
+    added_effects: List[StatusEffect] = field(default_factory=list)

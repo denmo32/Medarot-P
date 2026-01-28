@@ -21,34 +21,22 @@ class BattleViewModel:
         self.world = world
 
     def create_snapshot(self) -> BattleStateSnapshot:
-        """現在のWorldからスナップショットを生成"""
         context, flow = self._get_battle_state()
         if not context or not flow:
             return BattleStateSnapshot()
 
         snapshot = BattleStateSnapshot()
-
-        # 1. キャラクター情報構築
         snapshot.characters = self._build_character_data(context, flow)
-
-        # 2. ターゲットマーカー（メニュー選択中のターゲット）
         snapshot.target_marker_eid = self._get_active_target_eid(context, flow)
-
-        # 3. ターゲットライン（攻撃指示）
         snapshot.target_line = self._build_target_line(snapshot.characters, flow)
-
-        # 4. UIパネル
         snapshot.log_window = self._build_log_window(context, flow)
         snapshot.action_menu = self._build_action_menu(context, flow)
         snapshot.game_over = self._build_game_over(flow)
 
-        # 5. カットイン演出
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
             snapshot.cutin = self._build_cutin_state(flow)
         
         return snapshot
-
-    # --- 内部ヘルパー ---
 
     def _get_battle_state(self):
         entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
@@ -64,7 +52,6 @@ class BattleViewModel:
             medal = comps['medal']
             part_list = comps['partlist']
 
-            # 座標計算のUI層への集約
             icon_x = self._calculate_current_icon_x(pos.x, gauge, team.team_type)
             
             border_color = self._get_border_color(eid, gauge, flow, context)
@@ -86,7 +73,6 @@ class BattleViewModel:
         return chars
 
     def _calculate_current_icon_x(self, base_x: int, gauge, team_type: str) -> float:
-        """エンティティの現在のアイコンX座標を計算する（ゲージ進行に基づく視覚的座標）"""
         center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
         offset = 40
         ratio = calculate_gauge_ratio(gauge.status, gauge.progress)
@@ -121,7 +107,6 @@ class BattleViewModel:
         return status
 
     def _get_active_target_eid(self, context, flow) -> Optional[int]:
-        """現在メニューで選択されているパーツのターゲット機体IDを取得"""
         if flow.current_phase != BattlePhase.INPUT:
             return None
             
@@ -141,7 +126,6 @@ class BattleViewModel:
         if flow.current_phase != BattlePhase.TARGET_INDICATION:
             return None
         
-        # ActionEventから取得
         event_eid = flow.processing_event_id
         event_comps = self.world.try_get_entity(event_eid)
         if not event_comps or 'actionevent' not in event_comps:

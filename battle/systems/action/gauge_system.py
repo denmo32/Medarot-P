@@ -2,41 +2,38 @@
 
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase
-from battle.service.flow_service import get_battle_state
-from battle.service.action_service import ActionService
+from battle.mechanics.flow import get_battle_state
+from battle.mechanics.action import ActionMechanics
+from battle.mechanics.status import StatusRegistry
 
 class GaugeSystem(System):
-    """ATBゲージの進行管理、および充填中のアクション有効性監視を担当"""
+    """ATBゲージ進行と状態異常（StatusEffect）の更新を担当"""
+
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
         if not context or not flow: return
 
-        # 演出中やメッセージ表示中は時間が止まる
         if flow.current_phase != BattlePhase.IDLE:
             return
 
-        gauge_entities = self.world.get_entities_with_components('gauge', 'defeated', 'medal', 'partlist')
+        gauge_entities = self.world.get_entities_with_components('gauge', 'defeated')
 
-        # 1. 中断チェック（ActionServiceハンドラへの委譲）
+        # 1. 中断チェック
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
-            # ハンドラによって中断された場合はフェーズが変わるためループを抜ける
-            if not ActionService.validate_action_continuity(self.world, eid, context, flow):
+            if not ActionMechanics.validate_action_continuity(self.world, eid, context, flow):
                 if flow.current_phase == BattlePhase.LOG_WAIT:
                     return
 
-        # 2. 待機キューの更新
+        # 2. 待機キュー更新
         self._update_waiting_queue(gauge_entities, context)
-
-        # 誰かが行動待機中の場合は、ゲージ進行を停止させる（ウェイト式ATB）
         if context.waiting_queue:
             return
 
-        # 3. ゲージの進捗加算
+        # 3. ゲージ・状態異常更新
         self._advance_gauges(gauge_entities, context, dt)
 
     def _update_waiting_queue(self, gauge_entities, context):
-        """行動選択可能になったエンティティをキューに追加"""
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
             if comps['gauge'].status == GaugeStatus.ACTION_CHOICE:
@@ -44,16 +41,32 @@ class GaugeSystem(System):
                     context.waiting_queue.append(eid)
 
     def _advance_gauges(self, gauge_entities, context, dt):
-        """時間経過によるゲージの更新"""
         for eid, comps in gauge_entities:
             if comps['defeated'].is_defeated: continue
             gauge = comps['gauge']
             
-            # 状態異常：停止
-            if gauge.stop_timer > 0:
-                gauge.stop_timer = max(0.0, gauge.stop_timer - dt)
-                continue
+            # --- Strategyパターンによる状態異常処理 ---
+            can_charge = True
             
+            # リストをコピーしてループ（削除対策）
+            for effect in gauge.active_effects[:]:
+                behavior = StatusRegistry.get(effect.type_id)
+                
+                # 毎フレーム処理
+                behavior.on_tick(effect, gauge, dt)
+                
+                # 行動阻害判定
+                if not behavior.can_charge(effect):
+                    can_charge = False
+                
+                # 期限切れ削除
+                if effect.duration <= 0:
+                    gauge.active_effects.remove(effect)
+            
+            if not can_charge:
+                continue
+            # ------------------------------------
+
             if gauge.status == GaugeStatus.CHARGING:
                 gauge.progress += dt / gauge.charging_time * 100.0
                 if gauge.progress >= 100.0:

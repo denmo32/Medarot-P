@@ -2,15 +2,11 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase
-from battle.service.ai_strategy_service import StrategyRegistry
-from battle.service.flow_service import get_battle_state
+from battle.mechanics.ai import StrategyRegistry
+from battle.mechanics.flow import get_battle_state
 from components.action_command_component import ActionCommandComponent
 
 class AISystem(System):
-    """
-    エネミーのターンにコマンダーとしての意思決定を行う。
-    結果をActionCommandComponentとして発行する。
-    """
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
         if not context or flow.current_phase != BattlePhase.ENEMY_TURN:
@@ -21,9 +17,7 @@ class AISystem(System):
             flow.current_phase = BattlePhase.IDLE
             return
 
-        # 意思決定アルゴリズムをRegistryから取得
         strategy = StrategyRegistry.get("random")
         action, part = strategy.decide_action(self.world, eid)
 
-        # コマンドの発行
         self.world.add_component(eid, ActionCommandComponent(action, part))

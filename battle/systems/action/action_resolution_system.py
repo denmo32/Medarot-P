@@ -3,15 +3,13 @@
 from core.ecs import System
 from components.battle_component import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
-from battle.service.flow_service import transition_to_phase, get_battle_state
-from battle.service.log_service import LogService
-from battle.service.action_service import ActionService
+from battle.mechanics.flow import transition_to_phase, get_battle_state
+from battle.mechanics.log import LogBuilder
+from battle.mechanics.action import ActionMechanics
 
 class ActionResolutionSystem(System):
-    """
-    2. 行動解決システム
-    事前に計算された ActionEvent の結果に基づき、DamageEventを発行する。
-    """
+    """事前に計算された ActionEvent の結果に基づき、DamageEventを発行する"""
+    
     def update(self, dt: float):
         context, flow = get_battle_state(self.world)
         if not flow or flow.current_phase != BattlePhase.EXECUTING:
@@ -40,11 +38,11 @@ class ActionResolutionSystem(System):
             self._handle_attack_action(event, attacker_comps, context)
             transition_to_phase(flow, BattlePhase.CUTIN_RESULT)
         elif event.action_type == ActionType.SKIP:
-            context.battle_log.append(LogService.get_skip_action(attacker_comps['medal'].nickname))
+            context.battle_log.append(LogBuilder.get_skip_action(attacker_comps['medal'].nickname))
             transition_to_phase(flow, BattlePhase.LOG_WAIT)
 
         if 'gauge' in attacker_comps:
-            ActionService.reset_to_cooldown(attacker_comps['gauge'])
+            ActionMechanics.reset_to_cooldown(attacker_comps['gauge'])
 
     def _handle_attack_action(self, event, attacker_comps, context):
         attacker_name = attacker_comps['medal'].nickname
@@ -52,12 +50,12 @@ class ActionResolutionSystem(System):
         part_comps = self.world.try_get_entity(part_id) if part_id is not None else None
         
         if not part_comps or part_comps['health'].hp <= 0:
-            context.battle_log.append(LogService.get_part_broken_attack(attacker_name))
+            context.battle_log.append(LogBuilder.get_part_broken_attack(attacker_name))
             return
 
         res = event.calculation_result
         if res is None:
-            context.battle_log.append(LogService.get_target_lost(attacker_name))
+            context.battle_log.append(LogBuilder.get_target_lost(attacker_name))
             return
 
         if not res.is_hit:
@@ -69,5 +67,5 @@ class ActionResolutionSystem(System):
             damage=res.damage,
             target_part=res.hit_part,
             is_critical=res.is_critical,
-            stop_duration=res.stop_duration
+            added_effects=res.added_effects
         ))

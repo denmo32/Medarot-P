@@ -1,18 +1,15 @@
-"""コマンダーの方針に基づく行動決定サービス"""
+"""AI戦略ロジック（旧 AIStrategyService）"""
 
 import random
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional
 
 class Strategy(ABC):
-    """コマンダーの方針（AI）の基底クラス"""
     @abstractmethod
     def decide_action(self, world, entity_id: int) -> Tuple[str, Optional[str]]:
-        """(アクション名, 使用パーツ名) を決定して返す"""
         pass
 
 class RandomStrategy(Strategy):
-    """ランダム方針：使用可能な攻撃パーツからランダムに選択する"""
     def decide_action(self, world, entity_id: int) -> Tuple[str, Optional[str]]:
         comps = world.entities.get(entity_id)
         part_list = comps.get('partlist')
@@ -31,12 +28,10 @@ class RandomStrategy(Strategy):
         return "attack", random.choice(available_parts)
 
 class StrategyRegistry:
-    """意思決定アルゴリズムのカタログ（Registry）"""
     _strategies = {
         "random": RandomStrategy()
     }
     
     @classmethod
     def get(cls, strategy_id: str) -> Strategy:
-        """IDに応じた方針インスタンスを返す"""
         return cls._strategies.get(strategy_id, cls._strategies["random"])

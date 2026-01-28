@@ -5,7 +5,7 @@ from typing import Optional, TYPE_CHECKING
 from core.ecs import Component
 
 if TYPE_CHECKING:
-    from battle.service.combat_service import CombatResult
+    from battle.mechanics.combat import CombatResult
 
 @dataclass
 class ActionEventComponent(Component):
@@ -24,10 +24,9 @@ class ActionEventComponent(Component):
     current_target_id: Optional[int] = field(init=False)
     desired_target_part: Optional[str] = field(init=False)
     
-    # 計算結果 (InitiationSystemで事前に計算して格納する)
+    # 計算結果
     calculation_result: Optional['CombatResult'] = field(init=False, default=None)
     
-    # 状態
     status: str = field(init=False, default="created")
     executed: bool = field(init=False, default=False)
 

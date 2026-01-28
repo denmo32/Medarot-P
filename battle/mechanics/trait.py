@@ -1,34 +1,35 @@
-"""パーツ特性（Trait）に関連するロジック（Strategyパターン）"""
+"""パーツ特性（Trait）の振る舞いロジック"""
 
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import List
 from domain.constants import TraitType
+from components.battle_component import StatusEffect
 
 class TraitBehavior(ABC):
     """特性の振る舞いを定義する基底クラス"""
 
     @abstractmethod
-    def get_stop_duration(self, success: int, mobility: int) -> float:
+    def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
         """
-        攻撃命中時の停止時間（秒）を計算する。
-        追加効果がない場合は0.0を返す。
+        攻撃命中時の追加効果リストを生成して返す。
         """
-        return 0.0
+        return []
 
 class NormalTrait(TraitBehavior):
-    """特別な効果を持たない標準的な特性（ライフル、ソードなど）"""
-    def get_stop_duration(self, success: int, mobility: int) -> float:
-        return 0.0
+    """特別な効果を持たない標準的な特性"""
+    def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
+        return []
 
 class ThunderTrait(TraitBehavior):
     """サンダー：命中時に相手を停止させる"""
-    def get_stop_duration(self, success: int, mobility: int) -> float:
+    def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
         # 成功度と機動の差分に応じて停止時間が決まる
-        return max(0.5, (success - mobility) * 0.05)
+        duration = max(0.5, (success - mobility) * 0.05)
+        return [StatusEffect(type_id="stop", duration=duration)]
 
 
 class TraitRegistry:
-    """TraitBehaviorのカタログ（Registry）"""
+    """TraitBehaviorのカタログ"""
     
     _behaviors = {
         TraitType.RIFLE: NormalTrait(),
@@ -42,5 +43,4 @@ class TraitRegistry:
 
     @classmethod
     def get(cls, trait_name: str) -> TraitBehavior:
-        """IDに応じた特性振る舞いを返す"""
         return cls._behaviors.get(trait_name, cls._default)
