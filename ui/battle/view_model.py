@@ -62,8 +62,8 @@ class BattleViewModel:
             medal = comps['medal']
             part_list = comps['partlist']
 
-            # 座標計算のUI層への移譲
-            icon_x = self._calculate_icon_screen_x(pos.x, gauge, team.team_type)
+            # 座標計算のUI層への集約
+            icon_x = self._calculate_current_icon_x(pos.x, gauge, team.team_type)
             
             border_color = self._get_border_color(eid, gauge, flow, context)
             part_status = self._get_part_status_map(part_list)
@@ -83,8 +83,8 @@ class BattleViewModel:
             )
         return chars
 
-    def _calculate_icon_screen_x(self, base_x: int, gauge, team_type: str) -> float:
-        """ゲージの進行度に基づき、現在のアイコンX座標（ピクセル）を計算する"""
+    def _calculate_current_icon_x(self, base_x: int, gauge, team_type: str) -> float:
+        """エンティティの現在のアイコンX座標を計算する（ゲージ進行に基づく視覚的座標）"""
         center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
         offset = 40
         ratio = calculate_gauge_ratio(gauge.status, gauge.progress)
@@ -93,7 +93,6 @@ class BattleViewModel:
             target_x = center_x - offset
             return base_x + ratio * (target_x - base_x)
         else:
-            # 敵側は右端から中央に向かって進む
             start_x = base_x + GAME_PARAMS['GAUGE_WIDTH']
             target_x = center_x + offset
             return start_x + ratio * (target_x - start_x)

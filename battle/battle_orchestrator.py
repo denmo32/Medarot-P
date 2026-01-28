@@ -5,7 +5,6 @@ from battle.battle_entity_factory import BattleEntityFactory
 
 # Systems (Logic)
 from battle.systems.action.gauge_system import GaugeSystem
-from battle.systems.action.interruption_system import InterruptionSystem
 from battle.systems.action.target_selection_system import TargetSelectionSystem
 from battle.systems.flow.turn_system import TurnSystem
 from battle.systems.ai.ai_system import AISystem
@@ -41,7 +40,6 @@ class BattleSystem:
         self.systems = [
             InputSystem(self.world),
             BattleFlowSystem(self.world),
-            InterruptionSystem(self.world), # ゲージ進行の前に中断を確認
             GaugeSystem(self.world),
             TargetSelectionSystem(self.world),
             TurnSystem(self.world),
