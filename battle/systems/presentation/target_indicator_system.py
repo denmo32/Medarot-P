@@ -3,7 +3,7 @@
 from core.ecs import System
 from battle.constants import BattlePhase, ActionType
 from battle.service.log_service import LogService
-from battle.domain.skill_registry import SkillRegistry
+from domain.skill import SkillRegistry
 from battle.service.flow_service import transition_to_phase, get_battle_state
 
 class TargetIndicatorSystem(System):

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Tuple
-from battle.constants import TraitType
+from domain.constants import TraitType
 
 class TraitBehavior(ABC):
     """特性の振る舞いを定義する基底クラス"""

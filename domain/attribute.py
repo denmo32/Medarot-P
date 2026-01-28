@@ -1,7 +1,7 @@
 """属性（Attribute）に関連するロジック"""
 
 from typing import Dict, Any, Tuple
-from battle.constants import PartType, AttributeType
+from domain.constants import PartType, AttributeType
 
 class AttributeLogic:
     """属性に関する計算ロジックを提供するステートレスクラス"""

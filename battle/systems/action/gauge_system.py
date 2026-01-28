@@ -3,7 +3,7 @@
 from core.ecs import System
 from battle.constants import GaugeStatus, BattlePhase, ActionType
 from battle.service.flow_service import get_battle_state
-from battle.service.targeting_service import TargetingService
+from battle.logic.targeting import TargetingService
 from battle.service.log_service import LogService
 from battle.service.action_service import ActionService
 

@@ -1,7 +1,7 @@
 """ターゲット選定システム"""
 
 from core.ecs import System
-from battle.domain.personality import PersonalityRegistry
+from domain.personality import PersonalityRegistry
 from components.battle_flow_component import BattleFlowComponent
 from battle.constants import BattlePhase, GaugeStatus
 

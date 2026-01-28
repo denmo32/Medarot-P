@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Tuple
-from battle.constants import SkillType, GaugeStatus
+from domain.constants import SkillType, GaugeStatus
 
 class SkillBehavior(ABC):
     """スキルの振る舞いを定義する基底クラス"""

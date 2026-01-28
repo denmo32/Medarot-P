@@ -2,7 +2,7 @@
 
 from core.ecs import System
 from battle.constants import BattlePhase
-from battle.domain.strategy import StrategyRegistry
+from battle.logic.strategy import StrategyRegistry
 from battle.service.flow_service import get_battle_state
 from components.action_command_component import ActionCommandComponent
 

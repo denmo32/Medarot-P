@@ -4,10 +4,10 @@ import random
 from dataclasses import dataclass
 from typing import Optional, Tuple, Dict
 from battle.constants import PartType, AttributeType
-from battle.domain.attribute_logic import AttributeLogic
-from battle.domain.trait_registry import TraitRegistry
-from battle.domain.skill_registry import SkillRegistry
-from battle.domain.combat_calculator_logic import (
+from domain.attribute import AttributeLogic
+from domain.trait import TraitRegistry
+from domain.skill import SkillRegistry
+from domain.combat_formula import (
     calculate_hit_probability, 
     calculate_break_probability, 
     check_is_hit,

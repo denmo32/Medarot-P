@@ -3,7 +3,7 @@
 from core.ecs import System
 from components.action_event_component import ActionEventComponent
 from battle.service.flow_service import transition_to_phase, get_battle_state
-from battle.service.targeting_service import TargetingService
+from battle.logic.targeting import TargetingService
 from battle.constants import GaugeStatus, ActionType, BattlePhase, BattleTiming
 from battle.service.log_service import LogService
 from battle.service.combat_service import CombatService
