@@ -1,29 +1,43 @@
-"""ターゲット選定ロジック（旧 TargetingService）"""
+"""ターゲット選定・状態確認ロジック（旧 TargetingService）"""
 
 import random
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 from domain.constants import TeamType, ActionType, TraitType
 from domain.gauge_logic import calculate_gauge_ratio
 
 class TargetingMechanics:
+    """エンティティの生存・有効性・クエリに関するユーティリティ"""
+
+    @staticmethod
+    def get_components(world, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
+        """指定した全コンポーネントを持つエンティティを取得するヘルパー"""
+        comps = world.try_get_entity(entity_id)
+        if not comps: return None
+        if all(name in comps for name in names):
+            return comps
+        return None
+
     @staticmethod
     def is_entity_alive(world, entity_id: int) -> bool:
         comps = world.try_get_entity(entity_id)
         if not comps: return False
-        return not comps.get('defeated', type('Dummy', (), {'is_defeated': True})).is_defeated
+        defeated = comps.get('defeated')
+        return not defeated.is_defeated if defeated else True
 
     @staticmethod
     def is_part_alive(world, entity_id: int, part_type: str) -> bool:
-        if not TargetingMechanics.is_entity_alive(world, entity_id): return False
-        comps = world.try_get_entity(entity_id)
+        comps = TargetingMechanics.get_components(world, entity_id, 'partlist')
+        if not comps: return False
+        
         part_id = comps['partlist'].parts.get(part_type)
         if part_id is None: return False
+        
         p_comps = world.try_get_entity(part_id)
         return p_comps and p_comps['health'].hp > 0
 
     @staticmethod
     def is_action_target_valid(world, target_id: Optional[int], target_part: Optional[str] = None) -> bool:
-        """エンティティおよび指定部位が有効（生存）かチェック"""
+        """エンティティおよび指定部位が有効（生存）か一括チェック"""
         if target_id is None: return False
         if not TargetingMechanics.is_entity_alive(world, target_id): return False
         if target_part:
@@ -32,24 +46,22 @@ class TargetingMechanics:
 
     @staticmethod
     def get_alive_parts(world, entity_id: int) -> List[str]:
-        comps = world.try_get_entity(entity_id)
+        comps = TargetingMechanics.get_components(world, entity_id, 'partlist')
         if not comps: return []
+        
         return [pt for pt, pid in comps['partlist'].parts.items() 
                 if world.try_get_entity(pid)['health'].hp > 0]
 
     @staticmethod
     def get_enemy_team_entities(world, my_entity_id: int) -> List[int]:
-        my_comps = world.try_get_entity(my_entity_id)
+        my_comps = TargetingMechanics.get_components(world, my_entity_id, 'team')
         if not my_comps: return []
         
         my_team = my_comps['team'].team_type
         target_team_type = TeamType.ENEMY if my_team == TeamType.PLAYER else TeamType.PLAYER
         
-        valid_targets = []
-        for eid, comps in world.get_entities_with_components('team', 'defeated'):
-            if comps['team'].team_type == target_team_type and not comps['defeated'].is_defeated:
-                valid_targets.append(eid)
-        return valid_targets
+        return [eid for eid, comps in world.get_entities_with_components('team', 'defeated')
+                if comps['team'].team_type == target_team_type and not comps['defeated'].is_defeated]
 
     @staticmethod
     def get_random_alive_part(world, entity_id: int) -> Optional[str]:
@@ -57,7 +69,7 @@ class TargetingMechanics:
         return random.choice(alive_parts) if alive_parts else None
 
     @staticmethod
-    def get_closest_target_by_gauge(world, my_team_type: str):
+    def get_closest_target_by_gauge(world, my_team_type: str) -> Optional[int]:
         """最もゲージが進んでいる（中央に近い）敵を取得"""
         target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
         best_target, max_ratio = None, float('-inf')
@@ -75,19 +87,21 @@ class TargetingMechanics:
         if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
             return None, None
 
-        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
-        p_comps = world.try_get_entity(part_id)
-        if not p_comps or 'attack' not in p_comps: return None, None
+        # 実行パーツの有効性確認
+        if not TargetingMechanics.is_part_alive(world, actor_eid, gauge.selected_part):
+            return None, None
 
-        attack_comp = p_comps['attack']
-        
-        # 格闘特性の場合は最短（ゲージ優先）ターゲットに切り替える
+        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
+        attack_comp = world.try_get_entity(part_id).get('attack')
+        if not attack_comp: return None, None
+
+        # 1. 格闘特性の場合は最短（ゲージ優先）ターゲットに切り替える
         if attack_comp.trait in TraitType.MELEE_TRAITS:
             target_id = TargetingMechanics.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
             target_part = TargetingMechanics.get_random_alive_part(world, target_id) if target_id else None
             return target_id, target_part
         
-        # 射撃特性の場合は予約していたターゲットを確認
+        # 2. 射撃特性の場合は予約していたターゲットを確認
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             tid, tpart = target_data
