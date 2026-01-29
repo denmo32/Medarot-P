@@ -1,14 +1,13 @@
 """エネミー思考（AI）システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
 from battle.mechanics.ai import StrategyRegistry
-from battle.mechanics.flow import get_battle_state
 from components.action_command_component import ActionCommandComponent
 
-class AISystem(System):
+class AISystem(BattleSystemBase):
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not context or flow.current_phase != BattlePhase.ENEMY_TURN:
             return
 

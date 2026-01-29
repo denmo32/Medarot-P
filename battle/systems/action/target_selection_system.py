@@ -1,20 +1,15 @@
 """ターゲット選定システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from domain.personality import PersonalityRegistry
-from components.battle_flow_component import BattleFlowComponent
 from battle.constants import BattlePhase, GaugeStatus
 
-class TargetSelectionSystem(System):
+class TargetSelectionSystem(BattleSystemBase):
     """性格に基づき、各パーツの攻撃対象を事前に決定する"""
 
     def update(self, dt: float):
-        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
-        if not entities: return
-        flow = entities[0][1]['battleflow']
-
-        # IDLE状態のときのみターゲット選定更新を行う
-        if flow.current_phase != BattlePhase.IDLE:
+        _, flow = self.battle_state
+        if not flow or flow.current_phase != BattlePhase.IDLE:
             return
 
         # 行動選択待ち（ACTION_CHOICE）状態かつ、まだターゲットが決まっていないエンティティを処理

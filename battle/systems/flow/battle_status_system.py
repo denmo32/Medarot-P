@@ -1,12 +1,11 @@
 """バトル状態管理システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, TeamType
-from battle.mechanics.flow import get_battle_state
 
-class BattleStatusSystem(System):
+class BattleStatusSystem(BattleSystemBase):
     def update(self, dt: float = 0.016):
-        context, flow = get_battle_state(self.world)
+        _, flow = self.battle_state
         if not flow or flow.current_phase == BattlePhase.GAME_OVER:
             return
 

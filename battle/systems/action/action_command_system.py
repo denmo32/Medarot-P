@@ -1,14 +1,14 @@
 """行動コマンド適用システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from domain.constants import ActionType, GaugeStatus
 from battle.constants import BattlePhase
 from domain.gauge_logic import calculate_action_times
-from battle.mechanics.flow import transition_to_phase, get_battle_state
+from battle.mechanics.flow import transition_to_phase
 
-class ActionCommandSystem(System):
+class ActionCommandSystem(BattleSystemBase):
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not context or not flow: return
 
         for eid, comps in self.world.get_entities_with_components('actioncommand', 'gauge', 'partlist'):
@@ -21,14 +21,13 @@ class ActionCommandSystem(System):
 
             if cmd.action_type == ActionType.ATTACK and cmd.part_type:
                 part_id = part_list.parts.get(cmd.part_type)
-                if part_id is not None:
-                    p_comps = self.world.try_get_entity(part_id)
-                    if p_comps and 'attack' in p_comps:
-                        atk_comp = p_comps['attack']
-                        c_t, cd_t = calculate_action_times(atk_comp.base_attack)
-                        mod = atk_comp.time_modifier
-                        gauge.charging_time = c_t * mod
-                        gauge.cooldown_time = cd_t * mod
+                p_comps = self.world.try_get_entity(part_id)
+                if p_comps and 'attack' in p_comps:
+                    atk_comp = p_comps['attack']
+                    c_t, cd_t = calculate_action_times(atk_comp.base_attack)
+                    mod = atk_comp.time_modifier
+                    gauge.charging_time = c_t * mod
+                    gauge.cooldown_time = cd_t * mod
             
             gauge.status = GaugeStatus.CHARGING
             gauge.progress = 0.0

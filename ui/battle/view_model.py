@@ -3,9 +3,10 @@
 from typing import Dict, Any, List, Optional, Tuple
 from config import GAME_PARAMS, COLORS
 from battle.constants import BattlePhase, BattleTiming, PART_LABELS, MENU_PART_ORDER
-from domain.constants import GaugeStatus, TeamType, PartType, TraitType
+from domain.constants import GaugeStatus, TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
 from battle.mechanics.targeting import TargetingMechanics
+from battle.mechanics.flow import get_battle_state
 from .animation_logic import CutinAnimationLogic
 from .snapshot import (
     BattleStateSnapshot, CharacterViewData, LogWindowData, 
@@ -20,30 +21,24 @@ class BattleViewModel:
 
     def create_snapshot(self) -> BattleStateSnapshot:
         """現在の世界の状態を切り出し、Snapshotを生成する"""
-        context, flow = self._get_battle_state()
+        context, flow = get_battle_state(self.world)
         if not context or not flow: return BattleStateSnapshot()
 
         snapshot = BattleStateSnapshot()
         
-        # フィールド状態の構築
+        # 1. 各パネル/レイヤーの状態構築
         snapshot.characters = self._build_character_data(context, flow)
-        
-        # 演出・UI状態の構築
         snapshot.target_marker_eid = self._get_active_target_eid(context, flow)
         snapshot.target_line = self._build_target_line(snapshot.characters, flow)
         snapshot.log_window = self._build_log_window(context, flow)
         snapshot.action_menu = self._build_action_menu(context, flow)
         snapshot.game_over = self._build_game_over(flow)
 
-        # カットイン演出（進行度に応じた計算はAnimationLogicに委譲）
+        # 2. カットイン演出（進行度に応じた計算はAnimationLogicに委譲）
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
             snapshot.cutin = self._build_cutin_state(flow)
         
         return snapshot
-
-    def _get_battle_state(self):
-        entities = self.world.get_entities_with_components('battlecontext', 'battleflow')
-        return (entities[0][1]['battlecontext'], entities[0][1]['battleflow']) if entities else (None, None)
 
     def _build_character_data(self, context, flow) -> Dict[int, CharacterViewData]:
         chars = {}
@@ -79,8 +74,11 @@ class BattleViewModel:
         return None
 
     def _get_part_status_map(self, part_list_comp) -> Dict[str, bool]:
-        return {pt: (self.world.entities[pid]['health'].hp > 0) 
-                for pt, pid in part_list_comp.parts.items()}
+        status_map = {}
+        for pt, pid in part_list_comp.parts.items():
+            p_comps = self.world.try_get_entity(pid)
+            status_map[pt] = p_comps['health'].hp > 0 if p_comps else False
+        return status_map
 
     def _get_active_target_eid(self, context, flow) -> Optional[int]:
         if flow.current_phase != BattlePhase.INPUT: return None
@@ -140,7 +138,6 @@ class BattleViewModel:
         return GameOverData(winner=flow.winner or "", is_active=(flow.current_phase == BattlePhase.GAME_OVER))
 
     def _build_cutin_state(self, flow) -> CutinStateData:
-        # 演出用データの構築。計算の詳細は AnimationLogic に委譲。
         event_comps = self.world.try_get_entity(flow.processing_event_id)
         if not event_comps: return CutinStateData(False)
         
@@ -152,8 +149,9 @@ class BattleViewModel:
         # 攻撃パーツの特性を取得
         trait = "normal"
         p_id = atk_comps['partlist'].parts.get(event.part_type)
-        p_atk = self.world.try_get_entity(p_id).get('attack')
-        if p_atk: trait = p_atk.trait
+        p_comps = self.world.try_get_entity(p_id)
+        if p_comps and 'attack' in p_comps:
+            trait = p_comps['attack'].trait
 
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
         is_enemy = (atk_comps['team'].team_type == TeamType.ENEMY)
@@ -173,8 +171,9 @@ class BattleViewModel:
         part_list = comps['partlist']
         for p_key in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM, PartType.LEGS]:
             p_id = part_list.parts.get(p_key)
-            if p_id is not None:
-                h = self.world.entities[p_id]['health']
+            p_comps = self.world.try_get_entity(p_id)
+            if p_comps and 'health' in p_comps:
+                h = p_comps['health']
                 hp_bars.append({
                     'key': p_key, 
                     'label': PART_LABELS.get(p_key, ""), 

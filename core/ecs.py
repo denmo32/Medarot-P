@@ -1,6 +1,6 @@
 """ECSエンジン（汎用的な基盤のみ）"""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 class Component:
     """コンポーネント：データのみを持つ基底クラス"""
@@ -70,10 +70,17 @@ class World:
         if entity_id in self.entities:
             del self.entities[entity_id]
 
-    def get_entities_with_components(self, *component_names: str) -> List[tuple]:
+    def get_entities_with_components(self, *component_names: str) -> List[Tuple[int, Dict[str, Any]]]:
         """指定されたコンポーネントをすべて持つエンティティIDとそのコンポーネントDictのリストを取得"""
         result = []
         for entity_id, components in self.entities.items():
             if all(name in components for name in component_names):
                 result.append((entity_id, components))
         return result
+
+    def get_first_entity(self, *component_names: str) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
+        """条件に合致する最初のエンティティを返す。ContextやFlowの取得に最適。"""
+        for entity_id, components in self.entities.items():
+            if all(name in components for name in component_names):
+                return entity_id, components
+        return None, None

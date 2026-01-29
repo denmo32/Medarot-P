@@ -1,17 +1,16 @@
 """ターン開始管理システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import TeamType, GaugeStatus, BattlePhase
-from battle.mechanics.flow import get_battle_state
 
-class TurnSystem(System):
+class TurnSystem(BattleSystemBase):
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
 
         eid = context.waiting_queue[0]
-        comps = self.world.entities.get(eid)
+        comps = self.world.try_get_entity(eid)
         if not comps:
             context.waiting_queue.pop(0)
             return

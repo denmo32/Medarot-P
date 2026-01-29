@@ -1,17 +1,17 @@
 """行動開始起案システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
-from battle.mechanics.flow import transition_to_phase, get_battle_state
+from battle.mechanics.flow import transition_to_phase
 from battle.mechanics.targeting import TargetingMechanics
 from domain.constants import GaugeStatus, ActionType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
 from battle.mechanics.action import ActionMechanics
 
-class ActionInitiationSystem(System):
+class ActionInitiationSystem(BattleSystemBase):
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
 

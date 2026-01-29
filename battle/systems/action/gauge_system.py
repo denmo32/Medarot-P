@@ -1,16 +1,15 @@
 """ATBゲージ更新システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import GaugeStatus, BattlePhase
-from battle.mechanics.flow import get_battle_state
 from battle.mechanics.action import ActionMechanics
 from battle.mechanics.status import StatusRegistry
 
-class GaugeSystem(System):
+class GaugeSystem(BattleSystemBase):
     """ATBゲージの進行管理、および状態異常のカウントダウンを担当"""
 
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not context or not flow or flow.current_phase != BattlePhase.IDLE:
             return
 

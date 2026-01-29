@@ -1,12 +1,12 @@
 """カットイン演出のフロー制御システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, BattleTiming
-from battle.mechanics.flow import transition_to_phase, get_battle_state
+from battle.mechanics.flow import transition_to_phase
 
-class CutinFlowSystem(System):
+class CutinFlowSystem(BattleSystemBase):
     def update(self, dt: float):
-        _, flow = get_battle_state(self.world)
+        _, flow = self.battle_state
         if not flow or flow.current_phase != BattlePhase.CUTIN:
             return
 

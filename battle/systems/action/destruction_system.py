@@ -1,9 +1,9 @@
 """破壊・機能停止判定システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import PartType
 
-class DestructionSystem(System):
+class DestructionSystem(BattleSystemBase):
     """各パーツのHPを監視し、部位破壊や機体の機能停止を判定する"""
 
     def update(self, dt: float):
@@ -14,9 +14,8 @@ class DestructionSystem(System):
 
             # 頭部パーツのエンティティを取得
             head_id = comps['partlist'].parts.get(PartType.HEAD)
-            if head_id is not None:
-                head_health = self.world.entities[head_id].get('health')
-                
-                # 頭部HPが0なら機能停止
-                if head_health and head_health.hp <= 0:
+            head_comps = self.world.try_get_entity(head_id) if head_id is not None else None
+            
+            if head_comps and 'health' in head_comps:
+                if head_comps['health'].hp <= 0:
                     comps['defeated'].is_defeated = True

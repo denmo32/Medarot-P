@@ -1,12 +1,12 @@
 """バトルフロー管理システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
-from battle.mechanics.flow import transition_to_phase, get_battle_state
+from battle.mechanics.flow import transition_to_phase
 
-class BattleFlowSystem(System):
+class BattleFlowSystem(BattleSystemBase):
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not context or not flow: return
         
         if flow.current_phase == BattlePhase.LOG_WAIT:

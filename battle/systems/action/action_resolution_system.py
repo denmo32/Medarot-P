@@ -1,17 +1,17 @@
 """行動解決システム"""
 
-from core.ecs import System
+from battle.systems.battle_system_base import BattleSystemBase
 from components.battle_component import DamageEventComponent
 from battle.constants import ActionType, BattlePhase
-from battle.mechanics.flow import transition_to_phase, get_battle_state
+from battle.mechanics.flow import transition_to_phase
 from battle.mechanics.log import LogBuilder
 from battle.mechanics.action import ActionMechanics
 
-class ActionResolutionSystem(System):
+class ActionResolutionSystem(BattleSystemBase):
     """計算済みの ActionEvent に基づき、世界に結果（ダメージ等）を反映する"""
     
     def update(self, dt: float):
-        context, flow = get_battle_state(self.world)
+        context, flow = self.battle_state
         if not flow or flow.current_phase != BattlePhase.EXECUTING:
             return
         
