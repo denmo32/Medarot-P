@@ -2,7 +2,7 @@
 
 import random
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, Tuple
 from domain.constants import TraitType, PartType
 from battle.mechanics.targeting import TargetingMechanics
 

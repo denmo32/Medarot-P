@@ -1,7 +1,7 @@
 """ターゲット選定システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from domain.personality import PersonalityRegistry
+from battle.mechanics.personality import PersonalityRegistry
 from battle.constants import BattlePhase, GaugeStatus
 
 class TargetSelectionSystem(BattleSystemBase):
