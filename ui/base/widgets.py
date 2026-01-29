@@ -28,63 +28,49 @@ class MedabotWidgets:
     def draw_robot_icon(self, cx, cy, base_color, part_status, scale=1.0):
         """
         ロボット型アイコンを描画する。
-        cx, cy: 基準座標（ロボットの肩付近）
-        scale: 拡大縮小率 (1.0 = カットインサイズ)
+        部位ごとのメソッドに分割して描画を行う。
         """
-        screen = self.renderer.screen
-        # 色決定用ヘルパー
+        # 描画用パラメータの計算
         broken_color = (60, 60, 60)
         def get_col(ptype):
-            if part_status is None:
-                return base_color
+            if part_status is None: return base_color
             return base_color if part_status.get(ptype, False) else broken_color
 
-        # 各部位の基本サイズ (scale=1.0)
-        limb_w = 16 * scale
-        limb_h = 48 * scale
-        chest_a = 40 * scale
-        chest_h = 40 * scale
-        head_r = 16 * scale
+        # サイズ計算
+        s = scale
+        shoulder_y = cy - (16 * s)
         
-        # ギャップ等
-        leg_gap = 4 * scale
-        arm_gap = 4 * scale
-        
-        # 座標計算 (cx, cyを基準)
-        shoulder_y = cy - (16 * scale)
-        head_cy = shoulder_y - head_r
+        # 1. 脚
+        self._draw_legs(cx, shoulder_y, get_col(PartType.LEGS), s)
+        # 2. 腕
+        self._draw_arms(cx, shoulder_y, get_col(PartType.RIGHT_ARM), get_col(PartType.LEFT_ARM), s)
+        # 3. 胴体
+        self._draw_torso(cx, shoulder_y, get_col(PartType.HEAD), s)
+        # 4. 頭部
+        self._draw_head(cx, shoulder_y, get_col(PartType.HEAD), s)
 
-        # 胴体（三角形）
-        # TopLeft, TopRight, BottomCenter
-        chest_points = [
-            (cx - chest_a / 2, shoulder_y),
-            (cx + chest_a / 2, shoulder_y),
-            (cx, shoulder_y + chest_h)
-        ]
+    def _draw_legs(self, cx, sy, color, s):
+        limb_w, limb_h = 16 * s, 48 * s
+        gap, chest_h = 4 * s, 40 * s
+        y = sy + chest_h - (8 * s)
+        # 左右の脚
+        pygame.draw.rect(self.renderer.screen, color, (int(cx - gap - limb_w), int(y), int(limb_w), int(limb_h)))
+        pygame.draw.rect(self.renderer.screen, color, (int(cx + gap), int(y), int(limb_w), int(limb_h)))
 
-        legs_y = shoulder_y + chest_h - (8 * scale)
-        l_leg_x = cx - leg_gap - limb_w
-        r_leg_x = cx + leg_gap
+    def _draw_arms(self, cx, sy, r_color, l_color, s):
+        limb_w, limb_h = 16 * s, 48 * s
+        gap, chest_a = 4 * s, 40 * s
+        # 正面向き（画面左に右腕、右に左腕）
+        lx = cx - (chest_a / 2) - gap - limb_w
+        rx = cx + (chest_a / 2) + gap
+        pygame.draw.rect(self.renderer.screen, r_color, (int(lx), int(sy), int(limb_w), int(limb_h)))
+        pygame.draw.rect(self.renderer.screen, l_color, (int(rx), int(sy), int(limb_w), int(limb_h)))
 
-        arms_y = shoulder_y
-        l_arm_x = cx - (chest_a / 2) - arm_gap - limb_w
-        r_arm_x = cx + (chest_a / 2) + arm_gap
+    def _draw_torso(self, cx, sy, color, s):
+        a, h = 40 * s, 40 * s
+        points = [(cx - a/2, sy), (cx + a/2, sy), (cx, sy + h)]
+        pygame.draw.polygon(self.renderer.screen, color, points)
 
-        # 描画実行 (Rectはint型が必要)
-        def to_rect(x, y, w, h):
-            return (int(x), int(y), int(w), int(h))
-
-        # 脚
-        pygame.draw.rect(screen, get_col(PartType.LEGS), to_rect(l_leg_x, legs_y, limb_w, limb_h))
-        pygame.draw.rect(screen, get_col(PartType.LEGS), to_rect(r_leg_x, legs_y, limb_w, limb_h))
-        
-        # 腕
-        # 正面向き（対面）にするため、画面左側(l_arm_x)に右腕、画面右側(r_arm_x)に左腕を描画
-        pygame.draw.rect(screen, get_col(PartType.RIGHT_ARM), to_rect(l_arm_x, arms_y, limb_w, limb_h))
-        pygame.draw.rect(screen, get_col(PartType.LEFT_ARM), to_rect(r_arm_x, arms_y, limb_w, limb_h))
-        
-        # 胴体
-        pygame.draw.polygon(screen, get_col(PartType.HEAD), chest_points)
-        
-        # 頭
-        pygame.draw.circle(screen, get_col(PartType.HEAD), (int(cx), int(head_cy)), int(head_r))
+    def _draw_head(self, cx, sy, color, s):
+        r = 16 * s
+        pygame.draw.circle(self.renderer.screen, color, (int(cx), int(sy - r)), int(r))
