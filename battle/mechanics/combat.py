@@ -1,4 +1,4 @@
-"""戦闘計算ロジック（旧 CombatService）"""
+"""戦闘計算ロジック"""
 
 import random
 from dataclasses import dataclass, field
@@ -59,12 +59,15 @@ class CombatMechanics:
         
         attacker_comps = world.try_get_entity(attacker_id)
         target_comps = world.try_get_entity(target_id)
-        if not attacker_comps or not target_comps: return None
+        if not attacker_comps or not target_comps:
+            return None
 
         # 1. 攻撃パーツ情報の取得
         atk_part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
         atk_part_comps = world.try_get_entity(atk_part_id) if atk_part_id else None
-        if not atk_part_comps or 'attack' not in atk_part_comps: return None
+        if not atk_part_comps or 'attack' not in atk_part_comps:
+            return None
+        
         attack_comp = atk_part_comps['attack']
 
         # 2. ステータス補正とペナルティ判定
@@ -73,6 +76,7 @@ class CombatMechanics:
 
         # 3. 命中判定
         hit_prob = 1.0 if penalty['force_hit'] else calculate_hit_probability(stats.success, stats.tgt_mobility)
+        
         if not penalty['force_hit'] and not check_is_hit(hit_prob):
             return CombatResult.miss()
         
@@ -122,10 +126,13 @@ class CombatMechanics:
             tgt_p_comps = world.try_get_entity(tgt_part_id)
             if tgt_p_comps and 'attack' in tgt_p_comps:
                 skill_behavior = SkillRegistry.get(tgt_p_comps['attack'].skill_type)
+                # 相手が充填中や放熱中の場合のペナルティを取得
                 prevent_defense, force_hit, force_critical = skill_behavior.get_defensive_penalty(tgt_gauge.status)
         
         return {
-            'prevent_defense': prevent_defense, 'force_hit': force_hit, 'force_critical': force_critical
+            'prevent_defense': prevent_defense, 
+            'force_hit': force_hit, 
+            'force_critical': force_critical
         }
 
     @staticmethod
@@ -136,9 +143,15 @@ class CombatMechanics:
         else:
             break_prob = calculate_break_probability(ctx.stats.success, ctx.stats.tgt_defense)
             is_critical, is_defense = check_attack_outcome(ctx.hit_prob, break_prob)
-            if ctx.penalty['prevent_defense']: is_defense = False
+            
+            # 相手が防御不能スキル（がむしゃら等）を使用中なら防御発生を抑制
+            if ctx.penalty['prevent_defense']:
+                is_defense = False
 
+        # 被弾部位の決定
         hit_part = CombatMechanics._determine_hit_part(ctx.world, ctx.target_comps, ctx.target_desired_part, is_defense)
+        
+        # ダメージ計算
         damage = calculate_damage(
             ctx.stats.attack, ctx.stats.success, ctx.stats.tgt_mobility, ctx.stats.tgt_defense, 
             is_critical, is_defense
@@ -149,12 +162,17 @@ class CombatMechanics:
         added_effects = trait_behavior.get_added_effects(ctx.stats.success, ctx.stats.tgt_mobility)
 
         return CombatResult(
-            is_hit=True, is_critical=is_critical, is_defense=is_defense, 
-            damage=damage, hit_part=hit_part, added_effects=added_effects
+            is_hit=True, 
+            is_critical=is_critical, 
+            is_defense=is_defense, 
+            damage=damage, 
+            hit_part=hit_part, 
+            added_effects=added_effects
         )
 
     @staticmethod
     def _get_legs_stats(world, comps) -> Tuple[int, int]:
+        """脚部パーツの性能を取得"""
         legs_id = comps['partlist'].parts.get(PartType.LEGS)
         legs_comps = world.try_get_entity(legs_id) if legs_id is not None else None
         if legs_comps and 'mobility' in legs_comps:
@@ -163,20 +181,24 @@ class CombatMechanics:
 
     @staticmethod
     def _determine_hit_part(world, target_comps, desired_part, is_defense) -> str:
-        alive_parts = {pt: pid for pt, pid in target_comps['partlist'].parts.items() 
-                       if world.try_get_entity(pid)['health'].hp > 0}
+        """被弾部位を抽選。防御時は頭部以外を優先。"""
+        alive_parts = {
+            pt: pid for pt, pid in target_comps['partlist'].parts.items() 
+            if world.try_get_entity(pid)['health'].hp > 0
+        }
         
-        if not alive_parts: return PartType.HEAD
+        if not alive_parts:
+            return PartType.HEAD
 
         if is_defense:
-            # 防御時は頭部以外で最もHPが高い部位を優先
+            # 防御時は頭部以外で最もHPが高い部位を優先して盾にする
             non_head = [pt for pt in alive_parts if pt != PartType.HEAD]
             if non_head:
                 non_head.sort(key=lambda pt: world.entities[alive_parts[pt]]['health'].hp, reverse=True)
                 return non_head[0]
             return PartType.HEAD
         
-        # 狙撃スキル等で指定がある場合
+        # 指定部位が生存していればそれを狙う（狙い撃ち等）
         if desired_part in alive_parts:
             return desired_part
             

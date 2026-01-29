@@ -1,6 +1,8 @@
 """ECSエンジン（汎用的な基盤のみ）"""
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Type, TypeVar
+
+T = TypeVar('T', bound='Component')
 
 class Component:
     """コンポーネント：データのみを持つ基底クラス"""
@@ -35,7 +37,11 @@ class World:
         if entity_id in self.entities and component_name in self.entities[entity_id]:
             del self.entities[entity_id][component_name]
 
-    def get_component(self, entity_id: int, component_name: str) -> Optional[Component]:
+    def has_component(self, entity_id: int, component_name: str) -> bool:
+        """エンティティが特定のコンポーネントを持っているか"""
+        return entity_id in self.entities and component_name in self.entities[entity_id]
+
+    def get_component(self, entity_id: int, component_name: str) -> Optional[Any]:
         """エンティティからコンポーネントを取得"""
         if entity_id in self.entities and component_name in self.entities[entity_id]:
             return self.entities[entity_id][component_name]
@@ -45,7 +51,7 @@ class World:
         """IDからエンティティのコンポーネント辞書を安全に取得する"""
         return self.entities.get(entity_id)
 
-    def try_get_components(self, entity_id: int, *component_names: str) -> Optional[Dict[str, Component]]:
+    def try_get_components(self, entity_id: int, *component_names: str) -> Optional[Dict[str, Any]]:
         """
         指定された全てのコンポーネントを持つ場合のみ、エンティティのコンポーネント辞書を返す。
         一つでも欠けていればNoneを返す。

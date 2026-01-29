@@ -79,12 +79,14 @@ class BattleEntityFactory:
         save_mgr = get_save_manager()
         dm = get_game_data_manager()
 
+        # 1. プレイヤーチームの生成
         for i in range(player_count):
             setup = save_mgr.get_machine_setup(i)
             BattleEntityFactory._create_team_unit(
                 world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, dm
             )
 
+        # 2. エネミーチームの生成
         medal_ids = dm.get_part_ids_for_type("medal")
         head_ids = dm.get_part_ids_for_type("head")
         r_arm_ids = dm.get_part_ids_for_type("right_arm")
@@ -107,7 +109,11 @@ class BattleEntityFactory:
 
     @staticmethod
     def _create_team_unit(world, index, setup, team_type, base_x, y_off, spacing, gw, gh, dm):
+        """1体の機体とそれに付随するコンポーネントを生成"""
+        # 各部位エンティティの生成
         parts = BattleEntityFactory.create_medabot_from_setup(world, setup)
+        
+        # 本体エンティティの生成
         eid = world.create_entity()
         
         medal_data = dm.get_medal_data(setup["medal"])
@@ -119,16 +125,18 @@ class BattleEntityFactory:
             medal_data.get("attribute", "undefined")
         ))
         
+        # 描画・配置情報の追加
         world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))
+        
         settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS[TeamType.ENEMY])
-        world.add_component(eid, GaugeComponent(status=GaugeStatus.ACTION_CHOICE))
-        
-        is_leader = (index == 0)
-        world.add_component(eid, TeamComponent(team_type, settings['color'], is_leader=is_leader))
-        
+        world.add_component(eid, TeamComponent(team_type, settings['color'], is_leader=(index == 0)))
         world.add_component(eid, RenderComponent(30, 15, gw, gh))
+        
+        # バトル状態管理用コンポーネントの追加
+        world.add_component(eid, GaugeComponent(status=GaugeStatus.ACTION_CHOICE))
         world.add_component(eid, DefeatedComponent())
         
+        # パーツリストを機体エンティティに紐付け
         plist = PartListComponent()
         plist.parts = parts
         world.add_component(eid, plist)
