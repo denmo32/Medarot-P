@@ -4,6 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional
 from battle.constants import PartType
+from battle.mechanics.targeting import TargetingMechanics
 
 class Strategy(ABC):
     @abstractmethod
@@ -12,16 +13,10 @@ class Strategy(ABC):
 
 class RandomStrategy(Strategy):
     def decide_action(self, world, entity_id: int) -> Tuple[str, Optional[str]]:
-        comps = world.entities.get(entity_id)
-        part_list = comps.get('partlist')
-        
         available_parts = []
         for part_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
-            p_id = part_list.parts.get(part_type)
-            if p_id:
-                h = world.entities[p_id].get('health')
-                if h and h.hp > 0:
-                    available_parts.append(part_type)
+            if TargetingMechanics.is_part_alive(world, entity_id, part_type):
+                available_parts.append(part_type)
         
         if not available_parts:
             return "skip", None

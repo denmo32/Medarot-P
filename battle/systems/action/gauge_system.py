@@ -3,6 +3,7 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import GaugeStatus, BattlePhase
 from battle.mechanics.action import ActionMechanics
+from battle.mechanics.flow import transition_to_phase
 from battle.mechanics.status import StatusRegistry
 
 class GaugeSystem(BattleSystemBase):
@@ -22,7 +23,9 @@ class GaugeSystem(BattleSystemBase):
         # 1. 行動の継続妥当性を検証（パーツ破壊による中断など）
         for eid, comps in active_entities:
             # ActionMechanics内部で破壊を検知した場合、遷移が行われる
-            if not ActionMechanics.validate_action_continuity(self.world, eid, context, flow):
+            is_valid, message = ActionMechanics.validate_action_continuity(self.world, eid)
+            if not is_valid:
+                self._interrupt_action(eid, context, flow, message)
                 if flow.current_phase != BattlePhase.IDLE:
                     # 割り込み（LOG_WAITなど）が発生した場合はこのフレームの処理を終了
                     return
@@ -37,6 +40,26 @@ class GaugeSystem(BattleSystemBase):
         # 3. 各エンティティのゲージ進行処理
         for eid, comps in active_entities:
             self._process_entity_gauge(comps['gauge'], dt)
+
+    def _interrupt_action(self, entity_id, context, flow, message):
+        """アクション中断処理（副作用）"""
+        if message:
+            context.battle_log.append(message)
+        transition_to_phase(flow, BattlePhase.LOG_WAIT)
+        
+        comps = self.world.try_get_entity(entity_id)
+        if not comps or 'gauge' not in comps: return
+
+        gauge = comps['gauge']
+        current_p = gauge.progress
+        gauge.status = GaugeStatus.COOLDOWN
+        # 充填が進んでいるほど、放熱開始位置が低くなる（＝ペナルティが大きい）
+        gauge.progress = max(0.0, 100.0 - current_p)
+        gauge.selected_action = None
+        gauge.selected_part = None
+        
+        if entity_id in context.waiting_queue:
+            context.waiting_queue.remove(entity_id)
 
     def _update_waiting_queue(self, active_entities, context):
         """ゲージが満タンになった、または選択が必要な機体を待機列へ追加"""
