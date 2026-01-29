@@ -2,9 +2,9 @@
 
 import random
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List, Any
 from battle.constants import PartType
-from components.battle_component import StatusEffect
+from components.battle_component import StatusEffect, AttackComponent
 from domain.attribute import AttributeLogic
 from battle.mechanics.trait import TraitRegistry
 from battle.mechanics.skill import SkillRegistry
@@ -38,6 +38,17 @@ class CombatResult:
         """ミス時の結果を生成"""
         return cls(is_hit=False)
 
+@dataclass
+class HitOutcomeContext:
+    """命中結果詳細計算のためのコンテキスト"""
+    world: Any
+    attack_comp: AttackComponent
+    stats: AdjustedStats
+    hit_prob: float
+    target_comps: Dict[str, Any]
+    target_desired_part: Optional[str]
+    penalty: Dict[str, bool]
+
 class CombatMechanics:
     """戦闘の命中・ダメージ計算を統括する"""
 
@@ -66,9 +77,16 @@ class CombatMechanics:
             return CombatResult.miss()
         
         # 4. 詳細計算（クリティカル・ダメージ・部位決定）
-        return CombatMechanics._calculate_hit_outcome(
-            world, attack_comp, stats, hit_prob, target_comps, target_desired_part, penalty
+        ctx = HitOutcomeContext(
+            world=world,
+            attack_comp=attack_comp,
+            stats=stats,
+            hit_prob=hit_prob,
+            target_comps=target_comps,
+            target_desired_part=target_desired_part,
+            penalty=penalty
         )
+        return CombatMechanics._calculate_hit_outcome(ctx)
 
     @staticmethod
     def _calculate_adjusted_stats(world, attacker_comps, atk_part_comps, target_comps) -> AdjustedStats:
@@ -111,23 +129,24 @@ class CombatMechanics:
         }
 
     @staticmethod
-    def _calculate_hit_outcome(world, attack_comp, stats, hit_prob, target_comps, target_desired_part, penalty) -> CombatResult:
-        if penalty['force_critical']:
+    def _calculate_hit_outcome(ctx: HitOutcomeContext) -> CombatResult:
+        """HitOutcomeContextを用いて詳細結果を計算"""
+        if ctx.penalty['force_critical']:
             is_critical, is_defense = True, False
         else:
-            break_prob = calculate_break_probability(stats.success, stats.tgt_defense)
-            is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
-            if penalty['prevent_defense']: is_defense = False
+            break_prob = calculate_break_probability(ctx.stats.success, ctx.stats.tgt_defense)
+            is_critical, is_defense = check_attack_outcome(ctx.hit_prob, break_prob)
+            if ctx.penalty['prevent_defense']: is_defense = False
 
-        hit_part = CombatMechanics._determine_hit_part(world, target_comps, target_desired_part, is_defense)
+        hit_part = CombatMechanics._determine_hit_part(ctx.world, ctx.target_comps, ctx.target_desired_part, is_defense)
         damage = calculate_damage(
-            stats.attack, stats.success, stats.tgt_mobility, stats.tgt_defense, 
+            ctx.stats.attack, ctx.stats.success, ctx.stats.tgt_mobility, ctx.stats.tgt_defense, 
             is_critical, is_defense
         )
         
         # 特性による追加効果を取得
-        trait_behavior = TraitRegistry.get(attack_comp.trait)
-        added_effects = trait_behavior.get_added_effects(stats.success, stats.tgt_mobility)
+        trait_behavior = TraitRegistry.get(ctx.attack_comp.trait)
+        added_effects = trait_behavior.get_added_effects(ctx.stats.success, ctx.stats.tgt_mobility)
 
         return CombatResult(
             is_hit=True, is_critical=is_critical, is_defense=is_defense, 

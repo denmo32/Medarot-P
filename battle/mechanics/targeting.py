@@ -1,21 +1,12 @@
 """ターゲット選定・状態確認ロジック"""
 
 import random
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from domain.constants import TeamType
 from domain.gauge_logic import calculate_gauge_ratio
 
 class TargetingMechanics:
     """エンティティの生存・有効性・クエリに関するユーティリティ"""
-
-    @staticmethod
-    def get_components(world, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
-        """指定した全コンポーネントを持つエンティティを取得するヘルパー"""
-        comps = world.try_get_entity(entity_id)
-        if not comps: return None
-        if all(name in comps for name in names):
-            return comps
-        return None
 
     @staticmethod
     def is_entity_alive(world, entity_id: int) -> bool:
@@ -26,7 +17,7 @@ class TargetingMechanics:
 
     @staticmethod
     def is_part_alive(world, entity_id: int, part_type: str) -> bool:
-        comps = TargetingMechanics.get_components(world, entity_id, 'partlist')
+        comps = world.try_get_components(entity_id, 'partlist')
         if not comps: return False
         
         part_id = comps['partlist'].parts.get(part_type)
@@ -46,7 +37,7 @@ class TargetingMechanics:
 
     @staticmethod
     def get_alive_parts(world, entity_id: int) -> List[str]:
-        comps = TargetingMechanics.get_components(world, entity_id, 'partlist')
+        comps = world.try_get_components(entity_id, 'partlist')
         if not comps: return []
         
         return [pt for pt, pid in comps['partlist'].parts.items() 
@@ -54,7 +45,7 @@ class TargetingMechanics:
 
     @staticmethod
     def get_enemy_team_entities(world, my_entity_id: int) -> List[int]:
-        my_comps = TargetingMechanics.get_components(world, my_entity_id, 'team')
+        my_comps = world.try_get_components(my_entity_id, 'team')
         if not my_comps: return []
         
         my_team = my_comps['team'].team_type

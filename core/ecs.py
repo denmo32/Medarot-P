@@ -6,26 +6,6 @@ class Component:
     """コンポーネント：データのみを持つ基底クラス"""
     pass
 
-class System:
-    """システム：コンポーネントを持つエンティティに対する処理を定義"""
-    def __init__(self, world):
-        self.world = world
-
-    def update(self, dt: float):
-        """システムの更新処理を実行"""
-        pass
-
-    def get_comps(self, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
-        """
-        指定した全コンポーネントを持つエンティティを取得するヘルパー。
-        システム内でのボイラープレートコードを削減するために使用。
-        """
-        comps = self.world.try_get_entity(entity_id)
-        if not comps: return None
-        if all(name in comps for name in names):
-            return comps
-        return None
-
 class World:
     """ECSのワールド：エンティティとコンポーネントの管理を行う"""
     def __init__(self):
@@ -65,6 +45,18 @@ class World:
         """IDからエンティティのコンポーネント辞書を安全に取得する"""
         return self.entities.get(entity_id)
 
+    def try_get_components(self, entity_id: int, *component_names: str) -> Optional[Dict[str, Component]]:
+        """
+        指定された全てのコンポーネントを持つ場合のみ、エンティティのコンポーネント辞書を返す。
+        一つでも欠けていればNoneを返す。
+        """
+        comps = self.entities.get(entity_id)
+        if not comps:
+            return None
+        if all(name in comps for name in component_names):
+            return comps
+        return None
+
     def delete_entity(self, entity_id: int) -> None:
         """エンティティを削除"""
         if entity_id in self.entities:
@@ -84,3 +76,19 @@ class World:
             if all(name in components for name in component_names):
                 return entity_id, components
         return None, None
+
+class System:
+    """システム：コンポーネントを持つエンティティに対する処理を定義"""
+    def __init__(self, world: World):
+        self.world = world
+
+    def update(self, dt: float):
+        """システムの更新処理を実行"""
+        pass
+
+    def get_comps(self, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
+        """
+        指定した全コンポーネントを持つエンティティを取得するヘルパー。
+        World.try_get_components へのショートカット。
+        """
+        return self.world.try_get_components(entity_id, *names)

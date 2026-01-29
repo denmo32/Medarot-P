@@ -1,6 +1,6 @@
 """ECSからSnapshotへの変換ロジック（ViewModel）"""
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from config import GAME_PARAMS, COLORS
 from battle.constants import BattlePhase, BattleTiming, PART_LABELS, MENU_PART_ORDER
 from domain.constants import GaugeStatus, TeamType, PartType
@@ -84,7 +84,7 @@ class BattleViewModel:
         if flow.current_phase != BattlePhase.INPUT: return None
         eid = context.current_turn_entity_id
         
-        comps = TargetingMechanics.get_components(self.world, eid, 'gauge')
+        comps = self.world.try_get_components(eid, 'gauge')
         if not comps: return None
         
         idx = context.selected_menu_index
@@ -120,7 +120,7 @@ class BattleViewModel:
         if flow.current_phase != BattlePhase.INPUT: return ActionMenuData(is_active=False)
         
         eid = context.current_turn_entity_id
-        comps = TargetingMechanics.get_components(self.world, eid, 'medal', 'partlist')
+        comps = self.world.try_get_components(eid, 'medal', 'partlist')
         if not comps: return ActionMenuData(is_active=False)
 
         buttons = []
