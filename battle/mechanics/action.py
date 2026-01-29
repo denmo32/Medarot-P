@@ -1,10 +1,12 @@
-"""アクションの状態遷移・妥当性検証ロジック（旧 ActionService）"""
+"""アクションの状態遷移・妥当性検証ロジック"""
 
+from typing import Tuple, Optional
 from domain.constants import GaugeStatus, ActionType
 from battle.constants import BattlePhase
 from battle.mechanics.flow import transition_to_phase
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.log import LogBuilder
+from battle.mechanics.trait import TraitRegistry
 
 class ActionMechanics:
     """ゲージのリセット、中断処理などのロジック"""
@@ -44,6 +46,28 @@ class ActionMechanics:
                 return False
         
         return True
+
+    @staticmethod
+    def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+        """
+        行動実行の瞬間に最終的なターゲットを確定させる。
+        TargetingMechanics（生存確認）と TraitRegistry（特性による動的変更）を統合して判断する。
+        """
+        if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
+            return None, None
+
+        # 実行パーツの有効性確認
+        if not TargetingMechanics.is_part_alive(world, actor_eid, gauge.selected_part):
+            return None, None
+
+        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
+        p_comps = world.try_get_entity(part_id)
+        attack_comp = p_comps.get('attack') if p_comps else None
+        if not attack_comp: return None, None
+
+        # 特性振る舞いに解決を委譲
+        trait_behavior = TraitRegistry.get(attack_comp.trait)
+        return trait_behavior.resolve_target(world, actor_eid, actor_comps, gauge)
 
     @staticmethod
     def handle_target_loss(world, entity_id: int, context, flow):

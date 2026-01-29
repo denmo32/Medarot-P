@@ -1,8 +1,9 @@
-"""AI戦略ロジック（旧 AIStrategyService）"""
+"""AI戦略ロジック"""
 
 import random
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional
+from battle.constants import PartType
 
 class Strategy(ABC):
     @abstractmethod
@@ -15,7 +16,7 @@ class RandomStrategy(Strategy):
         part_list = comps.get('partlist')
         
         available_parts = []
-        for part_type in ["head", "right_arm", "left_arm"]:
+        for part_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
             p_id = part_list.parts.get(part_type)
             if p_id:
                 h = world.entities[p_id].get('health')

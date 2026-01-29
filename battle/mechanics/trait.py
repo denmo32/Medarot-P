@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 from domain.constants import TraitType
 from components.battle_component import StatusEffect
+from battle.mechanics.targeting import TargetingMechanics
 
 class TraitBehavior(ABC):
     """特性の振る舞いを定義する基底クラス"""
@@ -18,7 +19,6 @@ class TraitBehavior(ABC):
         行動実行時に最終的なターゲットを確定させる。
         デフォルト（射撃等）は予約されたターゲットをそのまま使用する。
         """
-        from battle.mechanics.targeting import TargetingMechanics
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             tid, tpart = target_data
@@ -29,7 +29,6 @@ class TraitBehavior(ABC):
 class MeleeTrait(TraitBehavior):
     """格闘特性の基底：ターゲットを中央に近い敵へ動的に変更する。"""
     def resolve_target(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
-        from battle.mechanics.targeting import TargetingMechanics
         target_id = TargetingMechanics.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
         target_part = TargetingMechanics.get_random_alive_part(world, target_id) if target_id else None
         return target_id, target_part

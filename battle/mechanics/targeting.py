@@ -1,8 +1,8 @@
-"""ターゲット選定・状態確認ロジック（旧 TargetingService）"""
+"""ターゲット選定・状態確認ロジック"""
 
 import random
-from typing import List, Optional, Tuple, Dict, Any
-from domain.constants import TeamType, ActionType
+from typing import List, Optional, Dict, Any
+from domain.constants import TeamType
 from domain.gauge_logic import calculate_gauge_ratio
 
 class TargetingMechanics:
@@ -80,24 +80,3 @@ class TargetingMechanics:
                 if ratio > max_ratio:
                     max_ratio, best_target = ratio, teid
         return best_target
-
-    @staticmethod
-    def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
-        """行動実行の瞬間に最終的なターゲットを確定させる"""
-        from battle.mechanics.trait import TraitRegistry
-        
-        if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
-            return None, None
-
-        # 実行パーツの有効性確認
-        if not TargetingMechanics.is_part_alive(world, actor_eid, gauge.selected_part):
-            return None, None
-
-        part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
-        p_comps = world.try_get_entity(part_id)
-        attack_comp = p_comps.get('attack') if p_comps else None
-        if not attack_comp: return None, None
-
-        # 特性振る舞いに解決を委譲
-        trait_behavior = TraitRegistry.get(attack_comp.trait)
-        return trait_behavior.resolve_target(world, actor_eid, actor_comps, gauge)

@@ -3,7 +3,6 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
 from battle.mechanics.flow import transition_to_phase
-from battle.mechanics.targeting import TargetingMechanics
 from domain.constants import GaugeStatus, ActionType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
@@ -29,7 +28,8 @@ class ActionInitiationSystem(BattleSystemBase):
         flow.active_actor_id = actor_eid
         
         # ターゲットの解決（特性による動的変更を含む）
-        target_id, target_part = TargetingMechanics.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
+        # ActionMechanics が TargetingMechanics と TraitRegistry を統合して判断する
+        target_id, target_part = ActionMechanics.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
         
         if gauge.selected_action == ActionType.ATTACK and not target_id:
             ActionMechanics.handle_target_loss(self.world, actor_eid, context, flow)
