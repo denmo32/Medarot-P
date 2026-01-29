@@ -10,9 +10,10 @@ from .renderer import BattleRenderer
 class BattleRenderSystem(System):
     """描画パイプラインの駆動役"""
     
-    def __init__(self, world, screen):
+    def __init__(self, world, screen, view_model=None):
         super().__init__(world)
-        self.view_model = BattleViewModel(world)
+        # 指定がなければ自身で生成するが、通常はOrchestratorから共有される
+        self.view_model = view_model if view_model else BattleViewModel(world)
         self.renderer = BattleRenderer(screen)
 
     def update(self, dt: float):

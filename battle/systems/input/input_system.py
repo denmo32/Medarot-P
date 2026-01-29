@@ -3,15 +3,16 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER, BattleTiming
-from ui.battle.layout_utils import calculate_action_menu_layout
 from battle.mechanics.log import LogBuilder
 
 class InputSystem(BattleSystemBase):
     """
     ユーザー入力を現在のフェーズに応じた処理に振り分ける。
+    座標による要素判定（Hit Test）はViewModelに委譲する。
     """
-    def __init__(self, world):
+    def __init__(self, world, view_model):
         super().__init__(world)
+        self.view_model = view_model
         self.handlers = {
             BattlePhase.LOG_WAIT: self._handle_log_wait,
             BattlePhase.ATTACK_DECLARATION: self._handle_attack_declaration_wait,
@@ -73,24 +74,19 @@ class InputSystem(BattleSystemBase):
 
         menu_items_count = len(MENU_PART_ORDER) + 1
         
+        # キーボードによる選択変更
         if input_comp.btn_left:
             context.selected_menu_index = (context.selected_menu_index - 1) % menu_items_count
         elif input_comp.btn_right:
             context.selected_menu_index = (context.selected_menu_index + 1) % menu_items_count
 
-        mouse_idx = self._get_menu_index_at_mouse(input_comp.mouse_x, input_comp.mouse_y, menu_items_count)
+        # マウス座標による選択変更（ViewModelに座標解釈を委譲）
+        mouse_idx = self.view_model.hit_test_action_menu(input_comp.mouse_x, input_comp.mouse_y)
         if mouse_idx is not None:
             context.selected_menu_index = mouse_idx
 
         if input_comp.btn_ok or input_comp.mouse_clicked:
             self._issue_command(eid, context)
-
-    def _get_menu_index_at_mouse(self, mx, my, button_count) -> int | None:
-        layout = calculate_action_menu_layout(button_count)
-        for i, rect in enumerate(layout):
-            if rect.collidepoint(mx, my):
-                return i
-        return None
 
     def _issue_command(self, eid, context):
         comps = self.world.try_get_entity(eid)

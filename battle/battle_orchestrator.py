@@ -19,7 +19,8 @@ from battle.systems.input.input_system import InputSystem
 from battle.systems.flow.target_indicator_system import TargetIndicatorSystem
 from battle.systems.flow.cutin_flow_system import CutinFlowSystem
 
-# Systems (UI Layer)
+# ViewModel and Systems (UI Layer)
+from ui.battle.view_model import BattleViewModel
 from ui.battle.visual_systems import HealthAnimationSystem
 from ui.battle.system import BattleRenderSystem
 
@@ -37,8 +38,11 @@ class BattleSystem:
             gauge_width, gauge_height
         )
         
+        # 描画と入力解釈で共有するViewModelを生成
+        self.view_model = BattleViewModel(self.world)
+        
         self.systems = [
-            InputSystem(self.world),
+            InputSystem(self.world, self.view_model),
             BattleFlowSystem(self.world),
             GaugeSystem(self.world),
             TargetSelectionSystem(self.world),
@@ -55,7 +59,7 @@ class BattleSystem:
             
             # UI系システム
             HealthAnimationSystem(self.world),
-            BattleRenderSystem(self.world, screen)
+            BattleRenderSystem(self.world, screen, self.view_model)
         ]
 
     def update(self, dt: float = 0.016) -> None:

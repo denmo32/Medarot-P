@@ -8,13 +8,14 @@ from domain.gauge_logic import calculate_gauge_ratio
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.flow import get_battle_state
 from .animation_logic import CutinAnimationLogic
+from .layout_utils import calculate_action_menu_layout
 from .snapshot import (
     BattleStateSnapshot, CharacterViewData, LogWindowData, 
     ActionMenuData, ActionButtonData, GameOverData, CutinStateData
 )
 
 class BattleViewModel:
-    """Worldの状態を解析し、描画用の不変なデータ（Snapshot）に変換する"""
+    """Worldの状態を解析し、描画用の不変なデータ（Snapshot）に変換する。また座標の逆引き（ヒットテスト）も行う。"""
     
     def __init__(self, world):
         self.world = world
@@ -40,6 +41,21 @@ class BattleViewModel:
             snapshot.cutin = self._build_cutin_state(flow)
         
         return snapshot
+
+    def hit_test_action_menu(self, mx: int, my: int) -> Optional[int]:
+        """指定したマウス座標がアクションメニューの何番目のボタンに該当するかを判定する（逆引き）"""
+        # アクション選択中以外のフェーズでは判定しない
+        _, flow = get_battle_state(self.world)
+        if not flow or flow.current_phase != BattlePhase.INPUT:
+            return None
+
+        button_count = len(MENU_PART_ORDER) + 1
+        layout = calculate_action_menu_layout(button_count)
+        
+        for i, rect in enumerate(layout):
+            if rect.collidepoint(mx, my):
+                return i
+        return None
 
     def _build_character_data(self, context, flow) -> Dict[int, CharacterViewData]:
         """全機体のフィールド表示データを生成"""
