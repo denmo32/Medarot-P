@@ -16,9 +16,9 @@ class ActionResolutionSystem(System):
             return
         
         event_eid = flow.processing_event_id
-        event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
+        event_comps = self.get_comps(event_eid, 'actionevent') if event_eid is not None else None
         
-        if not event_comps or 'actionevent' not in event_comps:
+        if not event_comps:
             transition_to_phase(flow, BattlePhase.IDLE)
             return
 
@@ -30,7 +30,7 @@ class ActionResolutionSystem(System):
             flow.processing_event_id = None
 
     def _resolve_action(self, event, context, flow):
-        attacker_comps = self.world.try_get_entity(event.attacker_id)
+        attacker_comps = self.get_comps(event.attacker_id, 'medal', 'partlist', 'gauge')
         if not attacker_comps: return
 
         if event.action_type == ActionType.ATTACK:
@@ -40,22 +40,21 @@ class ActionResolutionSystem(System):
             context.battle_log.append(LogBuilder.get_skip_action(attacker_comps['medal'].nickname))
             transition_to_phase(flow, BattlePhase.LOG_WAIT)
 
-        if 'gauge' in attacker_comps:
-            ActionMechanics.reset_to_cooldown(attacker_comps['gauge'])
+        # ゲージの初期化（放熱へ）
+        ActionMechanics.reset_to_cooldown(attacker_comps['gauge'])
 
     def _handle_attack_resolution(self, event, attacker_comps, context):
         attacker_name = attacker_comps['medal'].nickname
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         part_comps = self.world.try_get_entity(part_id)
         
-        # 実行時のパーツ破壊チェック（念のため）
+        # 実行時のパーツ破壊チェック
         if not part_comps or part_comps['health'].hp <= 0:
             context.battle_log.append(LogBuilder.get_part_broken_attack(attacker_name))
             return
 
         res = event.calculation_result
         if res is None or not res.is_hit:
-            # ミスやターゲットロストの場合は何もしない（ログは演出側で処理される想定）
             return
             
         # ダメージイベントの発行

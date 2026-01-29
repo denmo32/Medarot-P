@@ -15,6 +15,17 @@ class System:
         """システムの更新処理を実行"""
         pass
 
+    def get_comps(self, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
+        """
+        指定した全コンポーネントを持つエンティティを取得するヘルパー。
+        システム内でのボイラープレートコードを削減するために使用。
+        """
+        comps = self.world.try_get_entity(entity_id)
+        if not comps: return None
+        if all(name in comps for name in names):
+            return comps
+        return None
+
 class World:
     """ECSのワールド：エンティティとコンポーネントの管理を行う"""
     def __init__(self):

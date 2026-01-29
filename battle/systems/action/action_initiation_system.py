@@ -16,7 +16,7 @@ class ActionInitiationSystem(System):
             return
 
         actor_eid = context.waiting_queue[0]
-        actor_comps = self.world.try_get_entity(actor_eid)
+        actor_comps = self.get_comps(actor_eid, 'gauge', 'team', 'partlist')
         if not actor_comps:
             context.waiting_queue.pop(0)
             return
@@ -27,12 +27,15 @@ class ActionInitiationSystem(System):
 
     def _handle_initiation(self, actor_eid, actor_comps, gauge, flow, context):
         flow.active_actor_id = actor_eid
+        
+        # ターゲットの解決（特性による動的変更を含む）
         target_id, target_part = TargetingMechanics.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
         
         if gauge.selected_action == ActionType.ATTACK and not target_id:
             ActionMechanics.handle_target_loss(self.world, actor_eid, context, flow)
             return
 
+        # イベント生成
         event_eid = self.world.create_entity()
         event = ActionEventComponent(
             attacker_id=actor_eid,
@@ -50,10 +53,12 @@ class ActionInitiationSystem(System):
         self.world.add_component(event_eid, event)
         flow.processing_event_id = event_eid
         
+        # フェーズ遷移
         if gauge.selected_action == ActionType.ATTACK:
             transition_to_phase(flow, BattlePhase.TARGET_INDICATION, BattleTiming.TARGET_INDICATION)
         else:
             transition_to_phase(flow, BattlePhase.EXECUTING)
         
+        # キューから削除
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)

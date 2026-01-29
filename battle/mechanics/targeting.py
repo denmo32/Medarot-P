@@ -2,7 +2,7 @@
 
 import random
 from typing import List, Optional, Tuple, Dict, Any
-from domain.constants import TeamType, ActionType, TraitType
+from domain.constants import TeamType, ActionType
 from domain.gauge_logic import calculate_gauge_ratio
 
 class TargetingMechanics:
@@ -84,6 +84,8 @@ class TargetingMechanics:
     @staticmethod
     def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         """行動実行の瞬間に最終的なターゲットを確定させる"""
+        from battle.mechanics.trait import TraitRegistry
+        
         if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
             return None, None
 
@@ -92,20 +94,10 @@ class TargetingMechanics:
             return None, None
 
         part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
-        attack_comp = world.try_get_entity(part_id).get('attack')
+        p_comps = world.try_get_entity(part_id)
+        attack_comp = p_comps.get('attack') if p_comps else None
         if not attack_comp: return None, None
 
-        # 1. 格闘特性の場合は最短（ゲージ優先）ターゲットに切り替える
-        if attack_comp.trait in TraitType.MELEE_TRAITS:
-            target_id = TargetingMechanics.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
-            target_part = TargetingMechanics.get_random_alive_part(world, target_id) if target_id else None
-            return target_id, target_part
-        
-        # 2. 射撃特性の場合は予約していたターゲットを確認
-        target_data = gauge.part_targets.get(gauge.selected_part)
-        if target_data:
-            tid, tpart = target_data
-            if TargetingMechanics.is_action_target_valid(world, tid, tpart):
-                return tid, tpart
-                
-        return None, None
+        # 特性振る舞いに解決を委譲
+        trait_behavior = TraitRegistry.get(attack_comp.trait)
+        return trait_behavior.resolve_target(world, actor_eid, actor_comps, gauge)

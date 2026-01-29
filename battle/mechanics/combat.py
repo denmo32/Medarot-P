@@ -17,6 +17,14 @@ from domain.combat_formula import (
 )
 
 @dataclass
+class AdjustedStats:
+    """属性やスキルによる補正適用後の戦闘パラメータ"""
+    success: int
+    attack: int
+    tgt_mobility: int
+    tgt_defense: int
+
+@dataclass
 class CombatResult:
     is_hit: bool
     is_critical: bool = False
@@ -53,7 +61,7 @@ class CombatMechanics:
         penalty = CombatMechanics._get_target_defensive_penalty(world, target_comps)
 
         # 3. 命中判定
-        hit_prob = 1.0 if penalty['force_hit'] else calculate_hit_probability(stats['success'], stats['tgt_mobility'])
+        hit_prob = 1.0 if penalty['force_hit'] else calculate_hit_probability(stats.success, stats.tgt_mobility)
         if not penalty['force_hit'] and not check_is_hit(hit_prob):
             return CombatResult.miss()
         
@@ -63,7 +71,7 @@ class CombatMechanics:
         )
 
     @staticmethod
-    def _calculate_adjusted_stats(world, attacker_comps, atk_part_comps, target_comps) -> Dict[str, int]:
+    def _calculate_adjusted_stats(world, attacker_comps, atk_part_comps, target_comps) -> AdjustedStats:
         attack_comp = atk_part_comps['attack']
         my_mob, my_def = CombatMechanics._get_legs_stats(world, attacker_comps)
         tgt_mob, tgt_def = CombatMechanics._get_legs_stats(world, target_comps)
@@ -78,12 +86,12 @@ class CombatMechanics:
         skill_behavior = SkillRegistry.get(attack_comp.skill_type)
         s_success_bonus, s_attack_bonus = skill_behavior.get_offensive_bonuses(my_mob, my_def)
 
-        return {
-            'success': max(1, attack_comp.success + atk_bonus + s_success_bonus),
-            'attack': max(1, attack_comp.attack + atk_bonus + s_attack_bonus),
-            'tgt_mobility': max(0, tgt_mob + def_bonus),
-            'tgt_defense': max(0, tgt_def + def_bonus)
-        }
+        return AdjustedStats(
+            success=max(1, attack_comp.success + atk_bonus + s_success_bonus),
+            attack=max(1, attack_comp.attack + atk_bonus + s_attack_bonus),
+            tgt_mobility=max(0, tgt_mob + def_bonus),
+            tgt_defense=max(0, tgt_def + def_bonus)
+        )
 
     @staticmethod
     def _get_target_defensive_penalty(world, target_comps) -> Dict[str, bool]:
@@ -107,19 +115,19 @@ class CombatMechanics:
         if penalty['force_critical']:
             is_critical, is_defense = True, False
         else:
-            break_prob = calculate_break_probability(stats['success'], stats['tgt_defense'])
+            break_prob = calculate_break_probability(stats.success, stats.tgt_defense)
             is_critical, is_defense = check_attack_outcome(hit_prob, break_prob)
             if penalty['prevent_defense']: is_defense = False
 
         hit_part = CombatMechanics._determine_hit_part(world, target_comps, target_desired_part, is_defense)
         damage = calculate_damage(
-            stats['attack'], stats['success'], stats['tgt_mobility'], stats['tgt_defense'], 
+            stats.attack, stats.success, stats.tgt_mobility, stats.tgt_defense, 
             is_critical, is_defense
         )
         
         # 特性による追加効果を取得
         trait_behavior = TraitRegistry.get(attack_comp.trait)
-        added_effects = trait_behavior.get_added_effects(stats['success'], stats['tgt_mobility'])
+        added_effects = trait_behavior.get_added_effects(stats.success, stats.tgt_mobility)
 
         return CombatResult(
             is_hit=True, is_critical=is_critical, is_defense=is_defense, 
