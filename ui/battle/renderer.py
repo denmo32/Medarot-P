@@ -7,15 +7,20 @@ import pygame
 import math
 from config import COLORS, GAME_PARAMS
 from ui.base.renderer import BaseRenderer
+from ui.base.widgets import MedabotWidgets
 from .snapshot import BattleStateSnapshot
 from .layout_utils import calculate_action_menu_layout
-from battle.constants import TraitType, PartType
+from battle.constants import TraitType
 
 class BattleRenderer(BaseRenderer):
     """Field, UI, Cutinの描画を統合的に管理"""
 
     def __init__(self, screen):
         super().__init__(screen)
+        # ドメイン共通パーツ描画用のウィジェットを保持
+        self.widgets = MedabotWidgets(self)
+        
+        # サブレンダラーの初期化
         self.field = FieldRenderer(self)
         self.ui_panel = UIPanelRenderer(self)
         self.cutin = CutinRenderer(self)
@@ -72,9 +77,9 @@ class FieldRenderer:
             if char.border_color:
                 pygame.draw.circle(self.m.screen, char.border_color, (cx, cy), 22, 2)
             
-            # ロボットアイコン(BaseRenderer機能)
+            # ロボットアイコン (MedabotWidgetsへ委譲)
             offset_y = 16 * 0.4
-            self.m.draw_robot_icon(cx, cy - offset_y, char.team_color, char.part_status, scale=0.4)
+            self.m.widgets.draw_robot_icon(cx, cy - offset_y, char.team_color, char.part_status, scale=0.4)
             
             # 名前
             self.m.draw_text(char.name, (char.x - 20, char.y - 25), font_type='medium')
@@ -104,7 +109,8 @@ class FieldRenderer:
             if d > dist: continue
             px = sx + math.cos(angle) * d
             py = sy + math.sin(angle) * d
-            self.m._draw_triangle((px, py), angle, 8, (255, 255, 0))
+            # 三角形の描画
+            self.m.draw_triangle((px, py), angle, 8, (255, 255, 0))
 
 
 class UIPanelRenderer:
@@ -179,9 +185,10 @@ class CutinRenderer:
         for char_data in [state.attacker, state.defender]:
             if char_data.get('visible') and -200 < char_data['x'] < sw + 200:
                 cx, cy = int(char_data['x']), int(char_data['y'])
-                self.m.draw_robot_icon(cx, cy, char_data['color'], char_data['is_alive_map'])
+                # ロボットアイコン (MedabotWidgetsへ委譲)
+                self.m.widgets.draw_robot_icon(cx, cy, char_data['color'], char_data['is_alive_map'])
                 if char_data.get('hp_bars'):
-                    self.m.draw_hp_bars(cx, cy + 65, char_data['hp_bars'])
+                    self.m.widgets.draw_hp_bars(cx, cy + 65, char_data['hp_bars'])
 
         # 弾丸 & エフェクト
         if state.bullet.get('visible'):
