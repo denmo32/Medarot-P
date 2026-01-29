@@ -16,7 +16,7 @@ class ActionInitiationSystem(BattleSystemBase):
             return
 
         actor_eid = context.waiting_queue[0]
-        actor_comps = self.get_comps(actor_eid, 'gauge', 'team', 'partlist')
+        actor_comps = self.get_comps(actor_eid, 'gauge', 'team', 'partlist', 'medal')
         if not actor_comps:
             context.waiting_queue.pop(0)
             return
@@ -32,10 +32,9 @@ class ActionInitiationSystem(BattleSystemBase):
         # ActionMechanics が TargetingMechanics と TraitRegistry を統合して判断する
         target_id, target_part = ActionMechanics.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
         
+        # 攻撃行動かつターゲットが見つからない（ロスト）場合
         if gauge.selected_action == ActionType.ATTACK and not target_id:
-            actor_name = self.world.try_get_entity(actor_eid)['medal'].nickname
-            message = LogBuilder.get_target_lost(actor_name)
-            self._interrupt_action(actor_eid, context, flow, message)
+            self._handle_interruption(actor_eid, actor_comps, context, flow)
             return
 
         # イベント生成
@@ -66,20 +65,20 @@ class ActionInitiationSystem(BattleSystemBase):
         if context.waiting_queue and context.waiting_queue[0] == actor_eid:
             context.waiting_queue.pop(0)
 
-    def _interrupt_action(self, entity_id, context, flow, message: str):
-        """アクション中断処理"""
+    def _handle_interruption(self, actor_eid, actor_comps, context, flow):
+        """ターゲットロスト時の中断処理"""
+        actor_name = actor_comps['medal'].nickname
+        message = LogBuilder.get_target_lost(actor_name)
+        
         context.battle_log.append(message)
         transition_to_phase(flow, BattlePhase.LOG_WAIT)
         
-        comps = self.world.try_get_entity(entity_id)
-        if not comps or 'gauge' not in comps: return
-
-        gauge = comps['gauge']
+        # ゲージを強制的に放熱状態へ移行（ペナルティとしてprogressは反転）
+        gauge = actor_comps['gauge']
         current_p = gauge.progress
-        gauge.status = GaugeStatus.COOLDOWN
-        gauge.progress = max(0.0, 100.0 - current_p)
-        gauge.selected_action = None
-        gauge.selected_part = None
         
-        if entity_id in context.waiting_queue:
-            context.waiting_queue.remove(entity_id)
+        ActionMechanics.reset_to_cooldown(gauge)
+        gauge.progress = max(0.0, 100.0 - current_p)
+        
+        if context.waiting_queue and context.waiting_queue[0] == actor_eid:
+            context.waiting_queue.pop(0)
