@@ -23,30 +23,27 @@ class ActionMechanics:
     @staticmethod
     def validate_action_continuity(world, entity_id: int) -> Tuple[bool, Optional[str]]:
         """
-        アクションの継続妥当性を検証する。
+        アクションの継続妥当性を検証する（充填中のパーツ破壊チェックなど）。
         
         Returns:
             (is_valid, interruption_message)
-            - is_valid: 継続可能ならTrue
-            - interruption_message: 中断が必要な場合のログメッセージ
         """
         comps = world.try_get_entity(entity_id)
         if not comps or 'gauge' not in comps:
             return True, None
 
         gauge = comps['gauge']
-        # 充填中以外は検証不要
         if gauge.status != GaugeStatus.CHARGING:
             return True, None
 
         actor_name = comps['medal'].nickname
         
-        # 1. パーツ破壊チェック（使用しようとしているパーツが壊れていないか）
+        # 1. 実行予定パーツの生存チェック
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
             if not TargetingMechanics.is_action_target_valid(world, entity_id, gauge.selected_part):
                 return False, LogBuilder.get_part_broken_interruption(actor_name)
 
-        # 2. ターゲットロストチェック（狙っていた相手が存在するか）
+        # 2. ターゲットの生存チェック
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             target_id, target_part_type = target_data
@@ -58,13 +55,12 @@ class ActionMechanics:
     @staticmethod
     def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         """
-        行動実行の瞬間に最終的なターゲットを確定させる。
-        TargetingMechanics（生存確認）と TraitRegistry（特性による動的変更）を統合して判断する。
+        行動実行の瞬間に、特性やスキルの性質に基づいて最終的なターゲット（eid, part）を確定させる。
         """
         if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
             return None, None
 
-        # 実行パーツの有効性確認
+        # 実行パーツ自体の生存確認
         if not TargetingMechanics.is_part_alive(world, actor_eid, gauge.selected_part):
             return None, None
 
@@ -74,6 +70,6 @@ class ActionMechanics:
         if not attack_comp:
             return None, None
 
-        # 特性振る舞いに解決を委譲
+        # 特性振る舞い（格闘/射撃のターゲット解決ロジック）に委譲
         trait_behavior = TraitRegistry.get(attack_comp.trait)
         return trait_behavior.resolve_target(world, actor_eid, actor_comps, gauge)

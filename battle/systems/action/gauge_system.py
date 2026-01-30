@@ -10,8 +10,7 @@ class GaugeSystem(BattleSystemBase):
     """ATBゲージの進行管理、および状態異常のカウントダウンを担当"""
 
     def update(self, dt: float):
-        context, flow = self.battle_state
-        if not context or not flow or flow.current_phase != BattlePhase.IDLE:
+        if not self.context or not self.flow or self.flow.current_phase != BattlePhase.IDLE:
             return
 
         # 生存しているゲージ持ちエンティティを走査
@@ -22,63 +21,56 @@ class GaugeSystem(BattleSystemBase):
 
         # 1. 行動の継続妥当性を検証（パーツ破壊による中断など）
         for eid, comps in active_entities:
-            # ActionMechanicsは純粋な検証のみを行う
             is_valid, message = ActionMechanics.validate_action_continuity(self.world, eid)
             
             if not is_valid:
-                # バリデーション失敗時の副作用（中断処理）はSystemが行う
-                self._interrupt_action(eid, comps['gauge'], context, flow, message)
-                
-                if flow.current_phase != BattlePhase.IDLE:
-                    # 割り込み（LOG_WAITなど）が発生した場合はこのフレームの処理を終了
+                self._interrupt_action(eid, comps['gauge'], message)
+                if self.flow.current_phase != BattlePhase.IDLE:
                     return
 
         # 2. 待機列（コマンド選択 or 行動実行待ち）の更新
-        self._update_waiting_queue(active_entities, context)
+        self._update_waiting_queue(active_entities)
         
-        # 誰かが入力待ち、または行動実行待機中であれば、ゲージ進行は一時停止（アクティブタイムバトルの仕様）
-        if context.waiting_queue:
+        # 誰かが入力待ち、または行動実行待機中であれば、ゲージ進行は一時停止
+        if self.context.waiting_queue:
             return
 
         # 3. 各エンティティのゲージ進行処理
         for eid, comps in active_entities:
             self._process_entity_gauge(comps['gauge'], dt)
 
-    def _interrupt_action(self, entity_id, gauge, context, flow, message):
+    def _interrupt_action(self, entity_id, gauge, message):
         """行動中断処理"""
         if message:
-            context.battle_log.append(message)
+            self.context.battle_log.append(message)
         
-        transition_to_phase(flow, BattlePhase.LOG_WAIT)
+        transition_to_phase(self.flow, BattlePhase.LOG_WAIT)
         
-        # 充填中の破壊等はペナルティとして放熱へ移行
+        # ペナルティとして放熱へ移行
         current_p = gauge.progress
         ActionMechanics.reset_to_cooldown(gauge)
         gauge.progress = max(0.0, 100.0 - current_p)
         
-        # 待機キューに入っていた場合は削除
-        if entity_id in context.waiting_queue:
-            context.waiting_queue.remove(entity_id)
+        if entity_id in self.context.waiting_queue:
+            self.context.waiting_queue.remove(entity_id)
 
-    def _update_waiting_queue(self, active_entities, context):
+    def _update_waiting_queue(self, active_entities):
         """ゲージが満タンになった、または選択が必要な機体を待機列へ追加"""
         for eid, comps in active_entities:
             g = comps['gauge']
-            # 行動選択が必要な状態、または充填完了（100%以上）の状態
             if g.status == GaugeStatus.ACTION_CHOICE or (g.status == GaugeStatus.CHARGING and g.progress >= 100.0):
-                if eid not in context.waiting_queue:
-                    context.waiting_queue.append(eid)
+                if eid not in self.context.waiting_queue:
+                    self.context.waiting_queue.append(eid)
 
     def _process_entity_gauge(self, gauge, dt):
         """個別エンティティのゲージ進行と状態異常処理"""
         can_charge = True
         
-        # 状態異常の更新（逆順ループで安全な削除）
+        # 状態異常の更新
         for effect in reversed(gauge.active_effects):
             behavior = StatusRegistry.get(effect.type_id)
             behavior.on_tick(effect, gauge, dt)
             
-            # 停止状態など、ゲージ進行を阻害するかチェック
             if not behavior.can_charge(effect):
                 can_charge = False
                 
@@ -90,10 +82,8 @@ class GaugeSystem(BattleSystemBase):
 
         # ゲージ進行のメインロジック
         if gauge.status == GaugeStatus.CHARGING:
-            # 充填：0.0 -> 100.0
             gauge.progress = min(100.0, gauge.progress + (dt / gauge.charging_time * 100.0))
         elif gauge.status == GaugeStatus.COOLDOWN:
-            # 放熱：0.0 -> 100.0 (完了で ACTION_CHOICE へ)
             gauge.progress += (dt / gauge.cooldown_time * 100.0)
             if gauge.progress >= 100.0:
                 self._reset_to_choice(gauge)
