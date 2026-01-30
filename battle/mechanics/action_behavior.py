@@ -5,7 +5,7 @@ from typing import Optional, List, Tuple
 from dataclasses import dataclass, field
 from domain.constants import ActionType
 from battle.constants import BattlePhase
-from battle.mechanics.action import ActionMechanics
+from battle.mechanics.action import ActionMechanics, GaugeResetData
 from battle.mechanics.log import LogBuilder
 from components.battle_component import DamageEventComponent
 
@@ -16,7 +16,8 @@ class ResolutionResult:
     phase_timer: float = 0.0
     damage_event: Optional[DamageEventComponent] = None
     logs: List[str] = field(default_factory=list)
-    should_reset_gauge: bool = True
+    gauge_reset: Optional[GaugeResetData] = None
+    should_remove_from_queue: bool = True
 
 class ActionBehavior(ABC):
     """アクション（攻撃、スキップ等）の具体的な振る舞いを定義する基底クラス"""
@@ -53,7 +54,8 @@ class AttackAction(ActionBehavior):
         if not part_comps or part_comps['health'].hp <= 0:
             return ResolutionResult(
                 next_phase=BattlePhase.LOG_WAIT,
-                logs=[LogBuilder.get_part_broken_attack(attacker_name)]
+                logs=[LogBuilder.get_part_broken_attack(attacker_name)],
+                gauge_reset=ActionMechanics.get_cooldown_reset_data(0.0)
             )
 
         res = event.calculation_result
@@ -70,7 +72,8 @@ class AttackAction(ActionBehavior):
         
         return ResolutionResult(
             next_phase=BattlePhase.CUTIN_RESULT,
-            damage_event=damage_event
+            damage_event=damage_event,
+            gauge_reset=ActionMechanics.get_cooldown_reset_data(100.0) # 実行完了なので100%から放熱
         )
 
 class SkipAction(ActionBehavior):
@@ -85,7 +88,8 @@ class SkipAction(ActionBehavior):
         name = attacker_comps['medal'].nickname
         return ResolutionResult(
             next_phase=BattlePhase.LOG_WAIT,
-            logs=[LogBuilder.get_skip_action(name)]
+            logs=[LogBuilder.get_skip_action(name)],
+            gauge_reset=ActionMechanics.get_cooldown_reset_data(0.0)
         )
 
 class ActionBehaviorRegistry:

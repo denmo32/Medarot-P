@@ -13,7 +13,6 @@ from battle.mechanics.log import LogBuilder
 class ActionInitiationSystem(BattleSystemBase):
     """
     充填が完了したエンティティに対し、ActionEventを生成してバトルフローを開始する。
-    アクションごとの固有ロジックは ActionBehavior に委譲する。
     """
     def update(self, dt: float):
         if not self.context or self.flow.current_phase != BattlePhase.IDLE or not self.context.waiting_queue:
@@ -22,7 +21,7 @@ class ActionInitiationSystem(BattleSystemBase):
         actor_eid = self.context.waiting_queue[0]
         actor_comps = self.get_comps(actor_eid, 'gauge', 'team', 'partlist', 'medal')
         if not actor_comps:
-            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, actor_eid, False)
+            self._remove_from_queue(actor_eid)
             return
 
         gauge = actor_comps['gauge']
@@ -43,8 +42,11 @@ class ActionInitiationSystem(BattleSystemBase):
         # 続行不可（ターゲットロスト等）の場合の中断処理
         if not target_id:
             message = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
-            ActionMechanics.reset_to_cooldown(gauge, penalty_ratio=1.0)
-            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, actor_eid, False)
+            # 中断時のリセット指示を生成して適用
+            reset_data = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
+            ActionMechanics.apply_gauge_reset(gauge, reset_data)
+            
+            self._remove_from_queue(actor_eid)
             interrupt_to_log(self.context, self.flow, message)
             return
 
@@ -72,5 +74,8 @@ class ActionInitiationSystem(BattleSystemBase):
         timer = BattleTiming.TARGET_INDICATION if next_phase == BattlePhase.TARGET_INDICATION else 0.0
         transition_to_phase(self.flow, next_phase, timer)
         
-        # 待機列から削除
-        ActionMechanics.manage_waiting_queue(self.context.waiting_queue, actor_eid, False)
+        self._remove_from_queue(actor_eid)
+
+    def _remove_from_queue(self, entity_id: int):
+        if entity_id in self.context.waiting_queue:
+            self.context.waiting_queue.remove(entity_id)

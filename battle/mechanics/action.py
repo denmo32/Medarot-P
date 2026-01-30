@@ -1,33 +1,52 @@
 """アクションの状態遷移・妥当性検証ロジック"""
 
 from typing import Tuple, Optional, List
+from dataclasses import dataclass
 from domain.constants import GaugeStatus, ActionType
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.log import LogBuilder
 from battle.mechanics.trait import TraitRegistry
 
+@dataclass(frozen=True)
+class GaugeResetData:
+    """ゲージをリセットする際の計算済みパラメータ"""
+    status: str
+    progress: float
+    clear_selection: bool = True
+
 class ActionMechanics:
     """
     アクションに関する判断ロジックと状態更新ヘルパー。
-    副作用（ログ追加、フェーズ遷移など）は持たず、Systemに委譲する。
+    副作用（コンポーネント書き換え）は持たず、Systemに適用すべき値を計算して返す。
     """
 
     @staticmethod
-    def reset_to_cooldown(gauge, penalty_ratio: float = 1.0):
+    def get_cooldown_reset_data(current_progress: float, penalty_ratio: float = 1.0) -> GaugeResetData:
         """
-        ゲージを放熱状態にリセットするデータ操作ヘルパー。
-        penalty_ratio: 1.0 で通常の放熱開始。
+        放熱状態へリセットするためのデータを計算する。
         """
-        current_progress = gauge.progress
-        gauge.status = GaugeStatus.COOLDOWN
         # 充填中断位置から放熱を開始するため、ゲージを反転させる
         if penalty_ratio > 0:
-            gauge.progress = max(0.0, 100.0 - current_progress)
+            new_progress = max(0.0, 100.0 - current_progress)
         else:
-            gauge.progress = 0.0
+            new_progress = 0.0
 
-        gauge.selected_action = None
-        gauge.selected_part = None
+        return GaugeResetData(
+            status=GaugeStatus.COOLDOWN,
+            progress=new_progress,
+            clear_selection=True
+        )
+
+    @staticmethod
+    def get_choice_reset_data() -> GaugeResetData:
+        """
+        行動選択状態へリセットするためのデータを計算する。
+        """
+        return GaugeResetData(
+            status=GaugeStatus.ACTION_CHOICE,
+            progress=0.0,
+            clear_selection=True
+        )
 
     @staticmethod
     def validate_action_continuity(world, entity_id: int) -> Tuple[bool, Optional[str]]:
@@ -84,18 +103,11 @@ class ActionMechanics:
         return trait_behavior.resolve_target(world, actor_eid, actor_comps, gauge)
 
     @staticmethod
-    def manage_waiting_queue(waiting_queue: List[int], entity_id: int, should_add: bool):
-        """待機列への追加・削除を一括管理するヘルパー"""
-        if should_add:
-            if entity_id not in waiting_queue:
-                waiting_queue.append(entity_id)
-        else:
-            if entity_id in waiting_queue:
-                waiting_queue.remove(entity_id)
-
-    @staticmethod
-    def pop_next_actor(waiting_queue: List[int]) -> Optional[int]:
-        """待機列から次の行動者を取得して削除する"""
-        if waiting_queue:
-            return waiting_queue.pop(0)
-        return None
+    def apply_gauge_reset(gauge, reset_data: GaugeResetData):
+        """(副作用) 計算されたリセットデータをコンポーネントに適用する"""
+        gauge.status = reset_data.status
+        gauge.progress = reset_data.progress
+        if reset_data.clear_selection:
+            gauge.selected_action = None
+            gauge.selected_part = None
+            gauge.part_targets = {}

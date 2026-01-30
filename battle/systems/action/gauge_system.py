@@ -1,7 +1,7 @@
 """ATBゲージ更新システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import GaugeStatus, BattlePhase
+from battle.constants import BattlePhase
 from battle.mechanics.gauge_mechanics import GaugeMechanics
 from battle.mechanics.action import ActionMechanics
 from battle.mechanics.flow import interrupt_to_log
@@ -13,49 +13,55 @@ class GaugeSystem(BattleSystemBase):
         if not self.context or not self.flow or self.flow.current_phase != BattlePhase.IDLE:
             return
 
-        # 生存しているゲージ持ちエンティティを走査
+        # 生存しているゲージ持ちエンティティを取得
         active_entities = [
             (eid, comps) for eid, comps in self.world.get_entities_with_components('gauge', 'defeated')
             if not comps['defeated'].is_defeated
         ]
 
-        # 1. 行動の継続妥当性を検証（パーツ破壊による中断など）
+        # 1. 状態異常のカウントダウン（副作用を許容する小規模更新）
+        for _, comps in active_entities:
+            GaugeMechanics.update_effects(comps['gauge'].active_effects, dt)
+
+        # 2. 行動の継続妥当性を検証
         for eid, comps in active_entities:
-            is_valid, message = GaugeMechanics.evaluate_interruption(self.world, eid)
-            
+            is_valid, message = ActionMechanics.validate_action_continuity(self.world, eid)
             if not is_valid:
                 self._handle_interruption(eid, comps['gauge'], message)
                 if self.flow.current_phase != BattlePhase.IDLE:
                     return
 
-        # 2. 待機列の更新
+        # 3. 待機列の同期
         for eid, comps in active_entities:
-            should_wait = GaugeMechanics.should_be_in_waiting_queue(comps['gauge'])
-            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, eid, should_wait)
+            summary = GaugeMechanics.get_tick_summary(comps['gauge'])
+            self._manage_queue(eid, summary.should_be_in_queue)
         
         # 誰かが入力待ち、または行動実行待機中であれば、ゲージ進行は一時停止
         if self.context.waiting_queue:
             return
 
-        # 3. 各エンティティのゲージ進行処理
+        # 4. ゲージ進行処理
         for eid, comps in active_entities:
             gauge = comps['gauge']
-            GaugeMechanics.process_tick(gauge, dt)
+            new_progress, _ = GaugeMechanics.calculate_tick(gauge, dt)
+            gauge.progress = new_progress
             
-            # 放熱完了判定
-            if GaugeMechanics.check_cooldown_complete(gauge):
-                self._reset_to_choice(gauge)
+            # 放熱完了のチェックとリセット
+            summary = GaugeMechanics.get_tick_summary(gauge)
+            if summary.is_cooldown_finished:
+                reset_data = ActionMechanics.get_choice_reset_data()
+                ActionMechanics.apply_gauge_reset(gauge, reset_data)
+
+    def _manage_queue(self, entity_id: int, should_add: bool):
+        queue = self.context.waiting_queue
+        if should_add and entity_id not in queue:
+            queue.append(entity_id)
+        elif not should_add and entity_id in queue:
+            queue.remove(entity_id)
 
     def _handle_interruption(self, entity_id, gauge, message):
         """行動中断の適用"""
-        ActionMechanics.reset_to_cooldown(gauge, penalty_ratio=1.0)
-        ActionMechanics.manage_waiting_queue(self.context.waiting_queue, entity_id, False)
+        reset_data = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
+        ActionMechanics.apply_gauge_reset(gauge, reset_data)
+        self._manage_queue(entity_id, False)
         interrupt_to_log(self.context, self.flow, message)
-
-    def _reset_to_choice(self, gauge):
-        """放熱完了時の初期化"""
-        gauge.status = GaugeStatus.ACTION_CHOICE
-        gauge.progress = 0.0
-        gauge.part_targets = {} 
-        gauge.selected_action = None
-        gauge.selected_part = None

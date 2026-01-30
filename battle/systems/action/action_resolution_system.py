@@ -27,19 +27,24 @@ class ActionResolutionSystem(BattleSystemBase):
         
         if attacker_comps:
             behavior = ActionBehaviorRegistry.get(event.action_type)
-            # 1. 結果オブジェクトの取得（判断）
+            
+            # 1. 結果オブジェクトの取得（純粋な判断）
             result = behavior.resolve(self.world, event, self.context)
             
-            # 2. 世界への適用（副作用）
+            # 2. 世界への適用（副作用の集中実行）
             if result.logs:
                 self.context.battle_log.extend(result.logs)
                 
             if result.damage_event:
                 self.world.add_component(event.current_target_id, result.damage_event)
 
-            if result.should_reset_gauge:
-                ActionMechanics.reset_to_cooldown(attacker_comps['gauge'])
+            if result.gauge_reset:
+                ActionMechanics.apply_gauge_reset(attacker_comps['gauge'], result.gauge_reset)
             
+            if result.should_remove_from_queue:
+                if event.attacker_id in self.context.waiting_queue:
+                    self.context.waiting_queue.remove(event.attacker_id)
+
             # 3. フェーズ遷移
             transition_to_phase(self.flow, result.next_phase, result.phase_timer)
         

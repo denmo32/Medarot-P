@@ -1,9 +1,16 @@
 """ATBゲージ進行と状態異常に関するロジック"""
 
 from typing import List, Tuple, Optional
+from dataclasses import dataclass
 from domain.constants import GaugeStatus
 from battle.mechanics.status import StatusRegistry
-from battle.mechanics.action import ActionMechanics
+
+@dataclass(frozen=True)
+class TickResult:
+    """ゲージ更新の結果"""
+    can_charge: bool
+    is_cooldown_finished: bool
+    should_be_in_queue: bool
 
 class GaugeMechanics:
     """
@@ -12,54 +19,58 @@ class GaugeMechanics:
     """
 
     @staticmethod
-    def process_tick(gauge, dt: float) -> bool:
+    def calculate_tick(gauge, dt: float) -> Tuple[float, bool]:
         """
-        ゲージ進行と状態異常の更新を計算。
-        進行可能な場合は True を返す。
-        """
-        can_charge = True
-        
-        # 状態異常の更新（逆順で安全に削除）
-        for effect in reversed(gauge.active_effects):
-            behavior = StatusRegistry.get(effect.type_id)
-            behavior.on_tick(effect, gauge, dt)
-            
-            if not behavior.can_charge(effect):
-                can_charge = False
-                
-            if effect.duration <= 0:
-                gauge.active_effects.remove(effect)
-        
-        if not can_charge:
-            return False
-
-        # ゲージ進行のメインロジック
-        if gauge.status == GaugeStatus.CHARGING:
-            gauge.progress = min(100.0, gauge.progress + (dt / gauge.charging_time * 100.0))
-        elif gauge.status == GaugeStatus.COOLDOWN:
-            gauge.progress += (dt / gauge.cooldown_time * 100.0)
-            
-        return True
-
-    @staticmethod
-    def check_cooldown_complete(gauge) -> bool:
-        """放熱が完了したか"""
-        return gauge.status == GaugeStatus.COOLDOWN and gauge.progress >= 100.0
-
-    @staticmethod
-    def should_be_in_waiting_queue(gauge) -> bool:
-        """待機列（入力待ち、または充填完了）に入るべき状態か"""
-        return (gauge.status == GaugeStatus.ACTION_CHOICE or 
-                (gauge.status == GaugeStatus.CHARGING and gauge.progress >= 100.0))
-
-    @staticmethod
-    def evaluate_interruption(world, entity_id: int) -> Tuple[bool, Optional[str]]:
-        """
-        行動の継続妥当性を検証する。
+        経過時間に応じた新しい進捗度を計算する。
         
         Returns:
-            (is_valid, interruption_message)
+            (new_progress, can_advance)
         """
-        # 現状は ActionMechanics に委譲しているが、将来的にゲージ固有の
-        # 特殊な中断ルール（衝撃によるゲージ減少など）があればここに記述する
-        return ActionMechanics.validate_action_continuity(world, entity_id)
+        can_advance = True
+        
+        # 状態異常による進行制限チェック
+        for effect in gauge.active_effects:
+            behavior = StatusRegistry.get(effect.type_id)
+            if not behavior.can_charge(effect):
+                can_advance = False
+                break
+        
+        if not can_advance:
+            return gauge.progress, False
+
+        # ゲージ進行の計算
+        new_progress = gauge.progress
+        if gauge.status == GaugeStatus.CHARGING:
+            new_progress = min(100.0, gauge.progress + (dt / gauge.charging_time * 100.0))
+        elif gauge.status == GaugeStatus.COOLDOWN:
+            new_progress += (dt / gauge.cooldown_time * 100.0)
+            
+        return new_progress, True
+
+    @staticmethod
+    def get_tick_summary(gauge) -> TickResult:
+        """
+        現在のゲージ状態のサマリーを返す。
+        """
+        can_charge = True
+        for effect in gauge.active_effects:
+            if not StatusRegistry.get(effect.type_id).can_charge(effect):
+                can_charge = False
+                break
+
+        return TickResult(
+            can_charge=can_charge,
+            is_cooldown_finished=(gauge.status == GaugeStatus.COOLDOWN and gauge.progress >= 100.0),
+            should_be_in_queue=(
+                gauge.status == GaugeStatus.ACTION_CHOICE or 
+                (gauge.status == GaugeStatus.CHARGING and gauge.progress >= 100.0)
+            )
+        )
+
+    @staticmethod
+    def update_effects(effects: list, dt: float):
+        """(副作用) 状態異常の持続時間を更新し、終了したものを削除する"""
+        for effect in reversed(effects):
+            effect.duration -= dt
+            if effect.duration <= 0:
+                effects.remove(effect)
