@@ -10,6 +10,7 @@ from components.battle_component import StatusEffect
 class TickResult:
     """ゲージ更新の結果"""
     can_charge: bool
+    new_progress: float
     is_cooldown_finished: bool
     should_be_in_queue: bool
 
@@ -20,12 +21,9 @@ class GaugeMechanics:
     """
 
     @staticmethod
-    def calculate_tick(gauge, dt: float) -> Tuple[float, bool]:
+    def calculate_tick(gauge, dt: float) -> TickResult:
         """
-        経過時間に応じた新しい進捗度を計算する。
-        
-        Returns:
-            (new_progress, can_advance)
+        経過時間に応じた新しい状態を計算する。
         """
         can_advance = True
         
@@ -36,36 +34,26 @@ class GaugeMechanics:
                 can_advance = False
                 break
         
-        if not can_advance:
-            return gauge.progress, False
-
         # ゲージ進行の計算
         new_progress = gauge.progress
-        if gauge.status == GaugeStatus.CHARGING:
-            new_progress = min(100.0, gauge.progress + (dt / gauge.charging_time * 100.0))
-        elif gauge.status == GaugeStatus.COOLDOWN:
-            new_progress += (dt / gauge.cooldown_time * 100.0)
+        if can_advance:
+            if gauge.status == GaugeStatus.CHARGING:
+                new_progress = min(100.0, gauge.progress + (dt / gauge.charging_time * 100.0))
+            elif gauge.status == GaugeStatus.COOLDOWN:
+                new_progress += (dt / gauge.cooldown_time * 100.0)
             
-        return new_progress, True
-
-    @staticmethod
-    def get_tick_summary(gauge) -> TickResult:
-        """
-        現在のゲージ状態のサマリーを返す。
-        """
-        can_charge = True
-        for effect in gauge.active_effects:
-            if not StatusRegistry.get(effect.type_id).can_charge(effect):
-                can_charge = False
-                break
+        # 判定
+        is_cooldown_finished = (gauge.status == GaugeStatus.COOLDOWN and new_progress >= 100.0)
+        should_be_in_queue = (
+            gauge.status == GaugeStatus.ACTION_CHOICE or 
+            (gauge.status == GaugeStatus.CHARGING and new_progress >= 100.0)
+        )
 
         return TickResult(
-            can_charge=can_charge,
-            is_cooldown_finished=(gauge.status == GaugeStatus.COOLDOWN and gauge.progress >= 100.0),
-            should_be_in_queue=(
-                gauge.status == GaugeStatus.ACTION_CHOICE or 
-                (gauge.status == GaugeStatus.CHARGING and gauge.progress >= 100.0)
-            )
+            can_charge=can_advance,
+            new_progress=new_progress,
+            is_cooldown_finished=is_cooldown_finished,
+            should_be_in_queue=should_be_in_queue
         )
 
     @staticmethod
@@ -75,12 +63,8 @@ class GaugeMechanics:
         """
         new_effects = []
         for effect in effects:
-            # effect は dataclass なので、System側で値を書き換えるか、ここで複製を作る
-            # ここではシンプルに時間を減らした新しいリストを構築する
             new_duration = effect.duration - dt
             if new_duration > 0:
-                # 参照を維持したまま時間を更新（副作用をSystemに任せる場合はここも指示だけにするが、
-                # StatusEffect自体はECS外のデータなので、ここで更新後のインスタンスを返すのが一般的）
                 effect.duration = new_duration
                 new_effects.append(effect)
         return new_effects

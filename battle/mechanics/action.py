@@ -14,6 +14,13 @@ class GaugeResetData:
     progress: float
     clear_selection: bool = True
 
+@dataclass(frozen=True)
+class ActionInterruptionResult:
+    """アクション中断時の判断結果"""
+    is_valid: bool
+    message: Optional[str] = None
+    reset_data: Optional[GaugeResetData] = None
+
 class ActionMechanics:
     """
     アクションに関する判断ロジックと状態更新ヘルパー。
@@ -49,36 +56,41 @@ class ActionMechanics:
         )
 
     @staticmethod
-    def validate_action_continuity(world, entity_id: int) -> Tuple[bool, Optional[str]]:
+    def validate_action_continuity(world, entity_id: int) -> ActionInterruptionResult:
         """
         アクションの継続妥当性を検証する（充填中のパーツ破壊チェックなど）。
-        
-        Returns:
-            (is_valid, interruption_message)
         """
         comps = world.try_get_entity(entity_id)
         if not comps or 'gauge' not in comps:
-            return True, None
+            return ActionInterruptionResult(is_valid=True)
 
         gauge = comps['gauge']
         if gauge.status != GaugeStatus.CHARGING:
-            return True, None
+            return ActionInterruptionResult(is_valid=True)
 
         actor_name = comps['medal'].nickname
         
         # 1. 実行予定パーツの生存チェック
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
             if not TargetingMechanics.is_action_target_valid(world, entity_id, gauge.selected_part):
-                return False, LogBuilder.get_part_broken_interruption(actor_name)
+                return ActionInterruptionResult(
+                    is_valid=False,
+                    message=LogBuilder.get_part_broken_interruption(actor_name),
+                    reset_data=ActionMechanics.get_cooldown_reset_data(gauge.progress)
+                )
 
         # 2. ターゲットの生存チェック
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             target_id, target_part_type = target_data
             if not TargetingMechanics.is_action_target_valid(world, target_id, target_part_type):
-                return False, LogBuilder.get_target_lost(actor_name)
+                return ActionInterruptionResult(
+                    is_valid=False,
+                    message=LogBuilder.get_target_lost(actor_name),
+                    reset_data=ActionMechanics.get_cooldown_reset_data(gauge.progress)
+                )
         
-        return True, None
+        return ActionInterruptionResult(is_valid=True)
 
     @staticmethod
     def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:

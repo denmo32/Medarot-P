@@ -2,7 +2,7 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
-from battle.mechanics.flow import transition_to_phase, interrupt_to_log
+from battle.mechanics.flow import PhaseTransition
 from domain.constants import GaugeStatus, ActionType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
@@ -21,7 +21,7 @@ class ActionInitiationSystem(BattleSystemBase):
         actor_eid = self.context.waiting_queue[0]
         actor_comps = self.get_comps(actor_eid, 'gauge', 'team', 'partlist', 'medal')
         if not actor_comps:
-            self._remove_from_queue(actor_eid)
+            self.manage_queue(actor_eid, False)
             return
 
         gauge = actor_comps['gauge']
@@ -31,29 +31,20 @@ class ActionInitiationSystem(BattleSystemBase):
 
     def _initiate_action(self, actor_eid, actor_comps, gauge):
         """行動開始の具体処理"""
-        self.flow.active_actor_id = actor_eid
-        
         # 行動種別に応じた振る舞いを取得
         behavior = ActionBehaviorRegistry.get(gauge.selected_action)
         
-        # 1. ターゲット解決とバリデーション
+        # 1. ターゲット解決
         target_id, target_part = behavior.initiate(self.world, actor_eid, actor_comps, gauge)
         
-        # 続行不可（ターゲットロスト等）の場合の中断処理
+        # ターゲットロスト時の中断処理
         if not target_id:
-            message = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
+            msg = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
+            reset = ActionMechanics.get_cooldown_reset_data(gauge.progress)
             
-            # 中断時のリセット指示を生成して適用（副作用の実行）
-            reset = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
-            gauge.status = reset.status
-            gauge.progress = reset.progress
-            if reset.clear_selection:
-                gauge.selected_action = None
-                gauge.selected_part = None
-                gauge.part_targets = {}
-            
-            self._remove_from_queue(actor_eid)
-            interrupt_to_log(self.context, self.flow, message)
+            self.apply_gauge_reset(actor_eid, reset)
+            self.manage_queue(actor_eid, False)
+            self.apply_phase_transition(PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
             return
 
         # 2. ActionEventの生成
@@ -73,15 +64,16 @@ class ActionInitiationSystem(BattleSystemBase):
             )
 
         self.world.add_component(event_eid, event)
-        self.flow.processing_event_id = event_eid
         
         # 3. フェーズ遷移（Behaviorに依存）
-        next_phase = behavior.get_initial_phase()
-        timer = BattleTiming.TARGET_INDICATION if next_phase == BattlePhase.TARGET_INDICATION else 0.0
-        transition_to_phase(self.flow, next_phase, timer)
+        next_p = behavior.get_initial_phase()
+        timer = BattleTiming.TARGET_INDICATION if next_p == BattlePhase.TARGET_INDICATION else 0.0
         
-        self._remove_from_queue(actor_eid)
-
-    def _remove_from_queue(self, entity_id: int):
-        if entity_id in self.context.waiting_queue:
-            self.context.waiting_queue.remove(entity_id)
+        self.apply_phase_transition(PhaseTransition(
+            next_phase=next_p,
+            timer=timer,
+            actor_id=actor_eid,
+            event_id=event_eid
+        ))
+        
+        self.manage_queue(actor_eid, False)

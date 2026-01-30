@@ -13,6 +13,7 @@ class PhaseTransition:
     actor_id: Optional[int] = None
     event_id: Optional[int] = None
     logs: List[str] = field(default_factory=list)
+    clear_logs: bool = False
 
 def get_battle_state(world) -> Tuple[Optional[any], Optional[any]]:
     """ワールドからBattleContextとBattleFlowを取得する"""
