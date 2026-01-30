@@ -19,9 +19,10 @@ class GaugeSystem(BattleSystemBase):
             if not comps['defeated'].is_defeated
         ]
 
-        # 1. 状態異常のカウントダウン（副作用を許容する小規模更新）
+        # 1. 状態異常のカウントダウン（純粋関数から新しいリストを受け取り適用）
         for _, comps in active_entities:
-            GaugeMechanics.update_effects(comps['gauge'].active_effects, dt)
+            gauge = comps['gauge']
+            gauge.active_effects = GaugeMechanics.get_updated_effects(gauge.active_effects, dt)
 
         # 2. 行動の継続妥当性を検証
         for eid, comps in active_entities:
@@ -46,11 +47,16 @@ class GaugeSystem(BattleSystemBase):
             new_progress, _ = GaugeMechanics.calculate_tick(gauge, dt)
             gauge.progress = new_progress
             
-            # 放熱完了のチェックとリセット
+            # 放熱完了のチェックとリセット（副作用の実行）
             summary = GaugeMechanics.get_tick_summary(gauge)
             if summary.is_cooldown_finished:
-                reset_data = ActionMechanics.get_choice_reset_data()
-                ActionMechanics.apply_gauge_reset(gauge, reset_data)
+                reset = ActionMechanics.get_choice_reset_data()
+                gauge.status = reset.status
+                gauge.progress = reset.progress
+                if reset.clear_selection:
+                    gauge.selected_action = None
+                    gauge.selected_part = None
+                    gauge.part_targets = {}
 
     def _manage_queue(self, entity_id: int, should_add: bool):
         queue = self.context.waiting_queue
@@ -60,8 +66,14 @@ class GaugeSystem(BattleSystemBase):
             queue.remove(entity_id)
 
     def _handle_interruption(self, entity_id, gauge, message):
-        """行動中断の適用"""
-        reset_data = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
-        ActionMechanics.apply_gauge_reset(gauge, reset_data)
+        """行動中断の適用（副作用の実行）"""
+        reset = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
+        gauge.status = reset.status
+        gauge.progress = reset.progress
+        if reset.clear_selection:
+            gauge.selected_action = None
+            gauge.selected_part = None
+            gauge.part_targets = {}
+            
         self._manage_queue(entity_id, False)
         interrupt_to_log(self.context, self.flow, message)

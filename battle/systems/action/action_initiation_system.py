@@ -42,9 +42,15 @@ class ActionInitiationSystem(BattleSystemBase):
         # 続行不可（ターゲットロスト等）の場合の中断処理
         if not target_id:
             message = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
-            # 中断時のリセット指示を生成して適用
-            reset_data = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
-            ActionMechanics.apply_gauge_reset(gauge, reset_data)
+            
+            # 中断時のリセット指示を生成して適用（副作用の実行）
+            reset = ActionMechanics.get_cooldown_reset_data(gauge.progress, penalty_ratio=1.0)
+            gauge.status = reset.status
+            gauge.progress = reset.progress
+            if reset.clear_selection:
+                gauge.selected_action = None
+                gauge.selected_part = None
+                gauge.part_targets = {}
             
             self._remove_from_queue(actor_eid)
             interrupt_to_log(self.context, self.flow, message)

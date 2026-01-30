@@ -3,8 +3,8 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
 from battle.mechanics.flow import transition_to_phase
-from battle.mechanics.action import ActionMechanics
 from battle.mechanics.action_behavior import ActionBehaviorRegistry
+from components.battle_component import DamageEventComponent
 
 class ActionResolutionSystem(BattleSystemBase):
     """
@@ -35,11 +35,28 @@ class ActionResolutionSystem(BattleSystemBase):
             if result.logs:
                 self.context.battle_log.extend(result.logs)
                 
-            if result.damage_event:
-                self.world.add_component(event.current_target_id, result.damage_event)
+            if result.damage_result:
+                dr = result.damage_result
+                # ダメージ指示書からECSコンポーネントを生成して付与
+                damage_comp = DamageEventComponent(
+                    attacker_id=dr.attacker_id,
+                    attacker_part=dr.attacker_part,
+                    damage=dr.damage,
+                    target_part=dr.target_part,
+                    is_critical=dr.is_critical,
+                    added_effects=dr.added_effects
+                )
+                self.world.add_component(event.current_target_id, damage_comp)
 
             if result.gauge_reset:
-                ActionMechanics.apply_gauge_reset(attacker_comps['gauge'], result.gauge_reset)
+                gr = result.gauge_reset
+                gauge = attacker_comps['gauge']
+                gauge.status = gr.status
+                gauge.progress = gr.progress
+                if gr.clear_selection:
+                    gauge.selected_action = None
+                    gauge.selected_part = None
+                    gauge.part_targets = {}
             
             if result.should_remove_from_queue:
                 if event.attacker_id in self.context.waiting_queue:

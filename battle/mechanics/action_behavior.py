@@ -7,14 +7,24 @@ from domain.constants import ActionType
 from battle.constants import BattlePhase
 from battle.mechanics.action import ActionMechanics, GaugeResetData
 from battle.mechanics.log import LogBuilder
-from components.battle_component import DamageEventComponent
+from components.battle_component import StatusEffect
+
+@dataclass(frozen=True)
+class DamageResult:
+    """攻撃によって発生するダメージ情報の指示書"""
+    attacker_id: int
+    attacker_part: str
+    damage: int
+    target_part: str
+    is_critical: bool = False
+    added_effects: List[StatusEffect] = field(default_factory=list)
 
 @dataclass
 class ResolutionResult:
     """アクション解決の結果を表すデータオブジェクト（副作用の指示書）"""
     next_phase: str
     phase_timer: float = 0.0
-    damage_event: Optional[DamageEventComponent] = None
+    damage_result: Optional[DamageResult] = None
     logs: List[str] = field(default_factory=list)
     gauge_reset: Optional[GaugeResetData] = None
     should_remove_from_queue: bool = True
@@ -59,9 +69,9 @@ class AttackAction(ActionBehavior):
             )
 
         res = event.calculation_result
-        damage_event = None
+        damage_result = None
         if res and res.is_hit:
-            damage_event = DamageEventComponent(
+            damage_result = DamageResult(
                 attacker_id=event.attacker_id,
                 attacker_part=event.part_type,
                 damage=res.damage,
@@ -72,7 +82,7 @@ class AttackAction(ActionBehavior):
         
         return ResolutionResult(
             next_phase=BattlePhase.CUTIN_RESULT,
-            damage_event=damage_event,
+            damage_result=damage_result,
             gauge_reset=ActionMechanics.get_cooldown_reset_data(100.0) # 実行完了なので100%から放熱
         )
 

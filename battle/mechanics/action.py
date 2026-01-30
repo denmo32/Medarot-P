@@ -101,13 +101,3 @@ class ActionMechanics:
         # 特性振る舞い（格闘/射撃のターゲット解決ロジック）に委譲
         trait_behavior = TraitRegistry.get(attack_comp.trait)
         return trait_behavior.resolve_target(world, actor_eid, actor_comps, gauge)
-
-    @staticmethod
-    def apply_gauge_reset(gauge, reset_data: GaugeResetData):
-        """(副作用) 計算されたリセットデータをコンポーネントに適用する"""
-        gauge.status = reset_data.status
-        gauge.progress = reset_data.progress
-        if reset_data.clear_selection:
-            gauge.selected_action = None
-            gauge.selected_part = None
-            gauge.part_targets = {}

@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from domain.constants import GaugeStatus
 from battle.mechanics.status import StatusRegistry
+from components.battle_component import StatusEffect
 
 @dataclass(frozen=True)
 class TickResult:
@@ -68,9 +69,18 @@ class GaugeMechanics:
         )
 
     @staticmethod
-    def update_effects(effects: list, dt: float):
-        """(副作用) 状態異常の持続時間を更新し、終了したものを削除する"""
-        for effect in reversed(effects):
-            effect.duration -= dt
-            if effect.duration <= 0:
-                effects.remove(effect)
+    def get_updated_effects(effects: List[StatusEffect], dt: float) -> List[StatusEffect]:
+        """
+        状態異常の持続時間を更新し、存続している新しいリストを返す（純粋関数）。
+        """
+        new_effects = []
+        for effect in effects:
+            # effect は dataclass なので、System側で値を書き換えるか、ここで複製を作る
+            # ここではシンプルに時間を減らした新しいリストを構築する
+            new_duration = effect.duration - dt
+            if new_duration > 0:
+                # 参照を維持したまま時間を更新（副作用をSystemに任せる場合はここも指示だけにするが、
+                # StatusEffect自体はECS外のデータなので、ここで更新後のインスタンスを返すのが一般的）
+                effect.duration = new_duration
+                new_effects.append(effect)
+        return new_effects
