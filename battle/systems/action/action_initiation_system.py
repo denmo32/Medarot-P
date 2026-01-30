@@ -7,11 +7,13 @@ from domain.constants import GaugeStatus, ActionType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
 from battle.mechanics.action import ActionMechanics
+from battle.mechanics.action_behavior import ActionBehaviorRegistry
 from battle.mechanics.log import LogBuilder
 
 class ActionInitiationSystem(BattleSystemBase):
     """
     充填が完了したエンティティに対し、ActionEventを生成してバトルフローを開始する。
+    アクションごとの固有ロジックは ActionBehavior に委譲する。
     """
     def update(self, dt: float):
         if not self.context or self.flow.current_phase != BattlePhase.IDLE or not self.context.waiting_queue:
@@ -32,11 +34,14 @@ class ActionInitiationSystem(BattleSystemBase):
         """行動開始の具体処理"""
         self.flow.active_actor_id = actor_eid
         
-        # 1. ターゲット解決（特性による自動変更などを含む）
-        target_id, target_part = ActionMechanics.resolve_action_target(self.world, actor_eid, actor_comps, gauge)
+        # 行動種別に応じた振る舞いを取得
+        behavior = ActionBehaviorRegistry.get(gauge.selected_action)
         
-        # ターゲットロスト（攻撃対象がいない）場合の中断
-        if gauge.selected_action == ActionType.ATTACK and not target_id:
+        # 1. ターゲット解決とバリデーション
+        target_id, target_part = behavior.initiate(self.world, actor_eid, actor_comps, gauge)
+        
+        # 続行不可（ターゲットロスト等）の場合の中断処理
+        if not target_id:
             self._handle_interruption(actor_eid, actor_comps)
             return
 
@@ -59,11 +64,10 @@ class ActionInitiationSystem(BattleSystemBase):
         self.world.add_component(event_eid, event)
         self.flow.processing_event_id = event_eid
         
-        # 3. フェーズ遷移
-        if gauge.selected_action == ActionType.ATTACK:
-            transition_to_phase(self.flow, BattlePhase.TARGET_INDICATION, BattleTiming.TARGET_INDICATION)
-        else:
-            transition_to_phase(self.flow, BattlePhase.EXECUTING)
+        # 3. フェーズ遷移（Behaviorに依存）
+        next_phase = behavior.get_initial_phase()
+        timer = BattleTiming.TARGET_INDICATION if next_phase == BattlePhase.TARGET_INDICATION else 0.0
+        transition_to_phase(self.flow, next_phase, timer)
         
         # 待機キューから削除
         if self.context.waiting_queue and self.context.waiting_queue[0] == actor_eid:

@@ -52,7 +52,6 @@ class HitOutcomeContext:
 class CombatMechanics:
     """
     戦闘の命中・ダメージ計算を統括する。
-    計算プロセスをフェーズ分割することで、拡張性を高めている。
     """
 
     @staticmethod
@@ -74,26 +73,17 @@ class CombatMechanics:
         
         attack_comp = atk_part_comps['attack']
 
-        # 2. パラメータ補正フェーズ
+        # 2. パラメータ補正とペナルティの取得
         stats = CombatMechanics._calculate_adjusted_stats(world, attacker_comps, atk_part_comps, target_comps)
         penalty = CombatMechanics._get_target_defensive_penalty(world, target_comps)
 
-        # 3. 命中判定フェーズ
+        # 3. 命中判定
         hit_prob = 1.0 if penalty['force_hit'] else calculate_hit_probability(stats.success, stats.tgt_mobility)
-        
         if not penalty['force_hit'] and not check_is_hit(hit_prob):
             return CombatResult.miss()
         
-        # 4. 結果確定フェーズ
-        ctx = HitOutcomeContext(
-            world=world,
-            attack_comp=attack_comp,
-            stats=stats,
-            hit_prob=hit_prob,
-            target_comps=target_comps,
-            target_desired_part=target_desired_part,
-            penalty=penalty
-        )
+        # 4. ヒット後の詳細結果（ダメージ等）を確定
+        ctx = HitOutcomeContext(world, attack_comp, stats, hit_prob, target_comps, target_desired_part, penalty)
         return CombatMechanics._determine_hit_outcome(ctx)
 
     @staticmethod
@@ -103,13 +93,12 @@ class CombatMechanics:
         my_mob, my_def = CombatMechanics._get_legs_stats(world, attacker_comps)
         tgt_mob, tgt_def = CombatMechanics._get_legs_stats(world, target_comps)
 
-        # 属性相性ボーナス
-        atk_medal_attr = attacker_comps['medal'].attribute
-        atk_part_attr = atk_part_comps['part'].attribute
-        tgt_medal_attr = target_comps['medal'].attribute
-        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(atk_medal_attr, atk_part_attr, tgt_medal_attr)
+        # 属性相性ボーナスの適用
+        atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(
+            attacker_comps['medal'].attribute, atk_part_comps['part'].attribute, target_comps['medal'].attribute
+        )
 
-        # スキル補正 (SkillBehaviorに委譲)
+        # スキル補正の適用
         skill_behavior = SkillRegistry.get(attack_comp.skill_type)
         s_success_bonus, s_attack_bonus = skill_behavior.get_offensive_bonuses(my_mob, my_def)
 
@@ -122,7 +111,7 @@ class CombatMechanics:
 
     @staticmethod
     def _get_target_defensive_penalty(world, target_comps) -> Dict[str, bool]:
-        """ターゲット側の状態による防御・回避ペナルティを取得"""
+        """ターゲット側の状態（充填中等）による防御制限を取得"""
         tgt_gauge = target_comps.get('gauge')
         prevent_defense, force_hit, force_critical = False, False, False
 
@@ -130,30 +119,18 @@ class CombatMechanics:
             tgt_part_id = target_comps['partlist'].parts.get(tgt_gauge.selected_part)
             tgt_p_comps = world.try_get_entity(tgt_part_id)
             if tgt_p_comps and 'attack' in tgt_p_comps:
+                # 相手が実行しようとしているスキルのペナルティ特性を参照
                 skill_behavior = SkillRegistry.get(tgt_p_comps['attack'].skill_type)
-                # 相手が充填中や放熱中の場合のペナルティを取得
                 prevent_defense, force_hit, force_critical = skill_behavior.get_defensive_penalty(tgt_gauge.status)
         
-        return {
-            'prevent_defense': prevent_defense, 
-            'force_hit': force_hit, 
-            'force_critical': force_critical
-        }
+        return {'prevent_defense': prevent_defense, 'force_hit': force_hit, 'force_critical': force_critical}
 
     @staticmethod
     def _determine_hit_outcome(ctx: HitOutcomeContext) -> CombatResult:
-        """命中したことが確定した後の詳細計算（部位、ダメージ、効果）"""
+        """命中確定後の詳細計算（クリティカル、部位、ダメージ、特性効果）"""
         
-        # 1. 攻撃の性質（クリティカル・防御）の決定
-        if ctx.penalty['force_critical']:
-            is_critical, is_defense = True, False
-        else:
-            break_prob = calculate_break_probability(ctx.stats.success, ctx.stats.tgt_defense)
-            is_critical, is_defense = check_attack_outcome(ctx.hit_prob, break_prob)
-            
-            # 防御不能ペナルティの適用
-            if ctx.penalty['prevent_defense']:
-                is_defense = False
+        # 1. 攻撃性質（クリティカル・防御）の決定
+        is_critical, is_defense = CombatMechanics._evaluate_attack_quality(ctx)
 
         # 2. 被弾部位の決定
         hit_part = CombatMechanics._resolve_hit_part(ctx, is_defense)
@@ -164,22 +141,30 @@ class CombatMechanics:
             is_critical, is_defense
         )
         
-        # 4. 特性による追加効果の適用
+        # 4. 特性（サンダー等）による追加効果
         trait_behavior = TraitRegistry.get(ctx.attack_comp.trait)
         added_effects = trait_behavior.get_added_effects(ctx.stats.success, ctx.stats.tgt_mobility)
 
-        return CombatResult(
-            is_hit=True, 
-            is_critical=is_critical, 
-            is_defense=is_defense, 
-            damage=damage, 
-            hit_part=hit_part, 
-            added_effects=added_effects
-        )
+        return CombatResult(True, is_critical, is_defense, damage, hit_part, added_effects)
+
+    @staticmethod
+    def _evaluate_attack_quality(ctx: HitOutcomeContext) -> Tuple[bool, bool]:
+        """クリティカルか、防御成功かを判定する"""
+        if ctx.penalty['force_critical']:
+            return True, False
+            
+        break_prob = calculate_break_probability(ctx.stats.success, ctx.stats.tgt_defense)
+        is_critical, is_defense = check_attack_outcome(ctx.hit_prob, break_prob)
+            
+        # 防御不能ペナルティの適用
+        if ctx.penalty['prevent_defense']:
+            is_defense = False
+            
+        return is_critical, is_defense
 
     @staticmethod
     def _resolve_hit_part(ctx: HitOutcomeContext, is_defense: bool) -> str:
-        """被弾部位の最終決定ロジック"""
+        """被弾部位の最終決定ロジック。防御時は頭部以外が優先される。"""
         alive_parts = {
             pt: pid for pt, pid in ctx.target_comps['partlist'].parts.items() 
             if ctx.world.try_get_entity(pid)['health'].hp > 0
@@ -188,16 +173,15 @@ class CombatMechanics:
         if not alive_parts:
             return PartType.HEAD
 
-        # 防御時は、頭部を守るために他の部位を優先する
         if is_defense:
+            # 防御時は、頭部以外の最もHPが高い部位を盾にする
             non_head = [pt for pt in alive_parts if pt != PartType.HEAD]
             if non_head:
-                # 最もHPの高い部位を盾にする
                 non_head.sort(key=lambda pt: ctx.world.entities[alive_parts[pt]]['health'].hp, reverse=True)
                 return non_head[0]
             return PartType.HEAD
         
-        # 狙い撃ちなどの指定部位が生存していれば、そこを狙う
+        # 狙い撃ち指定部位が生存していれば優先、そうでなければランダム
         if ctx.target_desired_part in alive_parts:
             return ctx.target_desired_part
             
@@ -205,7 +189,6 @@ class CombatMechanics:
 
     @staticmethod
     def _get_legs_stats(world, comps) -> Tuple[int, int]:
-        """脚部パーツの性能（機動、防御）を取得"""
         legs_id = comps['partlist'].parts.get(PartType.LEGS)
         legs_comps = world.try_get_entity(legs_id) if legs_id is not None else None
         if legs_comps and 'mobility' in legs_comps:
