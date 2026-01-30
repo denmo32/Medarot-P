@@ -181,10 +181,10 @@ class CombatMechanics:
                 return non_head[0]
             return PartType.HEAD
         
-        # 狙い撃ち指定部位が生存していれば優先、そうでなければランダム
+        # ターゲット部位が有効なら優先、そうでなければランダム
         if ctx.target_desired_part in alive_parts:
             return ctx.target_desired_part
-            
+        # 行動実行時にはターゲットが存在している前提のため、ここには到達しないはず    
         return random.choice(list(alive_parts.keys()))
 
     @staticmethod

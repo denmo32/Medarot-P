@@ -1,4 +1,4 @@
-"""属性（Attribute）に関連するロジック"""
+"""属性関連ロジック"""
 
 from typing import Dict, Any, Tuple
 from domain.constants import PartType, AttributeType

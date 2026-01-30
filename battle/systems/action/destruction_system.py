@@ -7,7 +7,7 @@ class DestructionSystem(BattleSystemBase):
     """各パーツのHPを監視し、部位破壊や機体の機能停止を判定する"""
 
     def update(self, dt: float):
-        # 敗北判定が必要なエンティティ（Medabot本体）を走査
+        # 敗北判定が必要なエンティティ（メダロット本体）を走査
         for eid, comps in self.world.get_entities_with_components('partlist', 'defeated'):
             if comps['defeated'].is_defeated:
                 continue

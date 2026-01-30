@@ -1,4 +1,4 @@
-"""バトルフロー制御ロジック（旧 FlowService）"""
+"""バトルフロー制御ロジック"""
 
 from typing import Optional, Tuple
 from battle.constants import BattlePhase

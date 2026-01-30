@@ -21,7 +21,7 @@ class GameDataManager:
         'speed': 'スピード',
         'power': 'パワー',
         'technique': 'テクニック',
-        'undefined': 'ー'
+        'undefined': '-'
     }
 
     def __init__(self, json_path: str = None):

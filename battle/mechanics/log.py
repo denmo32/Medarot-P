@@ -1,4 +1,4 @@
-"""ログ構築ロジック（旧 LogService）"""
+"""ログ構築ロジック"""
 
 class LogBuilder:
     @staticmethod
@@ -18,5 +18,6 @@ class LogBuilder:
         return f"{actor_name}の予約パーツは破壊された！"
 
     @staticmethod
+    # 予約パーツ破壊のまま行動実行することはない実装であるはず
     def get_part_broken_attack(actor_name: str) -> str:
         return f"{actor_name}の攻撃！ しかしパーツが破損している！"
