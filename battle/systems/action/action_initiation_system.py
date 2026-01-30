@@ -2,7 +2,7 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
-from battle.mechanics.flow import transition_to_phase
+from battle.mechanics.flow import transition_to_phase, interrupt_to_log
 from domain.constants import GaugeStatus, ActionType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
@@ -22,7 +22,7 @@ class ActionInitiationSystem(BattleSystemBase):
         actor_eid = self.context.waiting_queue[0]
         actor_comps = self.get_comps(actor_eid, 'gauge', 'team', 'partlist', 'medal')
         if not actor_comps:
-            self.context.waiting_queue.pop(0)
+            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, actor_eid, False)
             return
 
         gauge = actor_comps['gauge']
@@ -42,7 +42,10 @@ class ActionInitiationSystem(BattleSystemBase):
         
         # 続行不可（ターゲットロスト等）の場合の中断処理
         if not target_id:
-            self._handle_interruption(actor_eid, actor_comps)
+            message = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
+            ActionMechanics.reset_to_cooldown(gauge, penalty_ratio=1.0)
+            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, actor_eid, False)
+            interrupt_to_log(self.context, self.flow, message)
             return
 
         # 2. ActionEventの生成
@@ -69,23 +72,5 @@ class ActionInitiationSystem(BattleSystemBase):
         timer = BattleTiming.TARGET_INDICATION if next_phase == BattlePhase.TARGET_INDICATION else 0.0
         transition_to_phase(self.flow, next_phase, timer)
         
-        # 待機キューから削除
-        if self.context.waiting_queue and self.context.waiting_queue[0] == actor_eid:
-            self.context.waiting_queue.pop(0)
-
-    def _handle_interruption(self, actor_eid, actor_comps):
-        """ターゲット消失などによるアクション中断"""
-        actor_name = actor_comps['medal'].nickname
-        message = LogBuilder.get_target_lost(actor_name)
-        
-        self.context.battle_log.append(message)
-        transition_to_phase(self.flow, BattlePhase.LOG_WAIT)
-        
-        # ゲージを放熱へペナルティ付きでリセット
-        gauge = actor_comps['gauge']
-        current_p = gauge.progress
-        ActionMechanics.reset_to_cooldown(gauge)
-        gauge.progress = max(0.0, 100.0 - current_p)
-        
-        if self.context.waiting_queue and self.context.waiting_queue[0] == actor_eid:
-            self.context.waiting_queue.pop(0)
+        # 待機列から削除
+        ActionMechanics.manage_waiting_queue(self.context.waiting_queue, actor_eid, False)

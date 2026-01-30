@@ -17,3 +17,11 @@ def transition_to_phase(flow, next_phase: str, timer: float = 0.0):
         flow.processing_event_id = None
         flow.active_actor_id = None
         flow.cutin_progress = 0.0
+
+def interrupt_to_log(context, flow, message: str):
+    """
+    アクションの中断など、メッセージを表示してIDLEに戻るための共通遷移。
+    """
+    if message:
+        context.battle_log.append(message)
+    transition_to_phase(flow, BattlePhase.LOG_WAIT)

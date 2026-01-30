@@ -1,8 +1,8 @@
 """ターゲット選定・状態確認ロジック"""
 
 import random
-from typing import List, Optional
-from domain.constants import TeamType
+from typing import List, Optional, Dict, Any
+from domain.constants import TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
 
 class TargetingMechanics:
@@ -71,3 +71,32 @@ class TargetingMechanics:
                 if ratio > max_ratio:
                     max_ratio, best_target = ratio, teid
         return best_target
+
+    @staticmethod
+    def resolve_hit_part(world, target_comps: Dict[str, Any], desired_part: Optional[str], is_defense: bool) -> str:
+        """
+        被弾部位を決定するポリシー。
+        防御時は頭部以外が優先され、通常時は指定部位になる。
+        """
+        alive_parts = {
+            pt: pid for pt, pid in target_comps['partlist'].parts.items() 
+            if world.try_get_entity(pid)['health'].hp > 0
+        }
+        
+        if not alive_parts:
+            return PartType.HEAD
+
+        if is_defense:
+            # 防御時は、頭部以外の最もHPが高い部位を盾にする
+            non_head = [pt for pt in alive_parts if pt != PartType.HEAD]
+            if non_head:
+                non_head.sort(key=lambda pt: world.try_get_entity(alive_parts[pt])['health'].hp, reverse=True)
+                return non_head[0]
+            return PartType.HEAD
+        
+        # ターゲット部位が有効なら優先、そうでなければランダム
+        if desired_part in alive_parts:
+            return desired_part
+           
+        # ※ターゲット部位が無効である状況は想定外
+        return random.choice(list(alive_parts.keys()))

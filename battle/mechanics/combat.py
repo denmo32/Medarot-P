@@ -8,6 +8,7 @@ from components.battle_component import StatusEffect, AttackComponent
 from domain.attribute import AttributeLogic
 from battle.mechanics.trait import TraitRegistry
 from battle.mechanics.skill import SkillRegistry
+from battle.mechanics.targeting import TargetingMechanics
 from domain.combat_formula import (
     calculate_hit_probability, 
     calculate_break_probability, 
@@ -132,8 +133,10 @@ class CombatMechanics:
         # 1. 攻撃性質（クリティカル・防御）の決定
         is_critical, is_defense = CombatMechanics._evaluate_attack_quality(ctx)
 
-        # 2. 被弾部位の決定
-        hit_part = CombatMechanics._resolve_hit_part(ctx, is_defense)
+        # 2. 被弾部位の決定（TargetingMechanicsへ委譲）
+        hit_part = TargetingMechanics.resolve_hit_part(
+            ctx.world, ctx.target_comps, ctx.target_desired_part, is_defense
+        )
         
         # 3. ダメージ計算
         damage = calculate_damage(
@@ -161,31 +164,6 @@ class CombatMechanics:
             is_defense = False
             
         return is_critical, is_defense
-
-    @staticmethod
-    def _resolve_hit_part(ctx: HitOutcomeContext, is_defense: bool) -> str:
-        """被弾部位の最終決定ロジック。防御時は頭部以外が優先される。"""
-        alive_parts = {
-            pt: pid for pt, pid in ctx.target_comps['partlist'].parts.items() 
-            if ctx.world.try_get_entity(pid)['health'].hp > 0
-        }
-        
-        if not alive_parts:
-            return PartType.HEAD
-
-        if is_defense:
-            # 防御時は、頭部以外の最もHPが高い部位を盾にする
-            non_head = [pt for pt in alive_parts if pt != PartType.HEAD]
-            if non_head:
-                non_head.sort(key=lambda pt: ctx.world.entities[alive_parts[pt]]['health'].hp, reverse=True)
-                return non_head[0]
-            return PartType.HEAD
-        
-        # ターゲット部位が有効なら優先、そうでなければランダム
-        if ctx.target_desired_part in alive_parts:
-            return ctx.target_desired_part
-        # 行動実行時にはターゲットが存在している前提のため、ここには到達しないはず    
-        return random.choice(list(alive_parts.keys()))
 
     @staticmethod
     def _get_legs_stats(world, comps) -> Tuple[int, int]:

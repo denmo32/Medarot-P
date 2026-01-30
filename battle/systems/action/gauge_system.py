@@ -4,7 +4,7 @@ from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import GaugeStatus, BattlePhase
 from battle.mechanics.action import ActionMechanics
 from battle.mechanics.status import StatusRegistry
-from battle.mechanics.flow import transition_to_phase
+from battle.mechanics.flow import transition_to_phase, interrupt_to_log
 
 class GaugeSystem(BattleSystemBase):
     """ATBゲージの進行管理、および状態異常のカウントダウンを担当"""
@@ -25,6 +25,7 @@ class GaugeSystem(BattleSystemBase):
             
             if not is_valid:
                 self._interrupt_action(eid, comps['gauge'], message)
+                # 中断（ログ表示フェーズ遷移）が発生した場合は、そのフレームのゲージ処理を停止
                 if self.flow.current_phase != BattlePhase.IDLE:
                     return
 
@@ -41,26 +42,21 @@ class GaugeSystem(BattleSystemBase):
 
     def _interrupt_action(self, entity_id, gauge, message):
         """行動中断処理"""
-        if message:
-            self.context.battle_log.append(message)
-        
-        transition_to_phase(self.flow, BattlePhase.LOG_WAIT)
-        
-        # ペナルティとして放熱へ移行
-        current_p = gauge.progress
-        ActionMechanics.reset_to_cooldown(gauge)
-        gauge.progress = max(0.0, 100.0 - current_p)
-        
-        if entity_id in self.context.waiting_queue:
-            self.context.waiting_queue.remove(entity_id)
+        # 充填中断位置から放熱へ移行
+        ActionMechanics.reset_to_cooldown(gauge, penalty_ratio=1.0)
+        # 待機列から除去
+        ActionMechanics.manage_waiting_queue(self.context.waiting_queue, entity_id, False)
+        # ログ表示へ遷移
+        interrupt_to_log(self.context, self.flow, message)
 
     def _update_waiting_queue(self, active_entities):
         """ゲージが満タンになった、または選択が必要な機体を待機列へ追加"""
         for eid, comps in active_entities:
             g = comps['gauge']
-            if g.status == GaugeStatus.ACTION_CHOICE or (g.status == GaugeStatus.CHARGING and g.progress >= 100.0):
-                if eid not in self.context.waiting_queue:
-                    self.context.waiting_queue.append(eid)
+            # 行動選択が必要、または充填完了している場合にキューへ追加を試みる
+            should_wait = (g.status == GaugeStatus.ACTION_CHOICE or 
+                          (g.status == GaugeStatus.CHARGING and g.progress >= 100.0))
+            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, eid, should_wait)
 
     def _process_entity_gauge(self, gauge, dt):
         """個別エンティティのゲージ進行と状態異常処理"""
