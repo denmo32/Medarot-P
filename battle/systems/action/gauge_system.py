@@ -2,9 +2,9 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import GaugeStatus, BattlePhase
+from battle.mechanics.gauge_mechanics import GaugeMechanics
 from battle.mechanics.action import ActionMechanics
-from battle.mechanics.status import StatusRegistry
-from battle.mechanics.flow import transition_to_phase, interrupt_to_log
+from battle.mechanics.flow import interrupt_to_log
 
 class GaugeSystem(BattleSystemBase):
     """ATBゲージの進行管理、および状態異常のカウントダウンを担当"""
@@ -21,16 +21,17 @@ class GaugeSystem(BattleSystemBase):
 
         # 1. 行動の継続妥当性を検証（パーツ破壊による中断など）
         for eid, comps in active_entities:
-            is_valid, message = ActionMechanics.validate_action_continuity(self.world, eid)
+            is_valid, message = GaugeMechanics.evaluate_interruption(self.world, eid)
             
             if not is_valid:
-                self._interrupt_action(eid, comps['gauge'], message)
-                # 中断（ログ表示フェーズ遷移）が発生した場合は、そのフレームのゲージ処理を停止
+                self._handle_interruption(eid, comps['gauge'], message)
                 if self.flow.current_phase != BattlePhase.IDLE:
                     return
 
-        # 2. 待機列（コマンド選択 or 行動実行待ち）の更新
-        self._update_waiting_queue(active_entities)
+        # 2. 待機列の更新
+        for eid, comps in active_entities:
+            should_wait = GaugeMechanics.should_be_in_waiting_queue(comps['gauge'])
+            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, eid, should_wait)
         
         # 誰かが入力待ち、または行動実行待機中であれば、ゲージ進行は一時停止
         if self.context.waiting_queue:
@@ -38,51 +39,18 @@ class GaugeSystem(BattleSystemBase):
 
         # 3. 各エンティティのゲージ進行処理
         for eid, comps in active_entities:
-            self._process_entity_gauge(comps['gauge'], dt)
-
-    def _interrupt_action(self, entity_id, gauge, message):
-        """行動中断処理"""
-        # 充填中断位置から放熱へ移行
-        ActionMechanics.reset_to_cooldown(gauge, penalty_ratio=1.0)
-        # 待機列から除去
-        ActionMechanics.manage_waiting_queue(self.context.waiting_queue, entity_id, False)
-        # ログ表示へ遷移
-        interrupt_to_log(self.context, self.flow, message)
-
-    def _update_waiting_queue(self, active_entities):
-        """ゲージが満タンになった、または選択が必要な機体を待機列へ追加"""
-        for eid, comps in active_entities:
-            g = comps['gauge']
-            # 行動選択が必要、または充填完了している場合にキューへ追加を試みる
-            should_wait = (g.status == GaugeStatus.ACTION_CHOICE or 
-                          (g.status == GaugeStatus.CHARGING and g.progress >= 100.0))
-            ActionMechanics.manage_waiting_queue(self.context.waiting_queue, eid, should_wait)
-
-    def _process_entity_gauge(self, gauge, dt):
-        """個別エンティティのゲージ進行と状態異常処理"""
-        can_charge = True
-        
-        # 状態異常の更新
-        for effect in reversed(gauge.active_effects):
-            behavior = StatusRegistry.get(effect.type_id)
-            behavior.on_tick(effect, gauge, dt)
+            gauge = comps['gauge']
+            GaugeMechanics.process_tick(gauge, dt)
             
-            if not behavior.can_charge(effect):
-                can_charge = False
-                
-            if effect.duration <= 0:
-                gauge.active_effects.remove(effect)
-        
-        if not can_charge:
-            return
-
-        # ゲージ進行のメインロジック
-        if gauge.status == GaugeStatus.CHARGING:
-            gauge.progress = min(100.0, gauge.progress + (dt / gauge.charging_time * 100.0))
-        elif gauge.status == GaugeStatus.COOLDOWN:
-            gauge.progress += (dt / gauge.cooldown_time * 100.0)
-            if gauge.progress >= 100.0:
+            # 放熱完了判定
+            if GaugeMechanics.check_cooldown_complete(gauge):
                 self._reset_to_choice(gauge)
+
+    def _handle_interruption(self, entity_id, gauge, message):
+        """行動中断の適用"""
+        ActionMechanics.reset_to_cooldown(gauge, penalty_ratio=1.0)
+        ActionMechanics.manage_waiting_queue(self.context.waiting_queue, entity_id, False)
+        interrupt_to_log(self.context, self.flow, message)
 
     def _reset_to_choice(self, gauge):
         """放熱完了時の初期化"""

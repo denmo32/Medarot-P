@@ -144,3 +144,4 @@ ui/battle/__pycache__/cutin_renderer.cpython-313.pyc
 ui/battle/__pycache__/field_renderer.cpython-313.pyc
 ui/battle/__pycache__/panel_renderer.cpython-313.pyc
 battle/mechanics/__pycache__/action_behavior.cpython-313.pyc
+battle/mechanics/__pycache__/gauge_mechanics.cpython-313.pyc
