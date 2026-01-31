@@ -145,3 +145,9 @@ ui/battle/__pycache__/field_renderer.cpython-313.pyc
 ui/battle/__pycache__/panel_renderer.cpython-313.pyc
 battle/mechanics/__pycache__/action_behavior.cpython-313.pyc
 battle/mechanics/__pycache__/gauge_mechanics.cpython-313.pyc
+battle/systems/decision/__pycache__/input_system.cpython-313.pyc
+battle/systems/decision/__pycache__/ai_system.cpython-313.pyc
+battle/systems/decision/__pycache__/target_selection_system.cpython-313.pyc
+battle/systems/impact/__pycache__/damage_system.cpython-313.pyc
+battle/systems/impact/__pycache__/destruction_system.cpython-313.pyc
+battle/systems/unit/__pycache__/gauge_system.cpython-313.pyc

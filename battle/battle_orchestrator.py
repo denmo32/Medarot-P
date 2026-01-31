@@ -4,20 +4,25 @@ from core.ecs import World
 from battle.battle_entity_factory import BattleEntityFactory
 
 # Systems (Logic)
-from battle.systems.action.gauge_system import GaugeSystem
-from battle.systems.action.target_selection_system import TargetSelectionSystem
+# Decision
+from battle.systems.decision.input_system import InputSystem
+from battle.systems.decision.ai_system import AISystem
+from battle.systems.decision.target_selection_system import TargetSelectionSystem
+# Unit
+from battle.systems.unit.gauge_system import GaugeSystem
+# Flow
 from battle.systems.flow.turn_system import TurnSystem
-from battle.systems.ai.ai_system import AISystem
+from battle.systems.flow.battle_flow_system import BattleFlowSystem
+from battle.systems.flow.battle_status_system import BattleStatusSystem
+from battle.systems.flow.target_indicator_system import TargetIndicatorSystem
+from battle.systems.flow.cutin_flow_system import CutinFlowSystem
+# Action
 from battle.systems.action.action_command_system import ActionCommandSystem
 from battle.systems.action.action_initiation_system import ActionInitiationSystem
 from battle.systems.action.action_resolution_system import ActionResolutionSystem
-from battle.systems.flow.battle_flow_system import BattleFlowSystem
-from battle.systems.action.damage_system import DamageSystem
-from battle.systems.action.destruction_system import DestructionSystem
-from battle.systems.flow.battle_status_system import BattleStatusSystem
-from battle.systems.input.input_system import InputSystem
-from battle.systems.flow.target_indicator_system import TargetIndicatorSystem
-from battle.systems.flow.cutin_flow_system import CutinFlowSystem
+# Impact
+from battle.systems.impact.damage_system import DamageSystem
+from battle.systems.impact.destruction_system import DestructionSystem
 
 # ViewModel and Systems (UI Layer)
 from ui.battle.view_model import BattleViewModel
