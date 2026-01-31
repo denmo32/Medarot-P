@@ -4,7 +4,7 @@ from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, TeamType
 
 class BattleStatusSystem(BattleSystemBase):
-    def update(self, dt: float = 0.016):
+    def update(self, dt: float):
         _, flow = self.battle_state
         if not flow or flow.current_phase == BattlePhase.GAME_OVER:
             return
@@ -23,7 +23,7 @@ class BattleStatusSystem(BattleSystemBase):
 
         if not player_leader_alive:
             flow.winner = "エネミー"
-            flow.current_phase = BattlePhase.GAME_OVER
+            self.change_phase(BattlePhase.GAME_OVER)
         elif not enemy_leader_alive:
             flow.winner = "プレイヤー"
-            flow.current_phase = BattlePhase.GAME_OVER
+            self.change_phase(BattlePhase.GAME_OVER)

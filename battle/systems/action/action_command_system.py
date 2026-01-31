@@ -4,7 +4,6 @@ from battle.systems.battle_system_base import BattleSystemBase
 from domain.constants import ActionType, GaugeStatus
 from battle.constants import BattlePhase
 from domain.gauge_logic import calculate_action_times
-from battle.mechanics.flow import transition_to_phase
 
 class ActionCommandSystem(BattleSystemBase):
     def update(self, dt: float):
@@ -33,7 +32,9 @@ class ActionCommandSystem(BattleSystemBase):
             gauge.progress = 0.0
             
             context.current_turn_entity_id = None
-            transition_to_phase(flow, BattlePhase.IDLE)
+            
+            # フェーズをIDLEに戻す（キュー操作含む）
+            self.change_phase(BattlePhase.IDLE)
             
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)

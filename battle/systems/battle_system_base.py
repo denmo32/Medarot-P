@@ -6,6 +6,7 @@ from battle.mechanics.flow import get_battle_state, PhaseTransition
 from battle.mechanics.action import GaugeResetData
 from battle.mechanics.action_behavior import ResolutionResult
 from components.battle_component import DamageEventComponent
+from battle.constants import BattlePhase
 
 class BattleSystemBase(System):
     """BattleContextとBattleFlowへのアクセスと副作用適用を容易にする基底システム"""
@@ -29,9 +30,18 @@ class BattleSystemBase(System):
 
     # --- Side Effect Helpers (副作用の集中実行) ---
 
+    def change_phase(self, next_phase: str, timer: float = 0.0):
+        """
+        単純なフェーズ遷移を行うショートカット。
+        IDLE遷移時のクリーンアップなどは apply_phase_transition で処理される。
+        """
+        self.apply_phase_transition(PhaseTransition(next_phase=next_phase, timer=timer))
+
     def apply_phase_transition(self, transition: PhaseTransition):
         """フェーズ遷移指示をワールドに適用する"""
         flow = self.flow
+        if not flow: return
+
         flow.current_phase = transition.next_phase
         flow.phase_timer = transition.timer
         
@@ -45,8 +55,7 @@ class BattleSystemBase(System):
                 self.context.battle_log.clear()
             self.context.battle_log.extend(transition.logs)
             
-        # IDLEへの遷移時はクリーンアップ
-        from battle.constants import BattlePhase
+        # IDLEへの遷移時は自動クリーンアップ
         if transition.next_phase == BattlePhase.IDLE:
             flow.processing_event_id = None
             flow.active_actor_id = None

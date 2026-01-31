@@ -15,11 +15,7 @@ class RandomStrategy(Strategy):
         # TargetingMechanicsを使用して生存パーツを取得
         available_parts = TargetingMechanics.get_alive_parts(world, entity_id)
         
-        # 脚部は攻撃に使わないため除外（必要に応じて）
-        # ただし get_alive_parts は全生存パーツを返すため、攻撃コンポーネントを持つものに絞るのが理想
-        # ここでは簡易的に、返り値に含まれるなら候補とする（脚部攻撃がない前提ならこれでも動くが、厳密にはattack持ちか確認推奨）
-        
-        # 厳密な実装: 攻撃コンポーネントを持つパーツのみ抽出
+        # 攻撃コンポーネントを持つパーツのみ抽出して候補とする
         attack_parts = []
         comps = world.try_get_entity(entity_id)
         part_list = comps.get('partlist')

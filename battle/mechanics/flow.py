@@ -1,6 +1,6 @@
 """バトルフロー制御ロジック"""
 
-from typing import Optional, Tuple, List
+from typing import Optional, List
 from dataclasses import dataclass, field
 from battle.constants import BattlePhase, ActionType
 from battle.mechanics.skill import SkillRegistry
@@ -15,29 +15,12 @@ class PhaseTransition:
     logs: List[str] = field(default_factory=list)
     clear_logs: bool = False
 
-def get_battle_state(world) -> Tuple[Optional[any], Optional[any]]:
+def get_battle_state(world) -> tuple[Optional[any], Optional[any]]:
     """ワールドからBattleContextとBattleFlowを取得する"""
     _, comps = world.get_first_entity('battlecontext', 'battleflow')
     if not comps:
         return None, None
     return comps['battlecontext'], comps['battleflow']
-
-def transition_to_phase(flow, next_phase: str, timer: float = 0.0):
-    """(副作用) 指定されたフェーズへ即座に遷移させる"""
-    flow.current_phase = next_phase
-    flow.phase_timer = timer
-    if next_phase == BattlePhase.IDLE:
-        flow.processing_event_id = None
-        flow.active_actor_id = None
-        flow.cutin_progress = 0.0
-
-def interrupt_to_log(context, flow, message: str):
-    """
-    (副作用) アクションの中断など、メッセージを表示してIDLEに戻るための共通遷移。
-    """
-    if message:
-        context.battle_log.append(message)
-    transition_to_phase(flow, BattlePhase.LOG_WAIT)
 
 class FlowMechanics:
     """フェーズ遷移に関する判断ロジック"""

@@ -2,7 +2,6 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
-from battle.mechanics.flow import transition_to_phase
 
 class BattleFlowSystem(BattleSystemBase):
     def update(self, dt: float):
@@ -11,4 +10,4 @@ class BattleFlowSystem(BattleSystemBase):
         
         if flow.current_phase == BattlePhase.LOG_WAIT:
             if not context.battle_log:
-                transition_to_phase(flow, BattlePhase.IDLE)
+                self.change_phase(BattlePhase.IDLE)

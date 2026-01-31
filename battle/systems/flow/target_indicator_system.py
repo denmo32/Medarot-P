@@ -2,7 +2,7 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
-from battle.mechanics.flow import FlowMechanics, transition_to_phase
+from battle.mechanics.flow import FlowMechanics
 
 class TargetIndicatorSystem(BattleSystemBase):
     def update(self, dt: float):
@@ -16,8 +16,5 @@ class TargetIndicatorSystem(BattleSystemBase):
             # 次の遷移情報をMechanicsから取得
             transition = FlowMechanics.resolve_indicator_transition(self.world, flow.processing_event_id)
             
-            # Side Effects
-            if transition.logs:
-                context.battle_log.extend(transition.logs)
-                
-            transition_to_phase(flow, transition.next_phase, transition.timer)
+            # 副作用を適用
+            self.apply_phase_transition(transition)

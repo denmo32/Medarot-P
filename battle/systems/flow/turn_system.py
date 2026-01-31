@@ -21,6 +21,6 @@ class TurnSystem(BattleSystemBase):
         if gauge.status == GaugeStatus.ACTION_CHOICE:
             context.current_turn_entity_id = eid
             if team.team_type == TeamType.PLAYER:
-                flow.current_phase = BattlePhase.INPUT
+                self.change_phase(BattlePhase.INPUT)
             else:
-                flow.current_phase = BattlePhase.ENEMY_TURN
+                self.change_phase(BattlePhase.ENEMY_TURN)

@@ -2,7 +2,6 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, BattleTiming
-from battle.mechanics.flow import transition_to_phase
 
 class CutinFlowSystem(BattleSystemBase):
     def update(self, dt: float):
@@ -16,5 +15,5 @@ class CutinFlowSystem(BattleSystemBase):
         flow.cutin_progress = min(1.0, elapsed / max_time)
         
         if flow.phase_timer <= 0:
-            transition_to_phase(flow, BattlePhase.EXECUTING)
+            self.change_phase(BattlePhase.EXECUTING)
             flow.cutin_progress = 1.0
