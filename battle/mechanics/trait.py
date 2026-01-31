@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 from domain.constants import TraitType
 from components.battle_component import StatusEffect
 from battle.mechanics.targeting import TargetingMechanics
+from battle.mechanics.personality import PersonalityRegistry
 
 class TraitBehavior(ABC):
     """特性の振る舞いを定義する基底クラス"""
@@ -16,8 +17,8 @@ class TraitBehavior(ABC):
 
     def resolve_target(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         """
-        行動実行時に最終的なターゲットを確定させる。
-        デフォルト（射撃等）は予約されたターゲットをそのまま使用する。
+        行動実行時にターゲットを確定させる。
+        デフォルト（射撃等）は予約されたターゲットを使用する。
         """
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
@@ -27,10 +28,20 @@ class TraitBehavior(ABC):
         return None, None
 
 class MeleeTrait(TraitBehavior):
-    """格闘特性の基底：ターゲットを中央に近い敵へ動的に変更する。"""
+    """
+    格闘特性の基底：
+    1. ターゲット機体は「中央に近い敵」に決定する。
+    2. ターゲット部位は「攻撃者の性格」に基づいて決定する。
+    """
     def resolve_target(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+        # 1. 機体の決定（中央に近い敵）
         target_id = TargetingMechanics.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
-        target_part = TargetingMechanics.get_random_alive_part(world, target_id) if target_id else None
+        if not target_id: return None, None
+        
+        # 2. 部位の決定（性格依存）
+        personality = PersonalityRegistry.get(actor_comps['medal'].personality_id)
+        target_part = personality.select_target_part(world, target_id)
+        
         return target_id, target_part
 
 class NormalTrait(TraitBehavior):

@@ -38,10 +38,13 @@ class ActionMechanics:
         else:
             new_progress = 0.0
 
+        # NOTE: 放熱中も「我武者羅」などのペナルティ（防御不能）を継続させるため、
+        #       どのパーツを使用したか（selected_part）の情報はクリアせずに残す。
+        #       完全に放熱が終了して ACTION_CHOICE になる際にクリアされる。
         return GaugeResetData(
             status=GaugeStatus.COOLDOWN,
             progress=new_progress,
-            clear_selection=True
+            clear_selection=False
         )
 
     @staticmethod
@@ -95,7 +98,7 @@ class ActionMechanics:
     @staticmethod
     def resolve_action_target(world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         """
-        行動実行の瞬間に、特性やスキルの性質に基づいて最終的なターゲット（eid, part）を確定させる。
+        行動実行の瞬間に、特性やスキルの性質に基づいてターゲット（eid, part）を確定させる。
         """
         if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
             return None, None
