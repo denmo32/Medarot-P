@@ -152,3 +152,5 @@ battle/systems/impact/__pycache__/damage_system.cpython-313.pyc
 battle/systems/impact/__pycache__/destruction_system.cpython-313.pyc
 battle/systems/unit/__pycache__/gauge_system.cpython-313.pyc
 ui/__pycache__/title_renderer.cpython-313.pyc
+ui/__pycache__/config.cpython-313.pyc
+domain/__pycache__/config.cpython-313.pyc

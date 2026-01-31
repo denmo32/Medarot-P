@@ -2,6 +2,8 @@
 
 from core.ecs import World
 from battle.battle_entity_factory import BattleEntityFactory
+from domain.config import PLAYER_COUNT, ENEMY_COUNT
+from ui.config import UI_PARAMS
 
 # Systems (Logic)
 # Decision
@@ -30,10 +32,15 @@ from ui.battle.visual_systems import HealthAnimationSystem
 from ui.battle.system import BattleRenderSystem
 
 class BattleSystem:
-    def __init__(self, screen, player_count: int = 3, enemy_count: int = 3,
-                 player_team_x: int = 50, enemy_team_x: int = 450,
-                 team_y_offset: int = 100, character_spacing: int = 120,
-                 gauge_width: int = 300, gauge_height: int = 40):
+    def __init__(self, screen, 
+                 player_count: int = PLAYER_COUNT, 
+                 enemy_count: int = ENEMY_COUNT,
+                 player_team_x: int = UI_PARAMS['PLAYER_TEAM_X'], 
+                 enemy_team_x: int = UI_PARAMS['ENEMY_TEAM_X'],
+                 team_y_offset: int = UI_PARAMS['TEAM_Y_OFFSET'], 
+                 character_spacing: int = UI_PARAMS['CHARACTER_SPACING'],
+                 gauge_width: int = UI_PARAMS['GAUGE_WIDTH'], 
+                 gauge_height: int = UI_PARAMS['GAUGE_HEIGHT']):
         
         self.world = World()
         BattleEntityFactory.create_battle_context(self.world)

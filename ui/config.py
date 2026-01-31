@@ -1,4 +1,4 @@
-# ATBバトルシステムの設定ファイル
+"""UI関連の設定値"""
 
 # 画面設定
 SCREEN_WIDTH = 800
@@ -38,15 +38,12 @@ COLORS = {
 # フォント設定
 FONT_NAMES = ['meiryo', 'yumin', 'msmincho', 'msgothic', 'Noto Sans CJK JP', 'Noto Sans Japanese', 'sans-serif']
 
-# ゲームパラメータ
-GAME_PARAMS = {
-    'FPS': 60,
-    'PLAYER_COUNT': 3,
-    'ENEMY_COUNT': 3,
+# レイアウトパラメータ
+UI_PARAMS = {
     'PLAYER_TEAM_X': 50,
     'ENEMY_TEAM_X': 450,
-    'TEAM_Y_OFFSET': 60,      # 上部の余白を活用して開始位置を上げる (100 -> 60)
-    'CHARACTER_SPACING': 135, # 配置間隔を広げる (120 -> 135)
+    'TEAM_Y_OFFSET': 60,      # 上部の余白を活用して開始位置を上げる
+    'CHARACTER_SPACING': 135, # 配置間隔
     'GAUGE_WIDTH': 300,
     'GAUGE_HEIGHT': 40,
     'HP_BAR_WIDTH': 30,
@@ -56,8 +53,6 @@ GAME_PARAMS = {
     'LOG_Y_OFFSET': 120,
     'CLICK_MESSAGE_Y': 30,
     'NOTICE_Y_OFFSET': 50,
-    'SCREEN_WIDTH': 800,
-    'SCREEN_HEIGHT': 600,
     'MESSAGE_WINDOW_HEIGHT': 150,
     'MESSAGE_WINDOW_Y': 450,
     'MESSAGE_WINDOW_BG_COLOR': (30, 30, 30),
@@ -81,3 +76,25 @@ GAME_PARAMS = {
         'PANEL_HEIGHT': 520,
     }
 }
+
+# チームごとの設定（カラー）
+from domain.constants import TeamType, PartType
+TEAM_SETTINGS = {
+    TeamType.PLAYER: {
+        'color': COLORS['PLAYER']
+    },
+    TeamType.ENEMY: {
+        'color': COLORS['ENEMY']
+    }
+}
+
+# UI表示用の部位名称マップ
+PART_LABELS = {
+    PartType.HEAD: "頭部",
+    PartType.RIGHT_ARM: "右腕",
+    PartType.LEFT_ARM: "左腕",
+    PartType.LEGS: "脚部"
+}
+
+# アクションメニューのパーツ表示順序
+MENU_PART_ORDER = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]

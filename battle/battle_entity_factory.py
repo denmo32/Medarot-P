@@ -11,7 +11,8 @@ from components.battle_flow_component import BattleFlowComponent
 from components.input_component import InputComponent
 from data.game_data_manager import get_game_data_manager
 from data.save_data_manager import get_save_manager
-from battle.constants import TEAM_SETTINGS, PartType, TeamType, GaugeStatus
+from ui.config import TEAM_SETTINGS
+from battle.constants import PartType, TeamType, GaugeStatus
 from battle.mechanics.stats_logic import StatsLogic
 
 class BattleEntityFactory:

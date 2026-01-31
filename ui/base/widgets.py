@@ -4,7 +4,7 @@ BaseRendererを利用して、ドメイン特有の図形を描画する。
 """
 
 import pygame
-from config import COLORS
+from ui.config import COLORS
 from battle.constants import PartType
 from ui.base.renderer import BaseRenderer
 

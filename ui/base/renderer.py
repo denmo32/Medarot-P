@@ -4,7 +4,7 @@ ECSの状態を一切知らず、受け取った値の描画のみを行う低�
 """
 
 import pygame
-from config import COLORS, FONT_NAMES
+from ui.config import COLORS, FONT_NAMES
 
 class BaseRenderer:
     def __init__(self, screen):

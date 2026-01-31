@@ -3,7 +3,7 @@
 import pygame
 from core.ecs import World
 from input.event_manager import EventManager
-from config import GAME_PARAMS
+from ui.config import SCREEN_WIDTH
 from ui.title_renderer import TitleRenderer
 
 class TitleScene:
@@ -24,7 +24,7 @@ class TitleScene:
         button_width = 200
         button_height = 60
         button_padding = 20
-        screen_center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
+        screen_center_x = SCREEN_WIDTH // 2
         start_y = 300
 
         self.buttons = [

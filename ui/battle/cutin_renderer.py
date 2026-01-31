@@ -1,7 +1,7 @@
 """攻撃演出（カットイン）の描画"""
 
 import pygame
-from config import GAME_PARAMS
+from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
 from battle.constants import TraitType
 
 class CutinRenderer:
@@ -9,7 +9,7 @@ class CutinRenderer:
         self.m = master
 
     def render(self, state):
-        sw, sh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']
+        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT
         
         # 1. 背面のフェード
         if state.bg_alpha > 0:

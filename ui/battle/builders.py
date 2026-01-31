@@ -3,8 +3,8 @@ ECSからSnapshotへの変換ロジック（ビルダー群）
 """
 
 from typing import Dict, Any, List, Optional
-from config import GAME_PARAMS, COLORS
-from battle.constants import BattlePhase, BattleTiming, PART_LABELS, MENU_PART_ORDER
+from ui.config import UI_PARAMS, COLORS, PART_LABELS, MENU_PART_ORDER, SCREEN_WIDTH
+from battle.constants import BattlePhase, BattleTiming
 from domain.constants import GaugeStatus, TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
 from .animation_logic import CutinAnimationLogic
@@ -25,7 +25,7 @@ class FieldSnapshotBuilder:
             
             # アイコン座標計算
             icon_x = self._calc_icon_x(comps['position'].x, g, team.team_type)
-            home_x = comps['position'].x + (GAME_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0)
+            home_x = comps['position'].x + (UI_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0)
             
             # ビジュアル情報
             v_info = self.get_visual_info(comps)
@@ -40,12 +40,12 @@ class FieldSnapshotBuilder:
         return chars
 
     def _calc_icon_x(self, base_x, gauge, team_type) -> float:
-        center_x, offset = GAME_PARAMS['SCREEN_WIDTH'] // 2, 40
+        center_x, offset = SCREEN_WIDTH // 2, 40
         ratio = calculate_gauge_ratio(gauge.status, gauge.progress)
         if team_type == TeamType.PLAYER:
             return base_x + ratio * ((center_x - offset) - base_x)
         else:
-            start_x = base_x + GAME_PARAMS['GAUGE_WIDTH']
+            start_x = base_x + UI_PARAMS['GAUGE_WIDTH']
             return start_x + ratio * ((center_x + offset) - start_x)
 
     def _get_border_color(self, eid, gauge, flow, context) -> Optional[tuple]:
@@ -97,7 +97,7 @@ class UISnapshotBuilder:
     def build_log_window(self, context, flow) -> LogWindowData:
         show_guide = flow.current_phase in [BattlePhase.LOG_WAIT, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN_RESULT]
         is_cutin = flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]
-        logs = [] if is_cutin else context.battle_log[-GAME_PARAMS['LOG_DISPLAY_LINES']:]
+        logs = [] if is_cutin else context.battle_log[-UI_PARAMS['LOG_DISPLAY_LINES']:]
         return LogWindowData(logs=logs, show_input_guidance=show_guide, is_active=True)
 
     def build_action_menu(self, context, flow) -> ActionMenuData:

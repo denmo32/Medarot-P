@@ -1,7 +1,7 @@
 """カスタマイズ画面専用のレンダラー"""
 
 import pygame
-from config import COLORS, GAME_PARAMS
+from ui.config import COLORS, UI_PARAMS
 # インポート先を変更
 from ui.base.renderer import BaseRenderer
 
@@ -10,7 +10,7 @@ class CustomizeRenderer(BaseRenderer):
 
     def __init__(self, screen):
         super().__init__(screen)
-        cfg = GAME_PARAMS['CUSTOMIZE']
+        cfg = UI_PARAMS['CUSTOMIZE']
         self.padding = cfg['PANEL_PADDING']
         self.y = cfg['PANEL_Y']
         self.height = cfg['PANEL_HEIGHT']

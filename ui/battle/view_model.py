@@ -1,7 +1,8 @@
 """ECSからSnapshotへの変換ロジック（ViewModelのファサード）"""
 
 from typing import Optional
-from battle.constants import BattlePhase, MENU_PART_ORDER
+from battle.constants import BattlePhase
+from ui.config import MENU_PART_ORDER
 from battle.mechanics.flow import get_battle_state
 from .layout_utils import calculate_action_menu_layout
 from .snapshot import BattleStateSnapshot

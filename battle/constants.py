@@ -18,24 +18,3 @@ class BattleTiming:
     TARGET_INDICATION = 0.8
     # 演出時間を延長 (スライド演出のため)
     CUTIN_ANIMATION = 2.5
-
-# UI表示用の部位名称マップ
-PART_LABELS = {
-    PartType.HEAD: "頭部",
-    PartType.RIGHT_ARM: "右腕",
-    PartType.LEFT_ARM: "左腕",
-    PartType.LEGS: "脚部"
-}
-
-# アクションメニューのパーツ表示順序
-MENU_PART_ORDER = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]
-
-# チームごとの設定（カラー）
-TEAM_SETTINGS = {
-    TeamType.PLAYER: {
-        'color': (0, 100, 200) # Blue
-    },
-    TeamType.ENEMY: {
-        'color': (200, 0, 0)   # Red
-    }
-}

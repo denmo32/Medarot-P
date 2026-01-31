@@ -2,7 +2,7 @@
 
 import pygame
 import math
-from config import COLORS, GAME_PARAMS
+from ui.config import COLORS, UI_PARAMS, SCREEN_WIDTH, SCREEN_HEIGHT
 
 class FieldRenderer:
     def __init__(self, master):
@@ -15,8 +15,8 @@ class FieldRenderer:
         self._render_target_line(snapshot)
 
     def _draw_guides(self):
-        center_x = GAME_PARAMS['SCREEN_WIDTH'] // 2
-        offset, h = 40, GAME_PARAMS['SCREEN_HEIGHT']
+        center_x = SCREEN_WIDTH // 2
+        offset, h = 40, SCREEN_HEIGHT
         for ox in [-offset, offset]:
             pygame.draw.line(self.m.screen, COLORS['GUIDE_LINE'], (center_x + ox, 0), (center_x + ox, h), 1)
 

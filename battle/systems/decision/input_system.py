@@ -2,7 +2,8 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
-from battle.constants import BattlePhase, ActionType, MENU_PART_ORDER, BattleTiming
+from ui.config import MENU_PART_ORDER
+from battle.constants import BattlePhase, ActionType, BattleTiming
 from battle.mechanics.log import LogBuilder
 
 class InputSystem(BattleSystemBase):

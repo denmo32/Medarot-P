@@ -4,7 +4,7 @@ ECSの世界とは隔離され、進行度(0.0~1.0)に基づいた座標や表�
 """
 
 from typing import Dict, Any, Optional
-from config import GAME_PARAMS
+from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
 from domain.constants import TraitType
 from .snapshot import CutinStateData
 
@@ -26,7 +26,7 @@ class CutinAnimationLogic:
     @classmethod
     def calculate_frame(cls, progress: float, trait: str, is_enemy: bool, hit_result: Any) -> CutinStateData:
         """指定された進行度におけるカットインの状態を計算する"""
-        sw, sh = GAME_PARAMS['SCREEN_WIDTH'], GAME_PARAMS['SCREEN_HEIGHT']
+        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT
         cy = sh // 2 - 20
         
         # 基本的な背景と帯のフェード

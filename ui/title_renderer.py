@@ -1,7 +1,7 @@
 """タイトル画面専用のレンダラー"""
 
 import pygame
-from config import COLORS, FONT_NAMES, GAME_PARAMS
+from ui.config import COLORS, FONT_NAMES, SCREEN_WIDTH
 from ui.base.renderer import BaseRenderer
 
 class TitleRenderer(BaseRenderer):
@@ -12,8 +12,8 @@ class TitleRenderer(BaseRenderer):
         
         # タイトル固有のフォント
         try:
-            self.title_font = pygame.font.Font('data/851Gkktt_005.ttf', 80)
-            self.p_font = pygame.font.Font('data/851Gkktt_005.ttf', 128)
+            self.title_font = pygame.font.Font('ui/assets/fonts/851Gkktt_005.ttf', 80)
+            self.p_font = pygame.font.Font('ui/assets/fonts/851Gkktt_005.ttf', 128)
         except OSError:
             print("Warning: Custom font not found, falling back to system font.")
             font_name = FONT_NAMES[0] if FONT_NAMES else None
@@ -35,7 +35,7 @@ class TitleRenderer(BaseRenderer):
         self.clear()
         
         # タイトルロゴ
-        title_rect = self.title_surface.get_rect(center=(GAME_PARAMS['SCREEN_WIDTH'] // 2, 150))
+        title_rect = self.title_surface.get_rect(center=(SCREEN_WIDTH // 2, 150))
         self.screen.blit(self.title_surface, title_rect)
         
         # ボタン
