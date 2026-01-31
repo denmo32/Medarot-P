@@ -3,27 +3,24 @@
 import pygame
 from core.ecs import World
 from input.event_manager import EventManager
-from config import COLORS, FONT_NAMES, GAME_PARAMS
+from config import GAME_PARAMS
+from ui.title_renderer import TitleRenderer
 
 class TitleScene:
-    """タイトル画面のクラス"""
+    """タイトル画面のクラス (Manager/Presenter)"""
 
     def __init__(self, screen):
-        self.screen = screen
+        # レンダラーの初期化 (View)
+        self.renderer = TitleRenderer(screen)
         
-        # ECSとイベントマネージャのセットアップ（入力統一のため）
+        # ECSとイベントマネージャのセットアップ
         self.world = World()
         self.event_manager = EventManager(self.world)
         
-        # UIリソース
-        self.font = pygame.font.SysFont(FONT_NAMES, 48)
-        self.button_font = pygame.font.SysFont(FONT_NAMES, 32)
-        
         # 状態
         self.selected_index = 0
-        self.title_text = "Medarot-P"
         
-        # ボタン定義
+        # ボタン定義 (Model/Layout logic)
         button_width = 200
         button_height = 60
         button_padding = 20
@@ -80,30 +77,9 @@ class TitleScene:
 
     def render(self):
         """描画処理"""
-        # 背景
-        self.screen.fill(COLORS['BACKGROUND'])
-
-        # タイトル
-        title_surface = self.font.render(self.title_text, True, COLORS['TEXT'])
-        title_rect = title_surface.get_rect(center=(GAME_PARAMS['SCREEN_WIDTH'] // 2, 150))
-        self.screen.blit(title_surface, title_rect)
-
-        # ボタン
-        for i, button in enumerate(self.buttons):
-            self._draw_button(button, i == self.selected_index)
-
-        pygame.display.flip()
-
-    def _draw_button(self, button, is_selected):
-        # 背景
-        pygame.draw.rect(self.screen, COLORS['BUTTON_BG'], button['rect'])
-        
-        # 枠線（選択時は黄色で太く）
-        border_color = (255, 255, 0) if is_selected else COLORS['BUTTON_BORDER']
-        border_width = 3 if is_selected else 2
-        pygame.draw.rect(self.screen, border_color, button['rect'], border_width)
-
-        # テキスト
-        text_surface = self.button_font.render(button['text'], True, COLORS['TEXT'])
-        text_rect = text_surface.get_rect(center=button['rect'].center)
-        self.screen.blit(text_surface, text_rect)
+        # レンダラーに現在の状態（DTO）を渡して描画させる
+        ui_data = {
+            'buttons': self.buttons,
+            'selected_index': self.selected_index
+        }
+        self.renderer.render(ui_data)
