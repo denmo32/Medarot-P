@@ -3,7 +3,8 @@
 import pygame
 import sys
 import traceback
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, GAME_PARAMS
+from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
+from domain.config import FPS
 from scenes.title_scene import TitleScene
 from scenes.battle_scene import BattleScene
 from scenes.customize_scene import CustomizeScene
@@ -29,7 +30,7 @@ def main():
     try:
         while running:
             # 1. デルタタイム計算
-            dt = min(clock.tick(GAME_PARAMS['FPS']) / 1000.0, 1.0 / GAME_PARAMS['FPS'])
+            dt = min(clock.tick(FPS) / 1000.0, 1.0 / FPS)
 
             # 2. 現在のシーンの取得と初期化（必要な場合のみ）
             if scenes[current_scene_tag] is None:

@@ -1,7 +1,7 @@
 """バトル画面のシーンラッパー"""
 
 import pygame
-from battle.manager import BattleSystem
+from battle.battle_orchestrator import BattleSystem
 from input.event_manager import EventManager
 
 class BattleScene:

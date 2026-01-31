@@ -1,19 +1,12 @@
 """ECSエンジン（汎用的な基盤のみ）"""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple, Type, TypeVar
+
+T = TypeVar('T', bound='Component')
 
 class Component:
     """コンポーネント：データのみを持つ基底クラス"""
     pass
-
-class System:
-    """システム：コンポーネントを持つエンティティに対する処理を定義"""
-    def __init__(self, world):
-        self.world = world
-
-    def update(self, dt: float):
-        """システムの更新処理を実行"""
-        pass
 
 class World:
     """ECSのワールド：エンティティとコンポーネントの管理を行う"""
@@ -44,7 +37,11 @@ class World:
         if entity_id in self.entities and component_name in self.entities[entity_id]:
             del self.entities[entity_id][component_name]
 
-    def get_component(self, entity_id: int, component_name: str) -> Optional[Component]:
+    def has_component(self, entity_id: int, component_name: str) -> bool:
+        """エンティティが特定のコンポーネントを持っているか"""
+        return entity_id in self.entities and component_name in self.entities[entity_id]
+
+    def get_component(self, entity_id: int, component_name: str) -> Optional[Any]:
         """エンティティからコンポーネントを取得"""
         if entity_id in self.entities and component_name in self.entities[entity_id]:
             return self.entities[entity_id][component_name]
@@ -54,15 +51,50 @@ class World:
         """IDからエンティティのコンポーネント辞書を安全に取得する"""
         return self.entities.get(entity_id)
 
+    def try_get_components(self, entity_id: int, *component_names: str) -> Optional[Dict[str, Any]]:
+        """
+        指定された全てのコンポーネントを持つ場合のみ、エンティティのコンポーネント辞書を返す。
+        一つでも欠けていればNoneを返す。
+        """
+        comps = self.entities.get(entity_id)
+        if not comps:
+            return None
+        if all(name in comps for name in component_names):
+            return comps
+        return None
+
     def delete_entity(self, entity_id: int) -> None:
         """エンティティを削除"""
         if entity_id in self.entities:
             del self.entities[entity_id]
 
-    def get_entities_with_components(self, *component_names: str) -> List[tuple]:
+    def get_entities_with_components(self, *component_names: str) -> List[Tuple[int, Dict[str, Any]]]:
         """指定されたコンポーネントをすべて持つエンティティIDとそのコンポーネントDictのリストを取得"""
         result = []
         for entity_id, components in self.entities.items():
             if all(name in components for name in component_names):
                 result.append((entity_id, components))
         return result
+
+    def get_first_entity(self, *component_names: str) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
+        """条件に合致する最初のエンティティを返す。ContextやFlowの取得に最適。"""
+        for entity_id, components in self.entities.items():
+            if all(name in components for name in component_names):
+                return entity_id, components
+        return None, None
+
+class System:
+    """システム：コンポーネントを持つエンティティに対する処理を定義"""
+    def __init__(self, world: World):
+        self.world = world
+
+    def update(self, dt: float):
+        """システムの更新処理を実行"""
+        pass
+
+    def get_comps(self, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
+        """
+        指定した全コンポーネントを持つエンティティを取得するヘルパー。
+        World.try_get_components へのショートカット。
+        """
+        return self.world.try_get_components(entity_id, *names)
