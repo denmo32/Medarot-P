@@ -1,7 +1,6 @@
 """パーツ・メダルデータ管理クラス"""
 
 import json
-import os
 from typing import Dict, Any, List
 from core.utils import resource_path
 
@@ -131,13 +130,3 @@ class GameDataManager:
     def reload_data(self) -> None:
         """データを再読み込み"""
         self.data = self._load_all_data()
-
-# グローバルインスタンス
-_game_data_manager = None
-
-def get_game_data_manager() -> GameDataManager:
-    """GameDataManagerのグローバルインスタンスを取得"""
-    global _game_data_manager
-    if _game_data_manager is None:
-        _game_data_manager = GameDataManager()
-    return _game_data_manager

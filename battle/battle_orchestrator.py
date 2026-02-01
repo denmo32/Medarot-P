@@ -4,6 +4,8 @@ from core.ecs import World
 from battle.battle_entity_factory import BattleEntityFactory
 from domain.config import PLAYER_COUNT, ENEMY_COUNT
 from ui.config import UI_PARAMS
+from data.game_data_manager import GameDataManager
+from data.save_data_manager import SaveDataManager
 
 # Systems (Logic)
 # Decision
@@ -33,6 +35,8 @@ from ui.battle.system import BattleRenderSystem
 
 class BattleSystem:
     def __init__(self, screen, 
+                 data_manager: GameDataManager,
+                 save_manager: SaveDataManager,
                  player_count: int = PLAYER_COUNT, 
                  enemy_count: int = ENEMY_COUNT,
                  player_team_x: int = UI_PARAMS['PLAYER_TEAM_X'], 
@@ -42,12 +46,16 @@ class BattleSystem:
                  gauge_width: int = UI_PARAMS['GAUGE_WIDTH'], 
                  gauge_height: int = UI_PARAMS['GAUGE_HEIGHT']):
         
+        self.data_manager = data_manager
+        self.save_manager = save_manager
+
         self.world = World()
         BattleEntityFactory.create_battle_context(self.world)
         BattleEntityFactory.create_input_manager(self.world)
         BattleEntityFactory.create_teams(self.world, player_count, enemy_count,
             player_team_x, enemy_team_x, team_y_offset, character_spacing,
-            gauge_width, gauge_height
+            gauge_width, gauge_height,
+            self.data_manager, self.save_manager
         )
         
         # 描画と入力解釈で共有するViewModelを生成

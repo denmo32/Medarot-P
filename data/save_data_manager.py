@@ -3,13 +3,14 @@
 import json
 import os
 from typing import List, Dict
-from data.game_data_manager import get_game_data_manager
+from data.game_data_manager import GameDataManager
 from core.utils import get_save_path
 
 class SaveDataManager:
     """プレイヤーのゲーム進行データ（現在は編成のみ）を保持"""
     
-    def __init__(self):
+    def __init__(self, data_manager: GameDataManager):
+        self.data_manager = data_manager
         # データの保存先パスを設定
         self.save_file_path = get_save_path('data/save_data.json')
 
@@ -42,18 +43,17 @@ class SaveDataManager:
 
     def _get_default_team(self) -> List[Dict]:
         """デフォルトの3機編成を作成"""
-        dm = get_game_data_manager()
         team = []
         
         # 3機分作成
         names = ["機体1", "機体2", "機体3"]
         
         # パーツIDリストを取得（空の場合は安全策としてダミーIDを使用）
-        medal_ids = dm.get_part_ids_for_type("medal") or ["medal_001"]
-        head_ids = dm.get_part_ids_for_type("head") or ["head_001"]
-        r_arm_ids = dm.get_part_ids_for_type("right_arm") or ["rarm_001"]
-        l_arm_ids = dm.get_part_ids_for_type("left_arm") or ["larm_001"]
-        legs_ids = dm.get_part_ids_for_type("legs") or ["legs_001"]
+        medal_ids = self.data_manager.get_part_ids_for_type("medal") or ["medal_001"]
+        head_ids = self.data_manager.get_part_ids_for_type("head") or ["head_001"]
+        r_arm_ids = self.data_manager.get_part_ids_for_type("right_arm") or ["rarm_001"]
+        l_arm_ids = self.data_manager.get_part_ids_for_type("left_arm") or ["larm_001"]
+        legs_ids = self.data_manager.get_part_ids_for_type("legs") or ["legs_001"]
 
         for i in range(3):
             setup = {
@@ -85,12 +85,3 @@ class SaveDataManager:
         if 0 <= machine_idx < len(self.player_team):
             return self.player_team[machine_idx]
         return {}
-
-# グローバルインスタンス
-_save_manager = None
-
-def get_save_manager() -> SaveDataManager:
-    global _save_manager
-    if _save_manager is None:
-        _save_manager = SaveDataManager()
-    return _save_manager

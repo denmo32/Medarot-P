@@ -1,7 +1,7 @@
 """カスタマイズ画面のロジック管理"""
 
-from data.save_data_manager import get_save_manager
-from data.game_data_manager import get_game_data_manager
+from data.save_data_manager import SaveDataManager
+from data.game_data_manager import GameDataManager
 
 class CustomizeManager:
     """カスタマイズ画面の状態管理と操作ロジック"""
@@ -10,9 +10,9 @@ class CustomizeManager:
     STATE_SLOT_SELECT = "slot_select"
     STATE_PART_LIST_SELECT = "part_list_select"
 
-    def __init__(self):
-        self.save_data = get_save_manager()
-        self.data_manager = get_game_data_manager()
+    def __init__(self, data_manager: GameDataManager, save_manager: SaveDataManager):
+        self.data_manager = data_manager
+        self.save_data = save_manager
         self.state = self.STATE_MACHINE_SELECT
         self.selected_machine_idx = 0
         self.selected_slot_idx = 0

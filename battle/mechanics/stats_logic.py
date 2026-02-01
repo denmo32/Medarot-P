@@ -16,7 +16,7 @@ class StatsLogic:
         skill_behavior = SkillRegistry.get(skill)
         time_modifier = skill_behavior.get_time_modifier()
 
-        stats = {
+        base_stats = {
             "hp": data.get("hp", 0),
             "attack": data.get("attack"), 
             "base_attack": data.get("attack"),
@@ -29,6 +29,7 @@ class StatsLogic:
             "time_modifier": time_modifier
         }
         
-        AttributeLogic.apply_passive_stats_bonus(stats, part_type, medal_attr)
+        # パッシブボーナスを適用した新しいStatsを取得
+        stats = AttributeLogic.apply_passive_stats_bonus(base_stats, part_type, medal_attr)
                     
         return stats

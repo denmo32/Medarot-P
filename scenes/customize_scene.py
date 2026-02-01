@@ -4,14 +4,16 @@ from customize.manager import CustomizeManager
 from ui.customize_renderer import CustomizeRenderer
 from input.event_manager import EventManager
 from core.ecs import World
+from data.game_data_manager import GameDataManager
+from data.save_data_manager import SaveDataManager
 
 class CustomizeScene:
     """カスタマイズ画面のシーンクラス"""
 
-    def __init__(self, screen):
+    def __init__(self, screen, data_manager: GameDataManager, save_manager: SaveDataManager):
         self.screen = screen
         # ロジック・描画の分離
-        self.manager = CustomizeManager()
+        self.manager = CustomizeManager(data_manager, save_manager)
         self.renderer = CustomizeRenderer(screen)
         
         # 入力管理用に一時的なWorldを作成
