@@ -4,6 +4,7 @@ from typing import Optional, List
 from dataclasses import dataclass, field
 from battle.constants import BattlePhase, ActionType
 from battle.mechanics.skill import SkillRegistry
+from battle.mechanics.log import LogBuilder
 
 @dataclass
 class PhaseTransition:
@@ -42,7 +43,6 @@ class FlowMechanics:
         if not attacker_comps:
             return PhaseTransition(next_phase=BattlePhase.EXECUTING)
 
-        from battle.mechanics.log import LogBuilder # 回避的インポート
         attacker_name = attacker_comps['medal'].nickname
         trait_text, skill_name = "", "攻撃"
         
