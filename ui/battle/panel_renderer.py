@@ -32,7 +32,7 @@ class UIPanelRenderer:
     def _render_action_menu(self, data):
         wy, wh = UI_PARAMS['MESSAGE_WINDOW_Y'], UI_PARAMS['MESSAGE_WINDOW_HEIGHT']
         pad = UI_PARAMS['MESSAGE_WINDOW_PADDING']
-        self.m.draw_text(f"{data.actor_name}のターン", (pad, wy + wh - UI_PARAMS['UI']['TURN_TEXT_Y_OFFSET']), font_type='medium')
+        self.m.draw_text(f"{data.actor_name}", (pad, wy + wh - UI_PARAMS['UI']['TURN_TEXT_Y_OFFSET']), font_type='medium')
         
         layout = calculate_action_menu_layout(len(data.buttons))
         for i, (btn, rect) in enumerate(zip(data.buttons, layout)):
