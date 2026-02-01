@@ -39,7 +39,8 @@ class UIPanelRenderer:
             bg = COLORS['BUTTON_BG'] if btn.enabled else COLORS['BUTTON_DISABLED_BG']
             border = (255, 255, 0) if i == data.selected_index else COLORS['BUTTON_BORDER']
             self.m.draw_box(rect, bg, border, 3 if i == data.selected_index else 2)
-            self.m.draw_text(btn.label, (rect.x + 10, rect.y + 5), font_type='medium')
+            # 中央揃えでテキストを描画
+            self.m.draw_text(btn.label, rect.center, font_type='medium', align='center')
 
     def _render_game_over(self, data):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

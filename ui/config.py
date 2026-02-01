@@ -59,8 +59,8 @@ UI_PARAMS = {
     'MESSAGE_WINDOW_BORDER_COLOR': (100, 100, 100),
     'MESSAGE_WINDOW_PADDING': 10,
     'UI': {
-        'BTN_WIDTH': 80,
-        'BTN_HEIGHT': 40,
+        'BTN_WIDTH': 200,    # テキストが入るように幅を拡大
+        'BTN_HEIGHT': 45,    # 若干高さを拡大
         'BTN_PADDING': 10,
         'BTN_Y_OFFSET': 60,
         'TURN_TEXT_Y_OFFSET': 100,
