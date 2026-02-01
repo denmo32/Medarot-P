@@ -36,7 +36,7 @@ COLORS = {
 }
 
 # フォント設定
-FONT_NAMES = ['meiryo', 'yumin', 'msmincho', 'msgothic', 'Noto Sans CJK JP', 'Noto Sans Japanese', 'sans-serif']
+FONT_NAMES = ['ui/assets/fonts/NotoSansJP-Regular.ttf']
 
 # レイアウトパラメータ
 UI_PARAMS = {

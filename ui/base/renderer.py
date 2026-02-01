@@ -5,18 +5,19 @@ ECSの状態を一切知らず、受け取った値の描画のみを行う低�
 
 import pygame
 from ui.config import COLORS, FONT_NAMES
+from core.utils import resource_path
 
 class BaseRenderer:
     def __init__(self, screen):
         self.screen = screen
         # 共通フォントの初期化
-        font_priority = ",".join(FONT_NAMES)
+        font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
         self.fonts = {
-            'small': pygame.font.SysFont(font_priority, 14),
-            'normal': pygame.font.SysFont(font_priority, 20),
-            'medium': pygame.font.SysFont(font_priority, 24),
-            'large': pygame.font.SysFont(font_priority, 32),
-            'notice': pygame.font.SysFont(font_priority, 36)
+            'small': pygame.font.Font(font_path, 14),
+            'normal': pygame.font.Font(font_path, 20),
+            'medium': pygame.font.Font(font_path, 24),
+            'large': pygame.font.Font(font_path, 32),
+            'notice': pygame.font.Font(font_path, 36)
         }
 
     def clear(self):

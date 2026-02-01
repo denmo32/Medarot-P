@@ -4,15 +4,15 @@ import json
 import os
 from typing import List, Dict
 from data.game_data_manager import get_game_data_manager
+from core.utils import get_save_path
 
 class SaveDataManager:
     """プレイヤーのゲーム進行データ（現在は編成のみ）を保持"""
     
     def __init__(self):
         # データの保存先パスを設定
-        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.save_file_path = os.path.join(current_dir, 'data', 'save_data.json')
-        
+        self.save_file_path = get_save_path('data/save_data.json')
+
         # データをロード、またはデフォルトを作成
         self.player_team = self._load_data()
 

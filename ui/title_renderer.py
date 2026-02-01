@@ -3,6 +3,7 @@
 import pygame
 from ui.config import COLORS, FONT_NAMES, SCREEN_WIDTH
 from ui.base.renderer import BaseRenderer
+from core.utils import resource_path
 
 class TitleRenderer(BaseRenderer):
     """タイトル画面の描画を担当"""
@@ -12,15 +13,16 @@ class TitleRenderer(BaseRenderer):
         
         # タイトル固有のフォント
         try:
-            self.title_font = pygame.font.Font('ui/assets/fonts/851Gkktt_005.ttf', 80)
-            self.p_font = pygame.font.Font('ui/assets/fonts/851Gkktt_005.ttf', 128)
+            self.title_font = pygame.font.Font(resource_path('ui/assets/fonts/851Gkktt_005.ttf'), 80)
+            self.p_font = pygame.font.Font(resource_path('ui/assets/fonts/851Gkktt_005.ttf'), 128)
         except OSError:
             print("Warning: Custom font not found, falling back to system font.")
-            font_name = FONT_NAMES[0] if FONT_NAMES else None
-            self.title_font = pygame.font.SysFont(font_name, 48)
-            self.p_font = pygame.font.SysFont(font_name, 72)
-            
-        self.button_font = pygame.font.SysFont(",".join(FONT_NAMES), 32)
+            font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
+            self.title_font = pygame.font.Font(font_path, 48)
+            self.p_font = pygame.font.Font(font_path, 72)
+
+        font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
+        self.button_font = pygame.font.Font(font_path, 32)
         
         # 静的なタイトルロゴは初期化時に作成してキャッシュする
         self.title_surface = self._create_title_surface()
