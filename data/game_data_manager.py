@@ -1,8 +1,8 @@
 """パーツ・メダルデータ管理クラス"""
 
 import json
-import os
 from typing import Dict, Any, List
+from core.utils import resource_path
 
 class GameDataManager:
     """parts_data.jsonおよびmedals_data.jsonからデータを管理するクラス"""
@@ -26,11 +26,9 @@ class GameDataManager:
 
     def __init__(self, json_path: str = None):
         """初期化"""
-        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
         # デフォルトのファイルパス
-        self.parts_json_path = os.path.join(current_dir, 'data', 'parts_data.json')
-        self.medals_json_path = os.path.join(current_dir, 'data', 'medals_data.json')
+        self.parts_json_path = resource_path('data/parts_data.json')
+        self.medals_json_path = resource_path('data/medals_data.json')
 
         # 引数でパスが指定された場合は、それをパーツデータパスとして優先使用（テスト容易性のため）
         if json_path is not None:
@@ -132,13 +130,3 @@ class GameDataManager:
     def reload_data(self) -> None:
         """データを再読み込み"""
         self.data = self._load_all_data()
-
-# グローバルインスタンス
-_game_data_manager = None
-
-def get_game_data_manager() -> GameDataManager:
-    """GameDataManagerのグローバルインスタンスを取得"""
-    global _game_data_manager
-    if _game_data_manager is None:
-        _game_data_manager = GameDataManager()
-    return _game_data_manager

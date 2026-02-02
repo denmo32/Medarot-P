@@ -3,13 +3,15 @@
 import pygame
 from battle.battle_orchestrator import BattleSystem
 from input.event_manager import EventManager
+from data.game_data_manager import GameDataManager
+from data.save_data_manager import SaveDataManager
 
 class BattleScene:
     """バトル画面のクラス"""
 
-    def __init__(self, screen):
+    def __init__(self, screen, data_manager: GameDataManager, save_manager: SaveDataManager):
         self.screen = screen
-        self.battle_system = BattleSystem(screen)
+        self.battle_system = BattleSystem(screen, data_manager, save_manager)
         self.event_manager = EventManager(self.battle_system.world)
         self.running = True
 

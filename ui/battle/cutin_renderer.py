@@ -1,7 +1,6 @@
 """攻撃演出（カットイン）の描画"""
 
 import pygame
-from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
 from battle.constants import TraitType
 
 class CutinRenderer:
@@ -9,7 +8,7 @@ class CutinRenderer:
         self.m = master
 
     def render(self, state):
-        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT
+        sw, sh = self.m.get_screen_size()
         
         # 1. 背面のフェード
         if state.bg_alpha > 0:
@@ -18,12 +17,13 @@ class CutinRenderer:
             self.m.screen.blit(overlay, (0, 0))
 
         # 2. キャラクターとHPバー
+        # Logicですでにピクセル座標計算済みなのでそのまま描画
         for char_data in [state.attacker, state.defender]:
-            if char_data.get('visible') and -200 < char_data['x'] < sw + 200:
+            if char_data.get('visible'):
                 cx, cy = int(char_data['x']), int(char_data['y'])
                 self.m.widgets.draw_robot_icon(cx, cy, char_data['color'], char_data['is_alive_map'])
                 if char_data.get('hp_bars'):
-                    self.m.widgets.draw_hp_bars(cx, cy + 65, char_data['hp_bars'])
+                    self.m.widgets.draw_hp_bars(cx, cy + int(sh * 0.1), char_data['hp_bars'])
 
         # 3. 弾丸・エフェクト
         if state.bullet.get('visible'):
@@ -38,32 +38,38 @@ class CutinRenderer:
 
         # 5. ダメージ等のポップアップ
         if state.popup.get('visible'):
-            self._render_popup(state.defender['x'], state.popup['y'], state.popup['result'])
+            self._render_popup(state.popup['x'], state.popup['y'], state.popup['result'])
 
     def _render_bullet(self, bul, mirror):
         trait, bx, by = bul['type'], bul['x'], bul['y']
         dir = -1 if mirror else 1
         
+        # 弾丸サイズのスケール
+        s = self.m.ui_scale
+
         if trait == TraitType.RIFLE:
-            back_x = bx - (15 * dir)
-            pygame.draw.polygon(self.m.screen, (255, 255, 150), [(bx, by), (back_x, by - 7), (back_x, by + 7)])
+            back_x = bx - (15 * dir * s)
+            pygame.draw.polygon(self.m.screen, (255, 255, 150), [(bx, by), (back_x, by - 7*s), (back_x, by + 7*s)])
             for dist in [35, 55, 70]:
-                pygame.draw.circle(self.m.screen, (200, 255, 255), (int(bx - dist * dir), int(by)), 5, 1)
+                pygame.draw.circle(self.m.screen, (200, 255, 255), (int(bx - dist * dir * s), int(by)), int(5*s), 1)
         elif trait == TraitType.GATLING:
             for i in range(5):
-                nbx = bx - (i * 25 * dir)
-                nby = by + [0, -6, 6, -3, 3][i]
-                pygame.draw.polygon(self.m.screen, (255, 200, 50), [(nbx, nby), (nbx - 10 * dir, nby - 5), (nbx - 10 * dir, nby + 5)])
+                nbx = bx - (i * 25 * dir * s)
+                nby = by + ([0, -6, 6, -3, 3][i] * s)
+                pygame.draw.polygon(self.m.screen, (255, 200, 50), [(nbx, nby), (nbx - 10 * dir * s, nby - 5*s), (nbx - 10 * dir * s, nby + 5*s)])
         else:
-            pygame.draw.circle(self.m.screen, (255, 255, 50), (int(bx), int(by)), 12)
+            pygame.draw.circle(self.m.screen, (255, 255, 50), (int(bx), int(by)), int(12*s))
 
     def _render_effect(self, cx, cy, eff, mirror):
         local_t = (eff['progress'] - eff['start_time']) / 0.2
         if not (0 <= local_t <= 1.0): return
-        width = int(10 * (1.0 - local_t))
+        
+        s = self.m.ui_scale
+        
+        width = int(10 * s * (1.0 - local_t))
         if width <= 0: return
         dir = -1 if mirror else 1
-        pygame.draw.line(self.m.screen, (255, 255, 200), (cx - 50 * dir, cy - 80), (cx + 50 * dir, cy + 80), width)
+        pygame.draw.line(self.m.screen, (255, 255, 200), (cx - 50 * dir * s, cy - 80 * s), (cx + 50 * dir * s, cy + 80 * s), width)
 
     def _render_popup(self, x, y, hit_result):
         lines = []
@@ -75,5 +81,8 @@ class CutinRenderer:
             else: lines.append(("HIT!", (255, 220, 0)))
             lines.append((f"-{hit_result.damage}", (255, 255, 255) if hit_result.damage > 0 else (200, 200, 200)))
 
+        s = self.m.ui_scale
+        
         for i, (text, color) in enumerate(lines):
-            self.m.draw_text_with_outline(text, x, y + i * 35, color)
+            # BaseRendererのメソッドを使用。ポップアップは大きく強調したいので明示的に指定
+            self.m.draw_text_with_outline(text, x, y + i * 35 * s, color, 'large', 'center')

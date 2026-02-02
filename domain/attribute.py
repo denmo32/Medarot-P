@@ -47,16 +47,17 @@ class AttributeLogic:
         return atk_mod, def_mod
 
     @staticmethod
-    def apply_passive_stats_bonus(stats: Dict[str, Any], part_type: str, medal_attr: str) -> None:
+    def apply_passive_stats_bonus(original_stats: Dict[str, Any], part_type: str, medal_attr: str) -> Dict[str, Any]:
         """
-        メダル属性とパーツ属性の一致によるパッシブボーナスをstats辞書に適用する。
+        メダル属性とパーツ属性の一致によるパッシブボーナスを適用した新しいstats辞書を返す。
         EntityFactoryで使用される。
         """
+        stats = original_stats.copy()
         part_attr = stats.get("attribute", AttributeType.UNDEFINED)
         
-        # 属性不一致なら何もしない
+        # 属性不一致ならそのまま返す
         if medal_attr != part_attr or medal_attr == AttributeType.UNDEFINED:
-            return
+            return stats
 
         if medal_attr == AttributeType.SPEED:
             # スピード: 脚部の機動+20, 攻撃パーツの時間短縮(x0.8)
@@ -78,3 +79,5 @@ class AttributeLogic:
                 stats["defense"] = stats.get("defense", 0) + 10
             else:
                 stats["success"] = stats.get("success", 0) + 20
+        
+        return stats

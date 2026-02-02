@@ -8,6 +8,8 @@ from domain.config import FPS
 from scenes.title_scene import TitleScene
 from scenes.battle_scene import BattleScene
 from scenes.customize_scene import CustomizeScene
+from data.game_data_manager import GameDataManager
+from data.save_data_manager import SaveDataManager
 
 # pygameの初期化
 pygame.init()
@@ -15,6 +17,10 @@ pygame.init()
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Medarot-P")
+
+    # データマネージャーの初期化（DIコンテナの役割）
+    data_manager = GameDataManager()
+    save_manager = SaveDataManager(data_manager)
 
     # シーン管理
     current_scene_tag = 'title'
@@ -35,9 +41,9 @@ def main():
             # 2. 現在のシーンの取得と初期化（必要な場合のみ）
             if scenes[current_scene_tag] is None:
                 if current_scene_tag == 'battle':
-                    scenes['battle'] = BattleScene(screen)
+                    scenes['battle'] = BattleScene(screen, data_manager, save_manager)
                 elif current_scene_tag == 'customize':
-                    scenes['customize'] = CustomizeScene(screen)
+                    scenes['customize'] = CustomizeScene(screen, data_manager, save_manager)
                 elif current_scene_tag == 'title':
                     scenes['title'] = TitleScene(screen)
 

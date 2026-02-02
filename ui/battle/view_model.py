@@ -7,6 +7,11 @@ from battle.mechanics.flow import get_battle_state
 from .layout_utils import calculate_action_menu_layout
 from .snapshot import BattleStateSnapshot
 from .builders import FieldSnapshotBuilder, UISnapshotBuilder, CutinSnapshotBuilder
+# 画面サイズ取得のためにBaseRenderer相当の機能が必要だが、
+# ViewModelはLogic層に近いのでpygameへの直接依存はなるべく避けたい。
+# しかしhit_testなどは画面サイズ必須。ここでは初期化時に注入するか、都度取得する。
+# 簡易的にpygame.display.get_surface()から取得する。
+import pygame
 
 class BattleViewModel:
     """各ビルダーを統括し、Worldの状態を描画用のSnapshotに変換するファサード"""
@@ -17,6 +22,10 @@ class BattleViewModel:
         self.ui_builder = UISnapshotBuilder(world)
         self.cutin_builder = CutinSnapshotBuilder(world, self.field_builder)
 
+    def _get_screen_size(self):
+        s = pygame.display.get_surface()
+        return s.get_size() if s else (800, 600)
+
     def create_snapshot(self) -> BattleStateSnapshot:
         """現在の世界の状態を切り出し、Snapshotを生成する"""
         context, flow = get_battle_state(self.world)
@@ -24,6 +33,7 @@ class BattleViewModel:
             return BattleStateSnapshot()
 
         snapshot = BattleStateSnapshot()
+        screen_size = self._get_screen_size()
         
         # フィールド・UI・カットインの状態を構築
         snapshot.characters = self.field_builder.build_characters(context, flow)
@@ -35,7 +45,7 @@ class BattleViewModel:
         snapshot.game_over = self.ui_builder.build_game_over(flow)
 
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
-            snapshot.cutin = self.cutin_builder.build(flow)
+            snapshot.cutin = self.cutin_builder.build(flow, screen_size)
         
         return snapshot
 
@@ -45,7 +55,10 @@ class BattleViewModel:
         if not flow or flow.current_phase != BattlePhase.INPUT:
             return None
 
-        layout = calculate_action_menu_layout(len(MENU_PART_ORDER) + 1)
+        # 画面サイズを取得してレイアウトを再計算
+        screen_size = self._get_screen_size()
+        layout = calculate_action_menu_layout(len(MENU_PART_ORDER) + 1, screen_size)
+        
         for i, rect in enumerate(layout):
             if rect.collidepoint(mx, my):
                 return i

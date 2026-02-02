@@ -3,7 +3,7 @@ ECSからSnapshotへの変換ロジック（ビルダー群）
 """
 
 from typing import Dict, Any, List, Optional
-from ui.config import UI_PARAMS, COLORS, PART_LABELS, MENU_PART_ORDER, SCREEN_WIDTH
+from ui.config import UI_PARAMS, COLORS, PART_LABELS, MENU_PART_ORDER
 from battle.constants import BattlePhase, BattleTiming
 from domain.constants import GaugeStatus, TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
@@ -20,33 +20,50 @@ class FieldSnapshotBuilder:
 
     def build_characters(self, context, flow) -> Dict[int, CharacterViewData]:
         chars = {}
+        # 画面サイズはレンダリング時に解決するため、ここでは相対座標(PositionComponent)をそのまま渡す
         for eid, comps in self.world.get_entities_with_components('render', 'position', 'gauge', 'partlist', 'team', 'medal'):
             g, team = comps['gauge'], comps['team']
+            pos = comps['position']
             
-            # アイコン座標計算
-            icon_x = self._calc_icon_x(comps['position'].x, g, team.team_type)
-            home_x = comps['position'].x + (UI_PARAMS['GAUGE_WIDTH'] if team.team_type == TeamType.ENEMY else 0)
+            # アイコンのX座標（相対値）計算
+            icon_x_ratio = self._calc_icon_x_ratio(pos.x, g, team.team_type)
             
-            # ビジュアル情報
+            # ホーム位置X（相対値）
+            gauge_w_ratio = UI_PARAMS['GAUGE_WIDTH_RATIO']
+            home_x_ratio = pos.x + (gauge_w_ratio if team.team_type == TeamType.ENEMY else 0)
+            
             v_info = self.get_visual_info(comps)
 
             chars[eid] = CharacterViewData(
-                entity_id=eid, x=comps['position'].x, y=comps['position'].y,
-                icon_x=icon_x, home_x=home_x, home_y=comps['position'].y,
-                team_color=team.team_color, name=comps['medal'].nickname,
+                entity_id=eid, 
+                x_ratio=pos.x, 
+                y_ratio=pos.y,
+                icon_x_ratio=icon_x_ratio, 
+                home_x_ratio=home_x_ratio, 
+                home_y_ratio=pos.y,
+                team_color=team.team_color, 
+                name=comps['medal'].nickname,
                 border_color=self._get_border_color(eid, g, flow, context),
                 part_status=v_info['is_alive_map']
             )
         return chars
 
-    def _calc_icon_x(self, base_x, gauge, team_type) -> float:
-        center_x, offset = SCREEN_WIDTH // 2, 40
+    def _calc_icon_x_ratio(self, base_x_ratio, gauge, team_type) -> float:
+        """ゲージ進捗に応じたアイコンのX座標（相対値）を計算"""
+        center_x_ratio = 0.5
+        offset_ratio = 0.05 # 中央からのオフセット
         ratio = calculate_gauge_ratio(gauge.status, gauge.progress)
+        
         if team_type == TeamType.PLAYER:
-            return base_x + ratio * ((center_x - offset) - base_x)
+            # 左(base)から中央手前へ
+            end_x = center_x_ratio - offset_ratio
+            return base_x_ratio + ratio * (end_x - base_x_ratio)
         else:
-            start_x = base_x + UI_PARAMS['GAUGE_WIDTH']
-            return start_x + ratio * ((center_x + offset) - start_x)
+            # 右(start)から中央奥へ
+            gauge_w_ratio = UI_PARAMS['GAUGE_WIDTH_RATIO']
+            start_x = base_x_ratio + gauge_w_ratio
+            end_x = center_x_ratio + offset_ratio
+            return start_x + ratio * (end_x - start_x)
 
     def _get_border_color(self, eid, gauge, flow, context) -> Optional[tuple]:
         if eid == flow.active_actor_id or eid in context.waiting_queue or gauge.status == GaugeStatus.ACTION_CHOICE:
@@ -125,7 +142,10 @@ class CutinSnapshotBuilder:
         self.world = world
         self.field_builder = field_builder
 
-    def build(self, flow) -> CutinStateData:
+    def build(self, flow, screen_size) -> CutinStateData:
+        """
+        Snapshot生成時に画面サイズを受け取り、Logicに渡す。
+        """
         event = self.world.get_component(flow.processing_event_id, 'actionevent')
         atk_comps = self.world.try_get_entity(event.attacker_id) if event else None
         tgt_comps = self.world.try_get_entity(event.current_target_id) if event else None
@@ -138,7 +158,12 @@ class CutinSnapshotBuilder:
             trait = atk_part_comps['attack'].trait
 
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
-        state = CutinAnimationLogic.calculate_frame(progress, trait, atk_comps['team'].team_type == TeamType.ENEMY, event.calculation_result)
+        
+        # ロジック呼び出し（画面サイズ渡し）
+        state = CutinAnimationLogic.calculate_frame(
+            progress, trait, atk_comps['team'].team_type == TeamType.ENEMY, 
+            event.calculation_result, screen_size
+        )
         
         # 表示情報の合成
         atk_v, tgt_v = self.field_builder.get_visual_info(atk_comps), self.field_builder.get_visual_info(tgt_comps, show_hp=True)

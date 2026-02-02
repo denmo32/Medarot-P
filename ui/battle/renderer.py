@@ -37,9 +37,3 @@ class BattleRenderer(BaseRenderer):
             self.cutin.render(snapshot.cutin)
 
         self.present()
-
-    def draw_text_with_outline(self, text, x, y, color, font_type='large', align='center'):
-        """共通ユーティリティ：縁取り付きテキスト"""
-        for ox, oy in [(-2, -2), (-2, 2), (2, -2), (2, 2)]:
-            self.draw_text(text, (x + ox, y + oy), (0, 0, 0), font_type, align)
-        self.draw_text(text, (x, y), color, font_type, align)

@@ -3,7 +3,6 @@
 import pygame
 from core.ecs import World
 from input.event_manager import EventManager
-from ui.config import SCREEN_WIDTH
 from ui.title_renderer import TitleRenderer
 
 class TitleScene:
@@ -20,23 +19,18 @@ class TitleScene:
         # 状態
         self.selected_index = 0
         
-        # ボタン定義 (Model/Layout logic)
-        button_width = 200
-        button_height = 60
-        button_padding = 20
-        screen_center_x = SCREEN_WIDTH // 2
-        start_y = 300
-
+        # ボタン定義 (相対座標で定義)
+        # cx: 中央オフセットなし(0.5), cy: Y位置(0.5が中央)
         self.buttons = [
             {
-                'rect': pygame.Rect(screen_center_x - button_width // 2, start_y, button_width, button_height),
                 'text': 'バトル開始',
-                'action': 'battle'
+                'action': 'battle',
+                'layout': {'cx': 0.5, 'cy': 0.55, 'w_ratio': 0.25, 'h_ratio': 0.1}
             },
             {
-                'rect': pygame.Rect(screen_center_x - button_width // 2, start_y + button_height + button_padding, button_width, button_height),
                 'text': 'カスタマイズ',
-                'action': 'customize'
+                'action': 'customize',
+                'layout': {'cx': 0.5, 'cy': 0.68, 'w_ratio': 0.25, 'h_ratio': 0.1}
             }
         ]
 
@@ -58,16 +52,21 @@ class TitleScene:
         elif input_comp.btn_menu: # ESC
             return 'quit'
             
-        # マウス操作
-        if input_comp.mouse_clicked:
+        # マウス操作 (当たり判定のために現在の画面サイズでRectを計算する必要がある)
+        if input_comp.mouse_clicked or True: # ホバーも判定するため常に計算
+            sw, sh = self.renderer.screen.get_width(), self.renderer.screen.get_height()
+            
             for i, button in enumerate(self.buttons):
-                if button['rect'].collidepoint(input_comp.mouse_x, input_comp.mouse_y):
-                    return button['action']
-        
-        # マウスホバー
-        for i, button in enumerate(self.buttons):
-            if button['rect'].collidepoint(input_comp.mouse_x, input_comp.mouse_y):
-                self.selected_index = i
+                layout = button['layout']
+                w, h = sw * layout['w_ratio'], sh * layout['h_ratio']
+                x = sw * layout['cx'] - w / 2
+                y = sh * layout['cy'] - h / 2
+                rect = pygame.Rect(x, y, w, h)
+                
+                if rect.collidepoint(input_comp.mouse_x, input_comp.mouse_y):
+                    self.selected_index = i
+                    if input_comp.mouse_clicked:
+                        return button['action']
         
         return None
 
@@ -77,7 +76,6 @@ class TitleScene:
 
     def render(self):
         """描画処理"""
-        # レンダラーに現在の状態（DTO）を渡して描画させる
         ui_data = {
             'buttons': self.buttons,
             'selected_index': self.selected_index

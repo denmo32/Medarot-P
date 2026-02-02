@@ -4,7 +4,6 @@ from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from ui.config import MENU_PART_ORDER
 from battle.constants import BattlePhase, ActionType, BattleTiming
-from battle.mechanics.log import LogBuilder
 
 class InputSystem(BattleSystemBase):
     """
@@ -73,13 +72,17 @@ class InputSystem(BattleSystemBase):
             flow.current_phase = BattlePhase.IDLE
             return
 
-        menu_items_count = len(MENU_PART_ORDER) + 1
-        
         # キーボードによる選択変更
-        if input_comp.btn_left:
-            context.selected_menu_index = (context.selected_menu_index - 1) % menu_items_count
+        # Index 0: Head, 1: RightArm(Left on screen), 2: LeftArm(Right on screen), 3: Skip
+        if input_comp.btn_up:
+            context.selected_menu_index = 0
+        elif input_comp.btn_left:
+            context.selected_menu_index = 1
         elif input_comp.btn_right:
-            context.selected_menu_index = (context.selected_menu_index + 1) % menu_items_count
+            if context.selected_menu_index == 2:
+                context.selected_menu_index = 3
+            else:
+                context.selected_menu_index = 2
 
         # マウス座標による選択変更（ViewModelに座標解釈を委譲）
         mouse_idx = self.view_model.hit_test_action_menu(input_comp.mouse_x, input_comp.mouse_y)

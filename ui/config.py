@@ -1,79 +1,70 @@
 """UI関連の設定値"""
 
-# 画面設定
-SCREEN_WIDTH = 800
+# 画面設定（デフォルト基準値）
+# 起動時のサイズだが、ロジック上は比率計算の基準としてのみ意識される
+SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 600
 
 # 色の定義
 COLORS = {
-    'BACKGROUND': (50, 50, 50),      # 暗灰色
-    'PLAYER': (0, 100, 200),         # プレイヤー用青
-    'ENEMY': (200, 0, 0),            # エネミー用赤
-    'BAR_BG': (100, 100, 100),       # ゲージ背景色
-    'BAR_FG': (0, 200, 0),           # ゲージ進行色
-    'HP_BAR': (255, 0, 0),           # HPバー色（旧式）
-    'HP_HEAD': (255, 0, 0),          # 頭部HPバー色
-    'HP_RIGHT_ARM': (0, 0, 255),     # 右腕HPバー色
-    'HP_LEFT_ARM': (0, 255, 255),    # 左腕HPバー色
-    'HP_LEG': (255, 255, 0),         # 脚部HPバー色
-    'HP_BG': (80, 0, 0),             # HP背景色（暗い赤）
-    'HP_GAUGE': (50, 255, 100),      # HPゲージ色（明るい緑）
-    'TEXT': (255, 255, 255),         # テキスト色
-    'NOTICE_BG': (0, 0, 0, 180),     # 通知背景色
-    'BUTTON_BG': (150, 150, 150),    # ボタン背景色
-    'BUTTON_DISABLED_BG': (80, 80, 80),  # 無効状態ボタン色
-    'BUTTON_BORDER': (0, 0, 0),      # ボタン境界色
-    'GUIDE_LINE': (120, 120, 120),   # ガイドライン色
-    'HOME_MARKER': (100, 100, 100),  # ホームポジションマーカー色
-    # 縁取り色
-    'BORDER_CHARGE': (255, 150, 0),    # オレンジ
-    'BORDER_COOLDOWN': (0, 200, 255),  # 水色
-    'BORDER_WAIT': (255, 255, 255),    # 白色
-    # カスタマイズ画面用
-    'PANEL_BG': (35, 45, 60),        # パネル背景色
-    'PANEL_BORDER': (60, 70, 90),    # パネル枠線
-    'SELECT_HIGHLIGHT': (0, 150, 255), # 選択ハイライト
+    'BACKGROUND': (50, 50, 50),
+    'PLAYER': (0, 100, 200),
+    'ENEMY': (200, 0, 0),
+    'BAR_BG': (100, 100, 100),
+    'BAR_FG': (0, 200, 0),
+    'HP_BG': (80, 0, 0),
+    'HP_GAUGE': (50, 255, 100),
+    'TEXT': (255, 255, 255),
+    'NOTICE_BG': (0, 0, 0, 180),
+    'BUTTON_BG': (150, 150, 150),
+    'BUTTON_DISABLED_BG': (80, 80, 80),
+    'BUTTON_BORDER': (0, 0, 0),
+    'GUIDE_LINE': (120, 120, 120),
+    'HOME_MARKER': (100, 100, 100),
+    'BORDER_CHARGE': (255, 150, 0),
+    'BORDER_COOLDOWN': (0, 200, 255),
+    'BORDER_WAIT': (255, 255, 255),
+    'PANEL_BG': (35, 45, 60),
+    'PANEL_BORDER': (60, 70, 90),
+    'SELECT_HIGHLIGHT': (0, 150, 255),
 }
 
 # フォント設定
-FONT_NAMES = ['meiryo', 'yumin', 'msmincho', 'msgothic', 'Noto Sans CJK JP', 'Noto Sans Japanese', 'sans-serif']
+FONT_NAMES = ['ui/assets/fonts/NotoSansJP-Regular.ttf']
 
-# レイアウトパラメータ
+# レイアウトパラメータ (比率定義 0.0 ~ 1.0)
 UI_PARAMS = {
-    'PLAYER_TEAM_X': 50,
-    'ENEMY_TEAM_X': 450,
-    'TEAM_Y_OFFSET': 60,      # 上部の余白を活用して開始位置を上げる
-    'CHARACTER_SPACING': 135, # 配置間隔
-    'GAUGE_WIDTH': 300,
-    'GAUGE_HEIGHT': 40,
-    'HP_BAR_WIDTH': 30,
-    'HP_BAR_HEIGHT': 15,
-    'HP_BAR_Y_OFFSET': 50,
-    'LOG_DISPLAY_LINES': 1,
-    'LOG_Y_OFFSET': 120,
-    'CLICK_MESSAGE_Y': 30,
-    'NOTICE_Y_OFFSET': 50,
-    'MESSAGE_WINDOW_HEIGHT': 150,
-    'MESSAGE_WINDOW_Y': 450,
+    # フィールド配置 (Screen Width/Heightに対する比率)
+    'PLAYER_TEAM_X_RATIO': 0.06,  # 左端からの位置
+    'ENEMY_TEAM_X_RATIO': 0.56,   # 左端からの位置 (56%地点)
+    'TEAM_Y_START_RATIO': 0.1,    # 上端からの開始位置
+    'CHAR_SPACING_RATIO': 0.22,   # キャラクター間の縦間隔
+    
+    'GAUGE_WIDTH_RATIO': 0.38,    # ゲージ長さ
+    'GAUGE_HEIGHT_RATIO': 0.06,
+
+    # メッセージウィンドウ
+    'MESSAGE_WINDOW_Y_RATIO': 0.75,
+    'MESSAGE_WINDOW_HEIGHT_RATIO': 0.25,
+    'MESSAGE_WINDOW_PADDING_RATIO': 0.012,
     'MESSAGE_WINDOW_BG_COLOR': (30, 30, 30),
     'MESSAGE_WINDOW_BORDER_COLOR': (100, 100, 100),
-    'MESSAGE_WINDOW_PADDING': 10,
+    
+    'LOG_DISPLAY_LINES': 1,
+    
     'UI': {
-        'BTN_WIDTH': 80,
-        'BTN_HEIGHT': 40,
-        'BTN_PADDING': 10,
-        'BTN_Y_OFFSET': 60,
-        'TURN_TEXT_Y_OFFSET': 100,
-        'NEXT_MSG_X_OFFSET': 250,
-        'NEXT_MSG_Y_OFFSET': 30,
+        'BTN_WIDTH_RATIO': 0.25,
+        'BTN_HEIGHT_RATIO': 0.075,
+        'BTN_PADDING_RATIO': 0.012,
     },
+    
     'CUSTOMIZE': {
-        'PANEL_PADDING': 15,
-        'COLUMN_1_WIDTH': 180,
-        'COLUMN_2_WIDTH': 300,
-        'COLUMN_3_WIDTH': 260,
-        'PANEL_Y': 40,
-        'PANEL_HEIGHT': 520,
+        'PANEL_PADDING_RATIO': 0.02,
+        'PANEL_Y_RATIO': 0.07,
+        'PANEL_HEIGHT_RATIO': 0.86,
+        'COLUMN_1_WIDTH_RATIO': 0.22,
+        'COLUMN_2_WIDTH_RATIO': 0.38,
+        'COLUMN_3_WIDTH_RATIO': 0.32,
     }
 }
 
@@ -88,7 +79,6 @@ TEAM_SETTINGS = {
     }
 }
 
-# UI表示用の部位名称マップ
 PART_LABELS = {
     PartType.HEAD: "頭部",
     PartType.RIGHT_ARM: "右腕",
@@ -96,5 +86,4 @@ PART_LABELS = {
     PartType.LEGS: "脚部"
 }
 
-# アクションメニューのパーツ表示順序
 MENU_PART_ORDER = [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]
