@@ -16,28 +16,38 @@ class MedabotWidgets:
 
     def draw_hp_bars(self, x, y, hp_data_list):
         """HPゲージのセットを描画"""
+        # スケール係数を算出
+        s = self.renderer.ui_scale
+        
+        bar_w = int(80 * s)
+        bar_h = int(10 * s)
+        row_h = int(16 * s)
+        offset_y = int(45 * s)
+        offset_x = int(45 * s)
+        text_offset_x = int(85 * s)
+
         for i, data in enumerate(hp_data_list):
-            row_y = y + 45 + i * 16
+            row_y = y + offset_y + i * row_h
             # ラベル
-            self.renderer.draw_text(f"{data['label']}:", (x - 45, row_y - 2), (200, 200, 200), 'small')
+            self.renderer.draw_text(f"{data['label']}:", (x - offset_x, row_y - 2), (200, 200, 200), 'small')
             # HPバー
-            self.renderer.draw_bar((x, row_y, 80, 10), data['ratio'], COLORS['HP_BG'], COLORS['HP_GAUGE'])
+            self.renderer.draw_bar((x, row_y, bar_w, bar_h), data['ratio'], COLORS['HP_BG'], COLORS['HP_GAUGE'])
             # 数値
-            self.renderer.draw_text(f"{data['current']}/{data['max']}", (x + 85, row_y - 2), COLORS['TEXT'], 'small')
+            self.renderer.draw_text(f"{data['current']}/{data['max']}", (x + text_offset_x, row_y - 2), COLORS['TEXT'], 'small')
 
     def draw_robot_icon(self, cx, cy, base_color, part_status, scale=1.0):
         """
         ロボット型アイコンを描画する。
-        部位ごとのメソッドに分割して描画を行う。
         """
+        # 画面サイズに応じたベーススケール
+        s = scale * self.renderer.ui_scale
+        
         # 描画用パラメータの計算
         broken_color = (60, 60, 60)
         def get_col(ptype):
             if part_status is None: return base_color
             return base_color if part_status.get(ptype, False) else broken_color
 
-        # サイズ計算
-        s = scale
         shoulder_y = cy - (16 * s)
         
         # 1. 脚
@@ -53,14 +63,12 @@ class MedabotWidgets:
         limb_w, limb_h = 16 * s, 48 * s
         gap, chest_h = 4 * s, 40 * s
         y = sy + chest_h - (8 * s)
-        # 左右の脚
         pygame.draw.rect(self.renderer.screen, color, (int(cx - gap - limb_w), int(y), int(limb_w), int(limb_h)))
         pygame.draw.rect(self.renderer.screen, color, (int(cx + gap), int(y), int(limb_w), int(limb_h)))
 
     def _draw_arms(self, cx, sy, r_color, l_color, s):
         limb_w, limb_h = 16 * s, 48 * s
         gap, chest_a = 4 * s, 40 * s
-        # 正面向き（画面左に右腕、右に左腕）
         lx = cx - (chest_a / 2) - gap - limb_w
         rx = cx + (chest_a / 2) + gap
         pygame.draw.rect(self.renderer.screen, r_color, (int(lx), int(sy), int(limb_w), int(limb_h)))

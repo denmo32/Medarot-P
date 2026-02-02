@@ -76,14 +76,14 @@ class BattleEntityFactory:
 
     @staticmethod
     def create_teams(world: World, player_count: int, enemy_count: int, 
-                     px: int, ex: int, yoff: int, spacing: int, gw: int, gh: int,
+                     px_ratio: float, ex_ratio: float, y_start_ratio: float, spacing_ratio: float,
                      data_manager: GameDataManager, save_manager: SaveDataManager):
         
         # 1. プレイヤーチームの生成
         for i in range(player_count):
             setup = save_manager.get_machine_setup(i)
             BattleEntityFactory._create_team_unit(
-                world, i, setup, TeamType.PLAYER, px, yoff, spacing, gw, gh, data_manager
+                world, i, setup, TeamType.PLAYER, px_ratio, y_start_ratio, spacing_ratio, data_manager
             )
 
         # 2. エネミーチームの生成
@@ -104,11 +104,11 @@ class BattleEntityFactory:
                 "medal": random.choice(medal_ids) if medal_ids else "medal_001"
             }
             BattleEntityFactory._create_team_unit(
-                world, i, setup, TeamType.ENEMY, ex, yoff, spacing, gw, gh, data_manager
+                world, i, setup, TeamType.ENEMY, ex_ratio, y_start_ratio, spacing_ratio, data_manager
             )
 
     @staticmethod
-    def _create_team_unit(world, index, setup, team_type, base_x, y_off, spacing, gw, gh, data_manager):
+    def _create_team_unit(world, index, setup, team_type, base_x_ratio, y_start_ratio, spacing_ratio, data_manager):
         """1体の機体とそれに付随するコンポーネントを生成"""
         # 各部位エンティティの生成
         parts = BattleEntityFactory.create_medabot_from_setup(world, setup, data_manager)
@@ -125,12 +125,16 @@ class BattleEntityFactory:
             medal_data.get("attribute", "undefined")
         ))
         
-        # 描画・配置情報の追加
-        world.add_component(eid, PositionComponent(base_x, y_off + index * spacing))
+        # 描画・配置情報の追加（相対座標）
+        # PositionComponentには 0.0 ~ 1.0 の比率を格納する
+        world.add_component(eid, PositionComponent(base_x_ratio, y_start_ratio + index * spacing_ratio))
         
         settings = TEAM_SETTINGS.get(team_type, TEAM_SETTINGS[TeamType.ENEMY])
         world.add_component(eid, TeamComponent(team_type, settings['color'], is_leader=(index == 0)))
-        world.add_component(eid, RenderComponent(30, 15, gw, gh))
+        
+        # RenderComponentのサイズ情報は具体的なピクセル値を持つ必要がなくなりつつあるが、
+        # 互換性のため一旦ダミー値または削除を検討。ここでは一旦デフォルト値を入れるが、Renderer側で比率計算する方針。
+        world.add_component(eid, RenderComponent(0, 0, 0, 0))
         
         # バトル状態管理用コンポーネントの追加
         world.add_component(eid, GaugeComponent(status=GaugeStatus.ACTION_CHOICE))

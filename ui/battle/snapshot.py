@@ -1,6 +1,5 @@
 """
 バトル描画に必要な全データ構造（スナップショット）定義。
-ロジック層のコンポーネントには一切依存しない、純粋なデータクラス（DTO）。
 """
 
 from dataclasses import dataclass, field
@@ -10,15 +9,15 @@ from typing import List, Optional, Dict, Tuple, Any
 class CharacterViewData:
     """フィールド上のキャラクター1体の描画データ"""
     entity_id: int
-    x: int
-    y: int
-    icon_x: float
-    home_x: int
-    home_y: int
+    x_ratio: float      # 表示名などの位置（比率）
+    y_ratio: float
+    icon_x_ratio: float # 現在のアイコン位置（比率）
+    home_x_ratio: float # ホームポジション（比率）
+    home_y_ratio: float
     team_color: Tuple[int, int, int]
     name: str
     border_color: Optional[Tuple[int, int, int]]
-    part_status: Dict[str, bool] # 部位生存フラグ
+    part_status: Dict[str, bool]
 
 @dataclass
 class ActionButtonData:
@@ -55,7 +54,7 @@ class CutinStateData:
     bar_height: int = 0
     mirror: bool = False
     
-    # キャラクター表示
+    # キャラクター表示（座標はピクセル計算済み）
     attacker: Dict[str, Any] = field(default_factory=dict)
     defender: Dict[str, Any] = field(default_factory=dict)
     
@@ -74,7 +73,7 @@ class BattleStateSnapshot:
     # ターゲット指示ライン
     target_line: Optional[Tuple[CharacterViewData, CharacterViewData, float]] = None
     
-    # ターゲットマーカー（メニュー選択中の予定ターゲット）
+    # ターゲットマーカー
     target_marker_eid: Optional[int] = None
 
     # UIパネル

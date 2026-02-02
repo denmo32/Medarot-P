@@ -38,13 +38,7 @@ class BattleSystem:
                  data_manager: GameDataManager,
                  save_manager: SaveDataManager,
                  player_count: int = PLAYER_COUNT, 
-                 enemy_count: int = ENEMY_COUNT,
-                 player_team_x: int = UI_PARAMS['PLAYER_TEAM_X'], 
-                 enemy_team_x: int = UI_PARAMS['ENEMY_TEAM_X'],
-                 team_y_offset: int = UI_PARAMS['TEAM_Y_OFFSET'], 
-                 character_spacing: int = UI_PARAMS['CHARACTER_SPACING'],
-                 gauge_width: int = UI_PARAMS['GAUGE_WIDTH'], 
-                 gauge_height: int = UI_PARAMS['GAUGE_HEIGHT']):
+                 enemy_count: int = ENEMY_COUNT):
         
         self.data_manager = data_manager
         self.save_manager = save_manager
@@ -52,9 +46,13 @@ class BattleSystem:
         self.world = World()
         BattleEntityFactory.create_battle_context(self.world)
         BattleEntityFactory.create_input_manager(self.world)
+        
+        # UI設定から比率パラメータを渡す
         BattleEntityFactory.create_teams(self.world, player_count, enemy_count,
-            player_team_x, enemy_team_x, team_y_offset, character_spacing,
-            gauge_width, gauge_height,
+            UI_PARAMS['PLAYER_TEAM_X_RATIO'], 
+            UI_PARAMS['ENEMY_TEAM_X_RATIO'],
+            UI_PARAMS['TEAM_Y_START_RATIO'], 
+            UI_PARAMS['CHAR_SPACING_RATIO'],
             self.data_manager, self.save_manager
         )
         

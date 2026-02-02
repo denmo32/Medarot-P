@@ -1,35 +1,37 @@
 """
 UI・演出専用の計算ロジック
-ECSの世界とは隔離され、進行度(0.0~1.0)に基づいた座標や表示状態の計算のみを行う。
 """
 
-from typing import Dict, Any, Optional
-from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
+from typing import Any, Tuple
 from domain.constants import TraitType
 from .snapshot import CutinStateData
+from ui.config import SCREEN_HEIGHT
 
 class CutinAnimationLogic:
-    """カットイン演出のシーケンス計算を司る（UIレイヤー専用）"""
+    """カットイン演出のシーケンス計算"""
 
-    # 演出タイミングの定数（秒数ではなく進行度 0.0 ~ 1.0 に対する割合）
     T_ENTER = 0.2
-    # 格闘用シーケンス
+    # 格闘
     T_MELEE_DASH = 0.35
     T_MELEE_HIT = 0.55
     T_MELEE_LEAVE = 0.75
-    # 射撃用シーケンス
+    # 射撃
     T_SHOOT_FIRE = 0.25
     T_SHOOT_SWAP_START = 0.45
     T_SHOOT_SWAP_END = 0.7
     T_SHOOT_IMPACT = 0.8
 
     @classmethod
-    def calculate_frame(cls, progress: float, trait: str, is_enemy: bool, hit_result: Any) -> CutinStateData:
-        """指定された進行度におけるカットインの状態を計算する"""
-        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT
-        cy = sh // 2 - 20
+    def calculate_frame(cls, progress: float, trait: str, is_enemy: bool, hit_result: Any, screen_size: Tuple[int, int]) -> CutinStateData:
+        """
+        指定された進行度におけるカットインの状態を計算する。
+        座標はピクセルで計算して返す（レンダリング時に再変換する必要がないように）。
+        """
+        sw, sh = screen_size
+        s = sh / SCREEN_HEIGHT
         
-        # 基本的な背景と帯のフェード
+        cy = sh // 2 - int(20 * s) # 基準高さからの補正
+        
         fade_ratio = min(1.0, progress / cls.T_ENTER)
         state = CutinStateData(
             is_active=True,
@@ -38,27 +40,32 @@ class CutinAnimationLogic:
             mirror=is_enemy
         )
 
-        # 攻撃タイプ（格闘/射撃）に応じた座標計算
         if trait in TraitType.MELEE_TRAITS:
-            cls._calc_melee_sequence(state, progress, sw, cy)
+            cls._calc_melee_sequence(state, progress, sw, cy, sh)
         else:
-            cls._calc_shoot_sequence(state, progress, sw, cy, hit_result)
+            cls._calc_shoot_sequence(state, progress, sw, cy, hit_result, sh)
 
-        # 共通：ポップアップ（ダメージ等）の判定
+        # ポップアップ
         impact_t = cls.T_MELEE_HIT if trait in TraitType.MELEE_TRAITS else cls.T_SHOOT_IMPACT
         if progress > impact_t and hit_result:
             anim_t = min(1.0, (progress - impact_t) / (1.0 - impact_t))
-            state.popup = {'visible': True, 'x': sw - 150, 'y': cy - 60 - (40 * anim_t), 'result': hit_result}
+            # 画面右側、中央より少し上
+            px = sw - (sw * 0.18)
+            py = cy - (sh * 0.1) - (sh * 0.06 * anim_t)
+            state.popup = {'visible': True, 'x': px, 'y': py, 'result': hit_result}
 
-        # 共通：敵側のアクションなら座標を反転
         if is_enemy:
             cls._apply_mirroring(state, sw)
 
         return state
 
     @classmethod
-    def _calc_melee_sequence(cls, state, progress, sw, cy):
-        l_x, r_x, off = 150, sw - 150, 400
+    def _calc_melee_sequence(cls, state, progress, sw, cy, sh):
+        # 画面幅に応じた相対的なオフセット
+        l_x = sw * 0.18
+        r_x = sw * 0.82
+        off = sw * 0.5 
+        
         atk, defn = {'y': cy, 'visible': True}, {'x': r_x, 'y': cy, 'visible': True}
         
         if progress < cls.T_ENTER:
@@ -69,19 +76,26 @@ class CutinAnimationLogic:
             atk['x'] = l_x
         elif progress < cls.T_MELEE_HIT:
             r = (progress - cls.T_MELEE_DASH) / (cls.T_MELEE_HIT - cls.T_MELEE_DASH)
-            atk['x'] = l_x + (r_x - 100 - l_x) * (r * r)
+            # 相手の手前まで突進
+            target_x = r_x - (sw * 0.12)
+            atk['x'] = l_x + (target_x - l_x) * (r * r)
         elif progress < cls.T_MELEE_LEAVE:
-            atk['x'] = r_x - 100
+            atk['x'] = r_x - (sw * 0.12)
             state.effect = {'visible': True, 'x': r_x, 'y': cy, 'progress': progress, 'start_time': cls.T_MELEE_HIT}
         else:
             r = (progress - cls.T_MELEE_LEAVE) / (1.0 - cls.T_MELEE_LEAVE)
-            atk['x'] = (r_x - 100) + (sw + off - (r_x - 100)) * (r * r)
+            start_x = r_x - (sw * 0.12)
+            # 画面外へ突き抜ける
+            atk['x'] = start_x + (sw + off - start_x) * (r * r)
             
         state.attacker, state.defender = atk, defn
 
     @classmethod
-    def _calc_shoot_sequence(cls, state, progress, sw, cy, hit_result):
-        l_x, r_x, off = 150, sw - 150, 400
+    def _calc_shoot_sequence(cls, state, progress, sw, cy, hit_result, sh):
+        l_x = sw * 0.18
+        r_x = sw * 0.82
+        off = sw * 0.5
+        
         atk, defn = {'y': cy, 'visible': True}, {'y': cy, 'visible': True}
         bul = {'visible': False, 'x': 0, 'y': cy}
 
@@ -99,29 +113,32 @@ class CutinAnimationLogic:
         else:
             atk['x'], defn['x'] = -off * 2, r_x
 
-        # 弾丸（弾道）
+        # 弾丸
         if progress >= cls.T_SHOOT_FIRE:
             bul['visible'] = True
             mid_x = sw // 2
+            bullet_offset = sw * 0.1 # 銃口や着弾のオフセット
+            
             if progress < cls.T_SHOOT_SWAP_START:
                 r = (progress - cls.T_SHOOT_FIRE) / (cls.T_SHOOT_SWAP_START - cls.T_SHOOT_FIRE)
-                bul['x'] = (l_x + 80) + (mid_x - (l_x + 80)) * r
+                bul['x'] = (l_x + bullet_offset) + (mid_x - (l_x + bullet_offset)) * r
             elif progress < cls.T_SHOOT_SWAP_END:
                 r = (progress - cls.T_SHOOT_SWAP_START) / (cls.T_SHOOT_SWAP_END - cls.T_SHOOT_SWAP_START)
-                bul['x'] = mid_x + (50 * r)
+                bul['x'] = mid_x + (bullet_offset * r)
             else:
                 r = (progress - cls.T_SHOOT_SWAP_END) / (cls.T_SHOOT_IMPACT - cls.T_SHOOT_SWAP_END)
+                start_b = mid_x + bullet_offset
                 if progress <= cls.T_SHOOT_IMPACT:
-                    bul['x'] = (mid_x + 50) + (r_x - (mid_x + 50)) * r
+                    bul['x'] = start_b + (r_x - start_b) * r
                 else:
                     if hit_result and hit_result.is_hit: bul['visible'] = False
                     else:
                         r_miss = (progress - cls.T_SHOOT_IMPACT) / (1.0 - cls.T_SHOOT_IMPACT)
-                        bul['x'] = r_x + (sw - r_x + 100) * r_miss
+                        bul['x'] = r_x + (sw - r_x + bullet_offset * 2) * r_miss
 
         state.attacker, state.defender, state.bullet = atk, defn, bul
 
     @classmethod
     def _apply_mirroring(cls, state, sw):
-        for d in [state.attacker, state.defender, state.bullet]:
+        for d in [state.attacker, state.defender, state.bullet, state.effect, state.popup]:
             if 'x' in d: d['x'] = sw - d['x']

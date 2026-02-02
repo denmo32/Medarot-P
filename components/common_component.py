@@ -5,9 +5,9 @@ from core.ecs import Component
 
 @dataclass
 class PositionComponent(Component):
-    """位置コンポーネント"""
-    x: int
-    y: int
+    """位置コンポーネント (比率 0.0 ~ 1.0)"""
+    x: float
+    y: float
 
 @dataclass
 class NameComponent(Component):
