@@ -4,7 +4,7 @@ ECSの状態を一切知らず、受け取った値の描画のみを行う低�
 """
 
 import pygame
-from ui.config import COLORS, FONT_NAMES, SCREEN_HEIGHT
+from ui.config import COLORS, FONT_NAMES, ACTION_BUTTON_FONT_NAME, SCREEN_HEIGHT
 from core.utils import resource_path
 
 class BaseRenderer:
@@ -24,6 +24,7 @@ class BaseRenderer:
     def _init_fonts(self):
         """フォントの初期化。画面サイズに応じたスケーリングはここで行う"""
         font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
+        button_font_path = resource_path(ACTION_BUTTON_FONT_NAME)
         
         # フォントサイズ設定 (初期化時のスケールで固定)
         scale = self.ui_scale
@@ -33,7 +34,9 @@ class BaseRenderer:
             'normal': pygame.font.Font(font_path, int(20 * scale)),
             'medium': pygame.font.Font(font_path, int(24 * scale)),
             'large': pygame.font.Font(font_path, int(32 * scale)),
-            'notice': pygame.font.Font(font_path, int(36 * scale))
+            'notice': pygame.font.Font(font_path, int(36 * scale)),
+            'action_button': pygame.font.Font(button_font_path, int(24 * scale)),
+            'action_button_focus': pygame.font.Font(button_font_path, int(28 * scale))
         }
 
     def clear(self):

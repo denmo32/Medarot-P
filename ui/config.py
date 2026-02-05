@@ -19,6 +19,13 @@ COLORS = {
     'BUTTON_BG': (150, 150, 150),
     'BUTTON_DISABLED_BG': (80, 80, 80),
     'BUTTON_BORDER': (0, 0, 0),
+    
+    # 行動選択ボタン専用カラー
+    'ACTION_BTN_NORMAL_BG': (20, 20, 180),
+    'ACTION_BTN_NORMAL_TEXT': (255, 255, 255),
+    'ACTION_BTN_FOCUS_BG': (120, 255, 50),
+    'ACTION_BTN_FOCUS_TEXT': (0, 0, 0),
+
     'GUIDE_LINE': (120, 120, 120),
     'HOME_MARKER': (100, 100, 100),
     'BORDER_CHARGE': (255, 150, 0),
@@ -31,6 +38,9 @@ COLORS = {
 
 # フォント設定
 FONT_NAMES = ['ui/assets/fonts/NotoSansJP-Regular.ttf']
+ACTION_BUTTON_FONT_NAME = 'ui/assets/fonts/851Gkktt_005.ttf'
+# ACTION_BUTTON_FONT_NAME = 'ui/assets/fonts/NaishoMoji-Regular.otf'
+# ACTION_BUTTON_FONT_NAME = 'ui/assets/fonts/002zouver.2-Regular.ttf'
 
 # レイアウトパラメータ (比率定義 0.0 ~ 1.0)
 UI_PARAMS = {

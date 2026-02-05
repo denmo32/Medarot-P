@@ -48,10 +48,24 @@ class UIPanelRenderer:
         layout = calculate_action_menu_layout(len(data.buttons), (sw, sh))
         
         for i, (btn, rect) in enumerate(zip(data.buttons, layout)):
-            bg = COLORS['BUTTON_BG'] if btn.enabled else COLORS['BUTTON_DISABLED_BG']
-            border = (255, 255, 0) if i == data.selected_index else COLORS['BUTTON_BORDER']
-            self.m.draw_box(rect, bg, border, 3 if i == data.selected_index else 2)
-            self.m.draw_text(btn.label, rect.center, font_type='medium', align='center')
+            is_selected = (i == data.selected_index)
+            
+            if not btn.enabled:
+                bg = COLORS['BUTTON_DISABLED_BG']
+                text_color = (150, 150, 150)
+                border = COLORS['BUTTON_BORDER']
+            elif is_selected:
+                bg = COLORS['ACTION_BTN_FOCUS_BG']
+                text_color = COLORS['ACTION_BTN_FOCUS_TEXT']
+                border = COLORS['BUTTON_BORDER']
+            else:
+                bg = COLORS['ACTION_BTN_NORMAL_BG']
+                text_color = COLORS['ACTION_BTN_NORMAL_TEXT']
+                border = COLORS['BUTTON_BORDER']
+
+            self.m.draw_box(rect, bg, border, 2)
+            font_type = 'action_button_focus' if is_selected else 'action_button'
+            self.m.draw_text(btn.label, rect.center, color=text_color, font_type=font_type, align='center')
 
     def _render_game_over(self, data):
         sw, sh = self.m.get_screen_size()
@@ -66,4 +80,3 @@ class UIPanelRenderer:
         self.m.draw_text_with_outline(f"{data.winner}の勝利！", mid_x, mid_y, color, 'notice', 'center')
         
         notice_off_y = int(sh * 0.08)
-        self.m.draw_text("ESCキーで終了", (mid_x, mid_y + notice_off_y), COLORS['TEXT'], 'medium', 'center')
