@@ -27,16 +27,12 @@ class ActionResolutionSystem(BattleSystemBase):
         if attacker_comps:
             behavior = ActionBehaviorRegistry.get(event.action_type)
             
-            # 1. 結果オブジェクトの取得（判断）
+            # 1. 結果オブジェクトの取得
             result = behavior.resolve(self.world, event, self.context)
             
-            # 2. 世界への適用（副作用）
+            # 2. 世界への適用（副作用：ダメージ付与、ゲージリセット、フェーズ遷移）
             self.apply_resolution_result(event.attacker_id, result, event_id=event_eid)
         
-        # 解決後、特定の待機フェーズ以外ならクリーンアップ
+        # 演出結果表示（CUTIN_RESULT）やログ待ち（LOG_WAIT）以外なら、イベントを削除してクリーンアップ
         if self.flow.current_phase not in [BattlePhase.CUTIN_RESULT, BattlePhase.LOG_WAIT]:
-            self._cleanup_event(event_eid)
-
-    def _cleanup_event(self, event_eid):
-        self.world.delete_entity(event_eid)
-        self.flow.processing_event_id = None
+            self.delete_event(event_eid)

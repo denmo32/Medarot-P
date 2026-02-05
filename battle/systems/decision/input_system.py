@@ -1,5 +1,6 @@
 """入力処理システム"""
 
+import pygame
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from ui.config import MENU_PART_ORDER
@@ -60,11 +61,12 @@ class InputSystem(BattleSystemBase):
                 self._clear_execution_state(flow)
 
     def _clear_execution_state(self, flow):
+        event_id = flow.processing_event_id
+        if event_id is not None:
+            self.delete_event(event_id)
+        
         flow.current_phase = BattlePhase.IDLE
         flow.active_actor_id = None
-        if flow.processing_event_id is not None:
-            self.world.delete_entity(flow.processing_event_id)
-            flow.processing_event_id = None
 
     def _handle_action_selection(self, input_comp, context, flow):
         eid = context.current_turn_entity_id
@@ -73,7 +75,6 @@ class InputSystem(BattleSystemBase):
             return
 
         # キーボードによる選択変更
-        # Index 0: Head, 1: RightArm(Left on screen), 2: LeftArm(Right on screen), 3: Skip
         if input_comp.btn_up:
             context.selected_menu_index = 0
         elif input_comp.btn_left:
@@ -85,7 +86,8 @@ class InputSystem(BattleSystemBase):
                 context.selected_menu_index = 2
 
         # マウス座標による選択変更（ViewModelに座標解釈を委譲）
-        mouse_idx = self.view_model.hit_test_action_menu(input_comp.mouse_x, input_comp.mouse_y)
+        screen_size = pygame.display.get_surface().get_size()
+        mouse_idx = self.view_model.hit_test_action_menu(input_comp.mouse_x, input_comp.mouse_y, screen_size)
         if mouse_idx is not None:
             context.selected_menu_index = mouse_idx
 

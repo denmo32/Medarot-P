@@ -10,6 +10,7 @@ class GaugeSystem(BattleSystemBase):
     """ATBゲージの進行管理、および状態異常のカウントダウンを担当"""
 
     def update(self, dt: float):
+        # バトルが停止中（ログ表示中や演出中）はゲージを進めない
         if not self.context or not self.flow or self.flow.current_phase != BattlePhase.IDLE:
             return
 
@@ -21,39 +22,37 @@ class GaugeSystem(BattleSystemBase):
         # 1. 状態異常の更新
         for _, comps in active_entities:
             gauge = comps['gauge']
-            gauge.active_effects = GaugeMechanics.get_updated_effects(gauge.active_effects, dt)
+            if gauge.active_effects:
+                gauge.active_effects = GaugeMechanics.get_updated_effects(gauge.active_effects, dt)
 
-        # 2. 行動の継続妥当性を検証
+        # 2. 中断判定とゲージ進行
+        # 誰かが行動待機中の場合は、時間は進めるがゲージ増加は行わない
+        time_step = 0.0 if self.context.waiting_queue else dt
+
         for eid, comps in active_entities:
-            # 判断をMechanicsに委譲
+            gauge = comps['gauge']
+
+            # 行動の継続妥当性を検証（パーツ破壊チェックなど）
             interruption = ActionMechanics.validate_action_continuity(self.world, eid)
             if not interruption.is_valid:
-                # 副作用を適用
                 self.apply_gauge_reset(eid, interruption.reset_data)
                 self.manage_queue(eid, False)
                 self.apply_phase_transition(PhaseTransition(BattlePhase.LOG_WAIT, logs=[interruption.message]))
-                # ログ待ちに入った場合はこのフレームの他のゲージ処理は中断
+                # ログ表示フェーズに入るため、このフレームの処理を打ち切る
                 return
 
-        # 3. 待機列の同期
-        for eid, comps in active_entities:
-            # ゲージ進行計算（副作用なしの問い合せ）
-            summary = GaugeMechanics.calculate_tick(comps['gauge'], dt=0)
-            self.manage_queue(eid, summary.should_be_in_queue)
-        
-        # 誰かが行動待機中ならゲージ進行は停止
-        if self.context.waiting_queue:
-            return
-
-        # 4. ゲージ進行処理
-        for eid, comps in active_entities:
-            gauge = comps['gauge']
-            summary = GaugeMechanics.calculate_tick(gauge, dt)
+            # ゲージ進行計算
+            summary = GaugeMechanics.calculate_tick(gauge, time_step)
             
-            # 値の更新
+            # ゲージ値の更新
             gauge.progress = summary.new_progress
             
-            # 放熱完了のチェックとリセット（副作用の実行）
+            # 放熱完了のチェックとリセット
             if summary.is_cooldown_finished:
                 reset = ActionMechanics.get_choice_reset_data()
                 self.apply_gauge_reset(eid, reset)
+                # リセット後は待機列に入る必要がない
+                self.manage_queue(eid, False)
+            else:
+                # 充填完了、または行動選択待ちならキューに追加
+                self.manage_queue(eid, summary.should_be_in_queue)

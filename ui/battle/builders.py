@@ -100,10 +100,24 @@ class FieldSnapshotBuilder:
         return target_data[0] if target_data else None
 
     def build_target_line(self, characters, flow):
-        if flow.current_phase != BattlePhase.TARGET_INDICATION: return None
+        # ターゲット演出中、またはその後のカットイン演出中も表示を維持する
+        display_phases = [
+            BattlePhase.TARGET_INDICATION, 
+            BattlePhase.ATTACK_DECLARATION, 
+            BattlePhase.CUTIN, 
+            BattlePhase.CUTIN_RESULT
+        ]
+        if flow.current_phase not in display_phases: return None
+
         event = self.world.get_component(flow.processing_event_id, 'actionevent')
         if event and event.attacker_id in characters and event.current_target_id in characters:
-            return (characters[event.attacker_id], characters[event.current_target_id], max(0, BattleTiming.TARGET_INDICATION - flow.phase_timer))
+            # ターゲット指示フェーズ以外ではアニメーションを一時停止（固定のタイムオフセットを返す）
+            if flow.current_phase == BattlePhase.TARGET_INDICATION:
+                time_offset = max(0, BattleTiming.TARGET_INDICATION - flow.phase_timer)
+            else:
+                time_offset = BattleTiming.TARGET_INDICATION
+                
+            return (characters[event.attacker_id], characters[event.current_target_id], time_offset)
         return None
 
 

@@ -17,8 +17,11 @@ class BattleRenderSystem(System):
         self.renderer = BattleRenderer(screen)
 
     def update(self, dt: float):
-        # 1. 状態のスナップショットを生成
-        snapshot = self.view_model.create_snapshot()
+        # 1. 現在の画面サイズを取得
+        screen_size = self.renderer.get_screen_size()
         
-        # 2. レンダラーに描画させる
+        # 2. 状態のスナップショットを生成（ロジック層に画面サイズを渡す）
+        snapshot = self.view_model.create_snapshot(screen_size)
+        
+        # 3. レンダラーに描画させる
         self.renderer.render(snapshot)

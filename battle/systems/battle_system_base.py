@@ -33,7 +33,6 @@ class BattleSystemBase(System):
     def change_phase(self, next_phase: str, timer: float = 0.0):
         """
         単純なフェーズ遷移を行うショートカット。
-        IDLE遷移時のクリーンアップなどは apply_phase_transition で処理される。
         """
         self.apply_phase_transition(PhaseTransition(next_phase=next_phase, timer=timer))
 
@@ -61,6 +60,12 @@ class BattleSystemBase(System):
             flow.active_actor_id = None
             flow.cutin_progress = 0.0
 
+    def delete_event(self, event_id: int):
+        """ActionEventエンティティを削除し、フローの管理IDをリセットする"""
+        if self.flow and self.flow.processing_event_id == event_id:
+            self.flow.processing_event_id = None
+        self.world.delete_entity(event_id)
+
     def apply_gauge_reset(self, entity_id: int, reset_data: GaugeResetData):
         """ゲージリセット指示を適用する"""
         comps = self.world.try_get_entity(entity_id)
@@ -85,38 +90,36 @@ class BattleSystemBase(System):
             queue.remove(entity_id)
 
     def apply_resolution_result(self, entity_id: int, result: ResolutionResult, event_id: Optional[int] = None):
-        """アクション解決結果を適用する"""
-        # ログの追加
+        """アクション解決結果（演出終了後の副作用指示書）を適用する"""
+        # 1. ログの追加
         if result.logs:
             self.context.battle_log.extend(result.logs)
             
-        # ダメージの発生
-        if result.damage_result:
-            dr = result.damage_result
-            damage_comp = DamageEventComponent(
-                attacker_id=dr.attacker_id,
-                attacker_part=dr.attacker_part,
-                damage=dr.damage,
-                target_part=dr.target_part,
-                is_critical=dr.is_critical,
-                added_effects=dr.added_effects
-            )
-            # 現在のイベントターゲットを取得して付与
-            if event_id is not None:
-                event_comps = self.world.try_get_entity(event_id)
-                if event_comps and 'actionevent' in event_comps:
-                    target_id = event_comps['actionevent'].current_target_id
-                    self.world.add_component(target_id, damage_comp)
+        # 2. ダメージの発生（ActionEventコンポーネント経由でターゲットを特定）
+        if result.damage_result and event_id is not None:
+            event_comps = self.world.try_get_entity(event_id)
+            if event_comps and 'actionevent' in event_comps:
+                target_id = event_comps['actionevent'].current_target_id
+                dr = result.damage_result
+                damage_comp = DamageEventComponent(
+                    attacker_id=dr.attacker_id,
+                    attacker_part=dr.attacker_part,
+                    damage=dr.damage,
+                    target_part=dr.target_part,
+                    is_critical=dr.is_critical,
+                    added_effects=dr.added_effects
+                )
+                self.world.add_component(target_id, damage_comp)
 
-        # ゲージのリセット
+        # 3. ゲージのリセット
         if result.gauge_reset:
             self.apply_gauge_reset(entity_id, result.gauge_reset)
         
-        # キューからの削除
+        # 4. キューからの削除
         if result.should_remove_from_queue:
             self.manage_queue(entity_id, False)
 
-        # フェーズ遷移
+        # 5. フェーズ遷移
         self.apply_phase_transition(PhaseTransition(
             next_phase=result.next_phase,
             timer=result.phase_timer
