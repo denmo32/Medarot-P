@@ -24,6 +24,7 @@ class ActionButtonData:
     """コマンドボタン情報"""
     label: str
     enabled: bool
+    skill_label: str = ""
 
 @dataclass
 class LogWindowData:

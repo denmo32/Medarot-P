@@ -7,6 +7,7 @@ from ui.config import UI_PARAMS, COLORS, PART_LABELS, MENU_PART_ORDER
 from battle.constants import BattlePhase, BattleTiming
 from domain.constants import GaugeStatus, TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
+from battle.mechanics.skill import SkillRegistry
 from .animation_logic import CutinAnimationLogic
 from .snapshot import (
     CharacterViewData, LogWindowData, 
@@ -127,8 +128,18 @@ class UISnapshotBuilder:
             p_id = comps['partlist'].parts.get(p_type)
             p_data = self.world.try_get_entity(p_id)
             if p_data:
-                buttons.append(ActionButtonData(label=p_data['name'].name, enabled=p_data['health'].hp > 0))
-        buttons.append(ActionButtonData(label="スキップ", enabled=True))
+                # SkillRegistryからスキル名を取得
+                skill_name = ""
+                if 'attack' in p_data:
+                    skill_type = p_data['attack'].skill_type
+                    skill_name = SkillRegistry.get(skill_type).name
+                
+                buttons.append(ActionButtonData(
+                    label=p_data['name'].name, 
+                    enabled=p_data['health'].hp > 0,
+                    skill_label=skill_name
+                ))
+        buttons.append(ActionButtonData(label="スキップ", enabled=True, skill_label="なし"))
         
         return ActionMenuData(actor_name=comps['medal'].nickname, buttons=buttons, selected_index=context.selected_menu_index, is_active=True)
 

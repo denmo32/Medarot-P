@@ -69,6 +69,23 @@ class BaseRenderer:
         if border_color:
             pygame.draw.rect(self.screen, border_color, rect, border_width)
 
+    def draw_pipe_box(self, rect, bg_color, pipe_color, joint_color):
+        """パイプ装飾付きのボックスを描画"""
+        x, y, w, h = rect
+        pygame.draw.rect(self.screen, bg_color, rect)
+        
+        thick = self.scaled(6)
+        pygame.draw.rect(self.screen, pipe_color, rect, thick)
+        
+        js = self.scaled(12) # ジョイントのサイズ
+        # 四隅だけにジョイントを配置
+        joints = [
+            (x, y), (x + w - js, y), (x, y + h - js), (x + w - js, y + h - js)
+        ]
+        for jx, jy in joints:
+            pygame.draw.rect(self.screen, joint_color, (jx, jy, js, js))
+            pygame.draw.rect(self.screen, (0, 0, 0), (jx, jy, js, js), 1)
+
     def draw_text(self, text, pos, color=COLORS['TEXT'], font_type='normal', align='left'):
         """テキストを描画"""
         surf = self.fonts[font_type].render(str(text), True, color)

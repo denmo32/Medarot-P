@@ -21,7 +21,8 @@ COLORS = {
     'BUTTON_BORDER': (0, 0, 0),
     
     # 行動選択ボタン専用カラー
-    'ACTION_BTN_NORMAL_BG': (20, 20, 180),
+    'ACTION_MENU_BG': (5, 5, 40),          # 行動選択時背景：装飾なしの暗い青
+    'ACTION_BTN_NORMAL_BG': (60, 80, 220), # 非フォーカス：少し明るい青に変更
     'ACTION_BTN_NORMAL_TEXT': (255, 255, 255),
     'ACTION_BTN_FOCUS_BG': (120, 255, 50),
     'ACTION_BTN_FOCUS_TEXT': (0, 0, 0),
@@ -34,6 +35,12 @@ COLORS = {
     'PANEL_BG': (35, 45, 60),
     'PANEL_BORDER': (60, 70, 90),
     'SELECT_HIGHLIGHT': (0, 150, 255),
+
+    # メッセージウィンドウ専用カラー (パイプ装飾)
+    'MSG_BG': (225, 195, 64),     # 落ち着いたイエロー
+    'MSG_PIPE': (180, 60, 20),    # 深いオレンジ
+    'MSG_JOINT': (100, 30, 10),   # 暗いジョイント
+    'MSG_TEXT': (0, 0, 0),        # 黒
 }
 
 # フォント設定
