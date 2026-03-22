@@ -1,10 +1,11 @@
 """バトルフロー制御ロジック"""
 
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict, Any
 from dataclasses import dataclass, field
 from battle.constants import BattlePhase, ActionType
 from battle.mechanics.skill import SkillRegistry
 from battle.mechanics.log import LogBuilder
+from core.ecs import World
 
 @dataclass
 class PhaseTransition:
@@ -16,8 +17,17 @@ class PhaseTransition:
     logs: List[str] = field(default_factory=list)
     clear_logs: bool = False
 
-def get_battle_state(world) -> tuple[Optional[any], Optional[any]]:
-    """ワールドからBattleContextとBattleFlowを取得する"""
+def get_battle_state(world: World) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """
+    ワールドから BattleContext と BattleFlow を取得する。
+    
+    Args:
+        world: ECS のワールドインスタンス
+        
+    Returns:
+        (battle_context, battle_flow) のタプル。
+        見つからない場合は (None, None)。
+    """
     _, comps = world.get_first_entity('battlecontext', 'battleflow')
     if not comps:
         return None, None
@@ -45,16 +55,16 @@ class FlowMechanics:
 
         attacker_name = attacker_comps['medal'].nickname
         trait_text, skill_name = "", "攻撃"
-        
+
         part_id = attacker_comps['partlist'].parts.get(event.part_type)
         part_comps = world.try_get_entity(part_id)
         if part_comps and 'attack' in part_comps:
             attack_comp = part_comps['attack']
             trait_text = f" {attack_comp.trait}！"
             skill_name = SkillRegistry.get(attack_comp.skill_type).name
-        
+
         log = LogBuilder.get_attack_declaration(attacker_name, skill_name, trait_text)
-        
+
         return PhaseTransition(
             next_phase=BattlePhase.ATTACK_DECLARATION,
             logs=[log]

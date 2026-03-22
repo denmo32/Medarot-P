@@ -1,13 +1,16 @@
 """アクション種別ごとの実行振る舞いロジック"""
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from domain.constants import ActionType
 from battle.constants import BattlePhase
 from battle.mechanics.action import ActionMechanics, GaugeResetData
 from battle.mechanics.log import LogBuilder
 from components.battle_component import StatusEffect
+
+if TYPE_CHECKING:
+    from components.battle_component import DamageEventComponent
 
 @dataclass(frozen=True)
 class DamageResult:
@@ -18,6 +21,23 @@ class DamageResult:
     target_part: str
     is_critical: bool = False
     added_effects: List[StatusEffect] = field(default_factory=list)
+
+    def to_component(self) -> 'DamageEventComponent':
+        """
+        DamageEventComponent を生成する。
+        
+        Returns:
+            DamageEventComponent インスタンス
+        """
+        from components.battle_component import DamageEventComponent
+        return DamageEventComponent(
+            attacker_id=self.attacker_id,
+            attacker_part=self.attacker_part,
+            damage=self.damage,
+            target_part=self.target_part,
+            is_critical=self.is_critical,
+            added_effects=self.added_effects
+        )
 
 @dataclass
 class ResolutionResult:
