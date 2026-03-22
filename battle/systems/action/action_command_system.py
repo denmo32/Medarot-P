@@ -6,9 +6,14 @@ from battle.constants import BattlePhase
 from domain.gauge_logic import calculate_action_times
 
 class ActionCommandSystem(BattleSystemBase):
+    """プレイヤー/エネミーの行動コマンドをゲージに適用"""
+
     def update(self, dt: float):
-        context, flow = self.battle_state
-        if not context or not flow: return
+        context = self.state.context
+        flow = self.state.flow
+        
+        if not context or not flow:
+            return
 
         for eid, comps in self.world.get_entities_with_components('actioncommand', 'gauge', 'partlist'):
             cmd = comps['actioncommand']
@@ -27,15 +32,15 @@ class ActionCommandSystem(BattleSystemBase):
                     mod = atk_comp.time_modifier
                     gauge.charging_time = c_t * mod
                     gauge.cooldown_time = cd_t * mod
-            
+
             gauge.status = GaugeStatus.CHARGING
             gauge.progress = 0.0
-            
+
             context.current_turn_entity_id = None
-            
-            # フェーズをIDLEに戻す（キュー操作含む）
-            self.change_phase(BattlePhase.IDLE)
-            
+
+            # フェーズを IDLE に戻す（キュー操作含む）
+            self.state.change_phase(BattlePhase.IDLE)
+
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)
 

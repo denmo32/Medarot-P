@@ -1,4 +1,4 @@
-"""ATBゲージ更新システム"""
+"""ATB ゲージ更新システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
@@ -7,11 +7,11 @@ from battle.mechanics.action import ActionMechanics
 from battle.mechanics.flow import PhaseTransition
 
 class GaugeSystem(BattleSystemBase):
-    """ATBゲージの進行管理、および状態異常のカウントダウンを担当"""
+    """ATB ゲージの進行管理、および状態異常のカウントダウンを担当"""
 
     def update(self, dt: float):
         # バトルが停止中（ログ表示中や演出中）はゲージを進めない
-        if not self.context or not self.flow or self.flow.current_phase != BattlePhase.IDLE:
+        if not self.state.context or not self.state.flow or self.state.flow.current_phase != BattlePhase.IDLE:
             return
 
         active_entities = [
@@ -27,7 +27,7 @@ class GaugeSystem(BattleSystemBase):
 
         # 2. 中断判定とゲージ進行
         # 誰かが行動待機中の場合は、時間は進めるがゲージ増加は行わない
-        time_step = 0.0 if self.context.waiting_queue else dt
+        time_step = 0.0 if self.state.context.waiting_queue else dt
 
         for eid, comps in active_entities:
             gauge = comps['gauge']
@@ -35,24 +35,24 @@ class GaugeSystem(BattleSystemBase):
             # 行動の継続妥当性を検証（パーツ破壊チェックなど）
             interruption = ActionMechanics.validate_action_continuity(self.world, eid)
             if not interruption.is_valid:
-                self.apply_gauge_reset(eid, interruption.reset_data)
-                self.manage_queue(eid, False)
-                self.apply_phase_transition(PhaseTransition(BattlePhase.LOG_WAIT, logs=[interruption.message]))
+                self.state.apply_gauge_reset(eid, interruption.reset_data)
+                self.state.manage_queue(eid, False)
+                self.state.apply_phase_transition(PhaseTransition(BattlePhase.LOG_WAIT, logs=[interruption.message]))
                 # ログ表示フェーズに入るため、このフレームの処理を打ち切る
                 return
 
             # ゲージ進行計算
             summary = GaugeMechanics.calculate_tick(gauge, time_step)
-            
+
             # ゲージ値の更新
             gauge.progress = summary.new_progress
-            
+
             # 放熱完了のチェックとリセット
             if summary.is_cooldown_finished:
                 reset = ActionMechanics.get_choice_reset_data()
-                self.apply_gauge_reset(eid, reset)
+                self.state.apply_gauge_reset(eid, reset)
                 # リセット後は待機列に入る必要がない
-                self.manage_queue(eid, False)
+                self.state.manage_queue(eid, False)
             else:
                 # 充填完了、または行動選択待ちならキューに追加
-                self.manage_queue(eid, summary.should_be_in_queue)
+                self.state.manage_queue(eid, summary.should_be_in_queue)

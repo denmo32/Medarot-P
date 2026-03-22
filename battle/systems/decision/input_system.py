@@ -9,7 +9,7 @@ from battle.constants import BattlePhase, ActionType, BattleTiming
 class InputSystem(BattleSystemBase):
     """
     ユーザー入力を現在のフェーズに応じた処理に振り分ける。
-    座標による要素判定（Hit Test）はViewModelに委譲する。
+    座標による要素判定（Hit Test）は ViewModel に委譲する。
     """
     def __init__(self, world, view_model):
         super().__init__(world)
@@ -24,11 +24,14 @@ class InputSystem(BattleSystemBase):
     def update(self, dt: float):
         # 入力コンポーネント取得
         _, input_comps = self.world.get_first_entity('input')
-        if not input_comps: return
+        if not input_comps:
+            return
         input_comp = input_comps['input']
 
-        context, flow = self.battle_state
-        if not context or not flow: return
+        context = self.state.context
+        flow = self.state.flow
+        if not context or not flow:
+            return
 
         handler = self.handlers.get(flow.current_phase)
         if handler:
@@ -63,8 +66,8 @@ class InputSystem(BattleSystemBase):
     def _clear_execution_state(self, flow):
         event_id = flow.processing_event_id
         if event_id is not None:
-            self.delete_event(event_id)
-        
+            self.state.delete_event(event_id)
+
         flow.current_phase = BattlePhase.IDLE
         flow.active_actor_id = None
 
@@ -85,7 +88,7 @@ class InputSystem(BattleSystemBase):
             else:
                 context.selected_menu_index = 2
 
-        # マウス座標による選択変更（ViewModelに座標解釈を委譲）
+        # マウス座標による選択変更（ViewModel に座標解釈を委譲）
         screen_size = pygame.display.get_surface().get_size()
         mouse_idx = self.view_model.hit_test_action_menu(input_comp.mouse_x, input_comp.mouse_y, screen_size)
         if mouse_idx is not None:
@@ -96,9 +99,10 @@ class InputSystem(BattleSystemBase):
 
     def _issue_command(self, eid, context):
         comps = self.world.try_get_entity(eid)
-        if not comps or 'partlist' not in comps: return
+        if not comps or 'partlist' not in comps:
+            return
         part_list = comps['partlist']
-        
+
         idx = context.selected_menu_index
         if idx < len(MENU_PART_ORDER):
             p_type = MENU_PART_ORDER[idx]

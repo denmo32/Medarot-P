@@ -1,4 +1,4 @@
-"""バトル固有のECSコンポーネント定義（純粋データ構造）"""
+"""バトル固有の ECS コンポーネント定義（純粋データ構造）"""
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
@@ -14,18 +14,17 @@ class StatusEffect:
 
 @dataclass
 class GaugeComponent(Component):
-    """ATBゲージコンポーネント"""
-    value: float = 0.0
+    """ATB ゲージコンポーネント"""
     status: str = GaugeStatus.ACTION_CHOICE
-    
-    progress: float = field(init=False, default=0.0)
+    progress: float = 0.0
+
     selected_action: Optional[str] = field(init=False, default=None)
     selected_part: Optional[str] = field(init=False, default=None)
     part_targets: Dict[str, Optional[int]] = field(default_factory=dict)
-    
+
     charging_time: float = field(init=False, default=2.0)
     cooldown_time: float = field(init=False, default=2.0)
-    
+
     # 状態異常：汎用リストに変更
     active_effects: List[StatusEffect] = field(default_factory=list)
 
@@ -52,7 +51,7 @@ class PartComponent(Component):
 
 @dataclass
 class HealthComponent(Component):
-    """HPデータ"""
+    """HP データ"""
     hp: int
     max_hp: int
     display_hp: float = field(init=False)
@@ -82,7 +81,7 @@ class MobilityComponent(Component):
 
 @dataclass
 class PartListComponent(Component):
-    """機体が構成するパーツエンティティIDの辞書"""
+    """機体が構成するパーツエンティティ ID の辞書"""
     parts: Dict[str, int] = field(default_factory=dict)
 
 @dataclass

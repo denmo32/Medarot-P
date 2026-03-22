@@ -5,16 +5,19 @@ from battle.constants import BattlePhase
 from battle.mechanics.flow import FlowMechanics
 
 class TargetIndicatorSystem(BattleSystemBase):
+    """ターゲット指示演出の進行管理"""
+
     def update(self, dt: float):
-        context, flow = self.battle_state
+        context = self.state.context
+        flow = self.state.flow
+        
         if not context or flow.current_phase != BattlePhase.TARGET_INDICATION:
             return
 
         flow.phase_timer -= dt
-        
+
         if flow.phase_timer <= 0:
-            # 次の遷移情報をMechanicsから取得
+            # 次の遷移情報を Mechanics から取得
             transition = FlowMechanics.resolve_indicator_transition(self.world, flow.processing_event_id)
-            
             # 副作用を適用
-            self.apply_phase_transition(transition)
+            self.state.apply_phase_transition(transition)
