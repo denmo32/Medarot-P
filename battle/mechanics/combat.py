@@ -32,7 +32,7 @@ class CombatMechanics:
 
     @staticmethod
     def calculate_combat_result(
-        world,
+        state,
         attacker_id: int,
         target_id: int,
         target_desired_part: Optional[str],
@@ -40,48 +40,30 @@ class CombatMechanics:
     ) -> Optional[CombatResult]:
         """
         戦闘計算のメインエントリーポイント。
-        
-        Args:
-            world: ECS ワールド
-            attacker_id: 攻撃側エンティティ ID
-            target_id: 対象エンティティ ID
-            target_desired_part: 指定部位
-            attacker_part_type: 攻撃部位
-            
-        Returns:
-            戦闘計算結果。入力エラー時は None。
         """
-        # 1. データの準備と事前検証
-        attacker_comps = world.try_get_entity(attacker_id)
-        target_comps = world.try_get_entity(target_id)
-        if not attacker_comps or not target_comps:
+        # 1. パラメータ補正とペナルティの取得（HitCalculator へ委譲）
+        try:
+            stats = HitCalculator.calculate_adjusted_stats(
+                state, attacker_id, attacker_part_type, target_id
+            )
+        except ValueError:
             return None
 
-        atk_part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
-        atk_part_comps = world.try_get_entity(atk_part_id) if atk_part_id else None
-        if not atk_part_comps or 'attack' not in atk_part_comps:
-            return None
+        penalty = HitCalculator.get_defensive_penalty(state, target_id)
 
-        attack_comp = atk_part_comps['attack']
-
-        # 2. パラメータ補正とペナルティの取得（HitCalculator へ委譲）
-        stats = HitCalculator.calculate_adjusted_stats(
-            world, attacker_comps, atk_part_comps, target_comps
-        )
-        penalty = HitCalculator.get_defensive_penalty(world, target_comps)
-
-        # 3. 命中判定（HitCalculator へ委譲）
+        # 2. 命中判定（HitCalculator へ委譲）
         hit_prob, is_hit = HitCalculator.calculate_hit_probability(stats, penalty)
         if not is_hit:
             return CombatResult.miss()
 
-        # 4. ダメージ計算（DamageCalculator へ委譲）
-        # ターゲットの生存パーツとその HP を収集
-        target_part_hps = {
-            pt: world.try_get_entity(pid)['health'].hp 
-            for pt, pid in target_comps['partlist'].parts.items()
-            if world.try_get_entity(pid)['health'].hp > 0
-        }
+        # 3. ダメージ計算（DamageCalculator へ委譲）
+        target_part_hps = state.get_alive_parts_hp(target_id)
+        
+        # 攻撃パーツのコンポーネント取得（ダメージ計算用）
+        atk_part_comps = state.get_part_components(attacker_id, attacker_part_type, 'attack')
+        if not atk_part_comps:
+            return None
+        attack_comp = atk_part_comps['attack']
 
         damage_result = DamageCalculator.calculate_damage_result(
             attack_comp=attack_comp,

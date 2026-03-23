@@ -53,7 +53,7 @@ class ActionBehavior(ABC):
     """アクション（攻撃、スキップ等）の具体的な振る舞いを定義する基底クラス"""
 
     @abstractmethod
-    def initiate(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+    def initiate(self, state, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         """ActionEvent生成のためのターゲット解決。失敗（中断）時は (None, None) を返す"""
         pass
 
@@ -63,25 +63,23 @@ class ActionBehavior(ABC):
         pass
 
     @abstractmethod
-    def resolve(self, world, event, context) -> ResolutionResult:
+    def resolve(self, state, event, context) -> ResolutionResult:
         """アクション実行の結果（演出終了後）を計算して返す"""
         pass
 
 class AttackAction(ActionBehavior):
-    def initiate(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
-        return ActionMechanics.resolve_action_target(world, actor_eid, actor_comps, gauge)
+    def initiate(self, state, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+        return ActionMechanics.resolve_action_target(state, actor_eid, actor_comps, gauge)
 
     def get_initial_phase(self) -> str:
         return BattlePhase.TARGET_INDICATION
 
-    def resolve(self, world, event, context) -> ResolutionResult:
-        attacker_comps = world.try_get_entity(event.attacker_id)
-        attacker_name = attacker_comps['medal'].nickname
-        part_id = attacker_comps['partlist'].parts.get(event.part_type)
-        part_comps = world.try_get_entity(part_id)
+    def resolve(self, state, event, context) -> ResolutionResult:
+        attacker_comps = state.try_get_components(event.attacker_id, 'medal')
+        attacker_name = attacker_comps['medal'].nickname if attacker_comps else "Unknown"
         
         # 実行直前の生存チェック
-        if not part_comps or part_comps['health'].hp <= 0:
+        if not state.is_part_alive(event.attacker_id, event.part_type):
             return ResolutionResult(
                 next_phase=BattlePhase.LOG_WAIT,
                 logs=[LogBuilder.get_part_broken_attack(attacker_name)],
@@ -107,15 +105,15 @@ class AttackAction(ActionBehavior):
         )
 
 class SkipAction(ActionBehavior):
-    def initiate(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+    def initiate(self, state, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         return actor_eid, None
 
     def get_initial_phase(self) -> str:
         return BattlePhase.EXECUTING
 
-    def resolve(self, world, event, context) -> ResolutionResult:
-        attacker_comps = world.try_get_entity(event.attacker_id)
-        name = attacker_comps['medal'].nickname
+    def resolve(self, state, event, context) -> ResolutionResult:
+        attacker_comps = state.try_get_components(event.attacker_id, 'medal')
+        name = attacker_comps['medal'].nickname if attacker_comps else "Unknown"
         return ResolutionResult(
             next_phase=BattlePhase.LOG_WAIT,
             logs=[LogBuilder.get_skip_action(name)],

@@ -21,4 +21,4 @@ class TargetSelectionSystem(BattleSystemBase):
             if gauge.status == GaugeStatus.ACTION_CHOICE and not gauge.part_targets:
                 # 性格振る舞いの取得は Registry へ委譲
                 personality = PersonalityRegistry.get(comps['medal'].personality_id)
-                gauge.part_targets = personality.select_targets(self.world, eid)
+                gauge.part_targets = personality.select_targets(self.state, eid)

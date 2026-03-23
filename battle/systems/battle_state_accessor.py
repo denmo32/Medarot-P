@@ -23,6 +23,67 @@ class BattleStateAccessor:
     def __init__(self, world: World):
         self.world = world
 
+    # --- データ取得系メソッド ---
+
+    def try_get_components(self, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
+        """指定エンティティから指定されたコンポーネントを安全に取得"""
+        return self.world.try_get_components(entity_id, *names)
+
+    def get_part_entity_id(self, entity_id: int, part_type: str) -> Optional[int]:
+        """指定機体の指定部位のエンティティ ID を取得"""
+        comps = self.try_get_components(entity_id, 'partlist')
+        if not comps:
+            return None
+        return comps['partlist'].parts.get(part_type)
+
+    def get_part_components(self, entity_id: int, part_type: str, *names: str) -> Optional[Dict[str, Any]]:
+        """指定機体の指定部位から指定されたコンポーネントを取得"""
+        pid = self.get_part_entity_id(entity_id, part_type)
+        if pid is None:
+            return None
+        return self.try_get_components(pid, *names)
+
+    def is_entity_alive(self, entity_id: int) -> bool:
+        """エンティティが生存しているか（敗北フラグが立っていないか）"""
+        comps = self.world.try_get_entity(entity_id)
+        if not comps:
+            return False
+        defeated = comps.get('defeated')
+        return not defeated.is_defeated if defeated else True
+
+    def is_part_alive(self, entity_id: int, part_type: str) -> bool:
+        """指定部位が生存しているか（HP > 0）"""
+        p_comps = self.get_part_components(entity_id, part_type, 'health')
+        return p_comps and p_comps['health'].hp > 0
+
+    def get_alive_parts_hp(self, entity_id: int) -> Dict[str, int]:
+        """生存している部位名とその HP の辞書を取得"""
+        comps = self.try_get_components(entity_id, 'partlist')
+        if not comps:
+            return {}
+        
+        result = {}
+        for pt, pid in comps['partlist'].parts.items():
+            p_comps = self.world.try_get_entity(pid)
+            if p_comps and 'health' in p_comps:
+                hp = p_comps['health'].hp
+                if hp > 0:
+                    result[pt] = hp
+        return result
+
+    def get_team_entities(self, team_type: str, only_alive: bool = True) -> List[int]:
+        """指定チームのエンティティ ID リストを取得"""
+        result = []
+        for eid, comps in self.world.get_entities_with_components('team'):
+            if comps['team'].team_type == team_type:
+                if not only_alive or self.is_entity_alive(eid):
+                    result.append(eid)
+        return result
+
+    def get_entities_with_components(self, *names: str) -> List[Tuple[int, Dict[str, Any]]]:
+        """指定されたコンポーネントをすべて持つエンティティのリストを取得"""
+        return self.world.get_entities_with_components(*names)
+
     @property
     def context(self) -> Optional[Dict[str, Any]]:
         """BattleContextComponent へのアクセス"""

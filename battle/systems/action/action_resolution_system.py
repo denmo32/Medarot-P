@@ -29,7 +29,7 @@ class ActionResolutionSystem(BattleSystemBase):
             behavior = ActionBehaviorRegistry.get(event.action_type)
 
             # 1. 結果オブジェクトの取得
-            result = behavior.resolve(self.world, event, self.state.context)
+            result = behavior.resolve(self.state, event, self.state.context)
 
             # 2. 世界への適用（副作用：ダメージ付与、ゲージリセット、フェーズ遷移）
             self.state.apply_resolution_result(event.attacker_id, result, event_id=event_eid)

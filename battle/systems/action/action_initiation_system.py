@@ -44,7 +44,7 @@ class ActionInitiationSystem(BattleSystemBase):
         behavior = ActionBehaviorRegistry.get(gauge.selected_action)
 
         # 1. ターゲット解決
-        target_id, target_part = behavior.initiate(self.world, actor_eid, actor_comps, gauge)
+        target_id, target_part = behavior.initiate(self.state, actor_eid, actor_comps, gauge)
 
         # ターゲットロスト時の中断処理
         if not target_id:
@@ -69,7 +69,7 @@ class ActionInitiationSystem(BattleSystemBase):
         # 攻撃の場合は事前に計算を実行
         if gauge.selected_action == ActionType.ATTACK:
             event.calculation_result = CombatMechanics.calculate_combat_result(
-                self.world, actor_eid, target_id, target_part, gauge.selected_part
+                self.state, actor_eid, target_id, target_part, gauge.selected_part
             )
 
         self.world.add_component(event_eid, event)

@@ -7,25 +7,20 @@ from battle.mechanics.targeting import TargetingMechanics
 
 class Strategy(ABC):
     @abstractmethod
-    def decide_action(self, world, entity_id: int) -> Tuple[str, Optional[str]]:
+    def decide_action(self, state, entity_id: int) -> Tuple[str, Optional[str]]:
         pass
 
 class RandomStrategy(Strategy):
-    def decide_action(self, world, entity_id: int) -> Tuple[str, Optional[str]]:
-        # TargetingMechanicsを使用して生存パーツを取得
-        available_parts = TargetingMechanics.get_alive_parts(world, entity_id)
+    def decide_action(self, state, entity_id: int) -> Tuple[str, Optional[str]]:
+        # state を使用して生存パーツを取得
+        alive_parts_hp = state.get_alive_parts_hp(entity_id)
         
         # 攻撃コンポーネントを持つパーツのみ抽出して候補とする
         attack_parts = []
-        comps = world.try_get_entity(entity_id)
-        part_list = comps.get('partlist')
-        
-        if part_list:
-            for p_type in available_parts:
-                p_id = part_list.parts.get(p_type)
-                p_comps = world.try_get_entity(p_id)
-                if p_comps and 'attack' in p_comps:
-                    attack_parts.append(p_type)
+        for p_type in alive_parts_hp:
+            p_comps = state.get_part_components(entity_id, p_type, 'attack')
+            if p_comps:
+                attack_parts.append(p_type)
 
         if not attack_parts:
             return "skip", None

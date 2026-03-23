@@ -21,6 +21,6 @@ class AISystem(BattleSystemBase):
             return
 
         strategy = StrategyRegistry.get("random")
-        action, part = strategy.decide_action(self.world, eid)
+        action, part = strategy.decide_action(self.state, eid)
 
         self.world.add_component(eid, ActionCommandComponent(action, part))

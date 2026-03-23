@@ -37,10 +37,10 @@ class FlowMechanics:
     """フェーズ遷移に関する判断ロジック"""
 
     @staticmethod
-    def resolve_indicator_transition(world, event_eid: int) -> PhaseTransition:
+    def resolve_indicator_transition(state, event_eid: int) -> PhaseTransition:
         """ターゲット指示演出終了後の、次のフェーズと付随するログを決定する"""
-        event_comps = world.try_get_entity(event_eid)
-        if not event_comps or 'actionevent' not in event_comps:
+        event_comps = state.try_get_components(event_eid, 'actionevent')
+        if not event_comps:
             return PhaseTransition(next_phase=BattlePhase.EXECUTING)
 
         event = event_comps['actionevent']
@@ -48,17 +48,15 @@ class FlowMechanics:
             return PhaseTransition(next_phase=BattlePhase.EXECUTING)
 
         # 攻撃の場合の宣言ログ構築
-        attacker_id = event.attacker_id
-        attacker_comps = world.try_get_entity(attacker_id)
+        attacker_comps = state.try_get_components(event.attacker_id, 'medal')
         if not attacker_comps:
             return PhaseTransition(next_phase=BattlePhase.EXECUTING)
 
         attacker_name = attacker_comps['medal'].nickname
         trait_text, skill_name = "", "攻撃"
 
-        part_id = attacker_comps['partlist'].parts.get(event.part_type)
-        part_comps = world.try_get_entity(part_id)
-        if part_comps and 'attack' in part_comps:
+        part_comps = state.get_part_components(event.attacker_id, event.part_type, 'attack')
+        if part_comps:
             attack_comp = part_comps['attack']
             trait_text = f" {attack_comp.trait}！"
             skill_name = SkillRegistry.get(attack_comp.skill_type).name

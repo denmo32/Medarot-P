@@ -15,7 +15,7 @@ class TraitBehavior(ABC):
         """攻撃命中時の追加効果リストを生成して返す。"""
         return []
 
-    def resolve_target(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+    def resolve_target(self, state, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         """
         行動実行時にターゲットを確定させる。
         デフォルト（射撃等）は予約されたターゲットを使用する。
@@ -23,7 +23,7 @@ class TraitBehavior(ABC):
         target_data = gauge.part_targets.get(gauge.selected_part)
         if target_data:
             tid, tpart = target_data
-            if TargetingMechanics.is_action_target_valid(world, tid, tpart):
+            if TargetingMechanics.is_action_target_valid(state, tid, tpart):
                 return tid, tpart
         return None, None
 
@@ -33,14 +33,14 @@ class MeleeTrait(TraitBehavior):
     1. ターゲット機体は「中央に近い敵」に決定する。
     2. ターゲット部位は「攻撃者の性格」に基づいて決定する。
     """
-    def resolve_target(self, world, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+    def resolve_target(self, state, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
         # 1. 機体の決定（中央に近い敵）
-        target_id = TargetingMechanics.get_closest_target_by_gauge(world, actor_comps['team'].team_type)
+        target_id = TargetingMechanics.get_closest_target_by_gauge(state, actor_comps['team'].team_type)
         if not target_id: return None, None
         
         # 2. 部位の決定（性格依存）
         personality = PersonalityRegistry.get(actor_comps['medal'].personality_id)
-        target_part = personality.select_target_part(world, target_id)
+        target_part = personality.select_target_part(state, target_id)
         
         return target_id, target_part
 

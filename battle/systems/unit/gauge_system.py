@@ -33,7 +33,7 @@ class GaugeSystem(BattleSystemBase):
             gauge = comps['gauge']
 
             # 行動の継続妥当性を検証（パーツ破壊チェックなど）
-            interruption = ActionMechanics.validate_action_continuity(self.world, eid)
+            interruption = ActionMechanics.validate_action_continuity(self.state, eid)
             if not interruption.is_valid:
                 self.state.apply_gauge_reset(eid, interruption.reset_data)
                 self.state.manage_queue(eid, False)

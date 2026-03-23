@@ -38,26 +38,25 @@ class HitCalculator:
 
     @staticmethod
     def calculate_adjusted_stats(
-        world,
-        attacker_comps: Dict[str, Any],
-        atk_part_comps: Dict[str, Any],
-        target_comps: Dict[str, Any]
+        state,
+        attacker_id: int,
+        attacker_part_type: str,
+        target_id: int
     ) -> CombatStats:
         """
         ステータス、属性相性、スキルによる補正を一括計算する。
-        
-        Args:
-            world: ECS ワールド
-            attacker_comps: 攻撃側のコンポーネント
-            atk_part_comps: 攻撃パーツのコンポーネント
-            target_comps: 対象側のコンポーネント
-            
-        Returns:
-            補正後のステータス値
         """
+        # コンポーネントの取得を一元化
+        attacker_comps = state.try_get_components(attacker_id, 'medal', 'partlist')
+        atk_part_comps = state.get_part_components(attacker_id, attacker_part_type, 'part', 'attack')
+        target_comps = state.try_get_components(target_id, 'medal', 'partlist')
+
+        if not attacker_comps or not atk_part_comps or not target_comps:
+            raise ValueError("Missing required components for combat calculation")
+
         attack_comp = atk_part_comps['attack']
-        my_mob, my_def = HitCalculator._get_legs_stats(world, attacker_comps)
-        tgt_mob, tgt_def = HitCalculator._get_legs_stats(world, target_comps)
+        my_mob, my_def = HitCalculator._get_legs_stats(state, attacker_id)
+        tgt_mob, tgt_def = HitCalculator._get_legs_stats(state, target_id)
 
         # 属性相性ボーナスの適用
         atk_bonus, def_bonus = AttributeLogic.calculate_affinity_bonus(
@@ -78,25 +77,20 @@ class HitCalculator:
         )
 
     @staticmethod
-    def get_defensive_penalty(world, target_comps: Dict[str, Any]) -> DefensivePenalty:
+    def get_defensive_penalty(state, target_id: int) -> DefensivePenalty:
         """
         ターゲット側の状態（充填中等）による防御制限を取得する。
-        
-        Args:
-            world: ECS ワールド
-            target_comps: 対象のコンポーネント
-            
-        Returns:
-            防御ペナルティ情報
         """
-        tgt_gauge = target_comps.get('gauge')
+        target_comps = state.try_get_components(target_id, 'gauge', 'partlist')
+        if not target_comps:
+            return DefensivePenalty()
+
+        tgt_gauge = target_comps['gauge']
         if not tgt_gauge or not tgt_gauge.selected_part:
             return DefensivePenalty()
 
-        tgt_part_id = target_comps['partlist'].parts.get(tgt_gauge.selected_part)
-        tgt_p_comps = world.try_get_entity(tgt_part_id)
-        
-        if not tgt_p_comps or 'attack' not in tgt_p_comps:
+        tgt_p_comps = state.get_part_components(target_id, tgt_gauge.selected_part, 'attack')
+        if not tgt_p_comps:
             return DefensivePenalty()
 
         # 相手が実行しようとしているスキルのペナルティ特性を参照
@@ -113,13 +107,6 @@ class HitCalculator:
     def calculate_hit_probability(stats: CombatStats, penalty: DefensivePenalty) -> Tuple[float, bool]:
         """
         命中確率を計算し、命中可否を判定する。
-        
-        Args:
-            stats: 補正後のステータス
-            penalty: 防御ペナルティ
-            
-        Returns:
-            (命中確率, 命中したか) のタプル
         """
         if penalty.force_hit:
             return 1.0, True
@@ -131,11 +118,9 @@ class HitCalculator:
         return hit_prob, is_hit
 
     @staticmethod
-    def _get_legs_stats(world, comps: Dict[str, Any]) -> Tuple[int, int]:
+    def _get_legs_stats(state, entity_id: int) -> Tuple[int, int]:
         """脚部パーツの機動・防御値を取得する。"""
-        legs_id = comps['partlist'].parts.get(PartType.LEGS)
-        legs_comps = world.try_get_entity(legs_id) if legs_id is not None else None
-        
-        if legs_comps and 'mobility' in legs_comps:
+        legs_comps = state.get_part_components(entity_id, PartType.LEGS, 'mobility')
+        if legs_comps:
             return legs_comps['mobility'].mobility, legs_comps['mobility'].defense
         return 0, 0

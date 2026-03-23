@@ -18,6 +18,6 @@ class TargetIndicatorSystem(BattleSystemBase):
 
         if flow.phase_timer <= 0:
             # 次の遷移情報を Mechanics から取得
-            transition = FlowMechanics.resolve_indicator_transition(self.world, flow.processing_event_id)
+            transition = FlowMechanics.resolve_indicator_transition(self.state, flow.processing_event_id)
             # 副作用を適用
             self.state.apply_phase_transition(transition)
