@@ -42,11 +42,10 @@ class DamageCalculator:
 
     @staticmethod
     def calculate_damage_result(
-        world,
         attack_comp: AttackComponent,
         stats: Any,  # CombatStats
         hit_prob: float,
-        target_comps: Dict[str, Any],
+        target_part_hps: Dict[str, int],
         target_desired_part: Optional[str],
         prevent_defense: bool
     ) -> 'DamageResult':
@@ -54,11 +53,10 @@ class DamageCalculator:
         命中確定後のダメージ結果を計算する。
 
         Args:
-            world: ECS ワールド
             attack_comp: 攻撃コンポーネント
             stats: 補正後のステータス（CombatStats）
             hit_prob: 命中確率
-            target_comps: 対象のコンポーネント
+            target_part_hps: 対象のパーツとその HP の辞書
             target_desired_part: 指定部位
             prevent_defense: 防御不能フラグ
 
@@ -72,8 +70,7 @@ class DamageCalculator:
 
         # 2. 被弾部位の決定
         hit_part = TargetingMechanics.resolve_hit_part(
-            world,
-            target_comps,
+            target_part_hps,
             target_desired_part,
             quality.is_defense
         )

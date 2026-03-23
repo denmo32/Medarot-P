@@ -76,12 +76,18 @@ class CombatMechanics:
             return CombatResult.miss()
 
         # 4. ダメージ計算（DamageCalculator へ委譲）
+        # ターゲットの生存パーツとその HP を収集
+        target_part_hps = {
+            pt: world.try_get_entity(pid)['health'].hp 
+            for pt, pid in target_comps['partlist'].parts.items()
+            if world.try_get_entity(pid)['health'].hp > 0
+        }
+
         damage_result = DamageCalculator.calculate_damage_result(
-            world=world,
             attack_comp=attack_comp,
             stats=stats,
             hit_prob=hit_prob,
-            target_comps=target_comps,
+            target_part_hps=target_part_hps,
             target_desired_part=target_desired_part,
             prevent_defense=penalty.prevent_defense
         )

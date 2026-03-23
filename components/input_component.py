@@ -6,6 +6,10 @@ from core.ecs import Component
 @dataclass
 class InputComponent(Component):
     """ユーザー入力の状態（論理入力）を保持するコンポーネント"""
+    # 画面サイズ情報
+    screen_width: int = 800
+    screen_height: int = 600
+
     # マウス座標・クリック
     mouse_x: int = 0
     mouse_y: int = 0

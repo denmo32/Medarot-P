@@ -1,6 +1,5 @@
 """入力処理システム"""
 
-import pygame
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from ui.config import MENU_PART_ORDER
@@ -89,7 +88,7 @@ class InputSystem(BattleSystemBase):
                 context.selected_menu_index = 2
 
         # マウス座標による選択変更（ViewModel に座標解釈を委譲）
-        screen_size = pygame.display.get_surface().get_size()
+        screen_size = (input_comp.screen_width, input_comp.screen_height)
         mouse_idx = self.view_model.hit_test_action_menu(input_comp.mouse_x, input_comp.mouse_y, screen_size)
         if mouse_idx is not None:
             context.selected_menu_index = mouse_idx

@@ -35,6 +35,11 @@ class EventManager:
         # マウス位置更新
         mx, my = pygame.mouse.get_pos()
         input_comp.mouse_x, input_comp.mouse_y = mx, my
+        
+        # 画面サイズ更新
+        surface = pygame.display.get_surface()
+        if surface:
+            input_comp.screen_width, input_comp.screen_height = surface.get_size()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

@@ -73,30 +73,33 @@ class TargetingMechanics:
         return best_target
 
     @staticmethod
-    def resolve_hit_part(world, target_comps: Dict[str, Any], desired_part: Optional[str], is_defense: bool) -> str:
+    def resolve_hit_part(part_hps: Dict[str, int], desired_part: Optional[str], is_defense: bool) -> str:
         """
         被弾部位を決定するポリシー。
-        防御時は頭部以外が優先され、通常時は指定部位になる。
+
+        Args:
+            part_hps: 生存しているパーツとその HP の辞書
+            desired_part: 指定部位
+            is_defense: 防御成功フラグ
+
+        Returns:
+            被弾した部位の名称 (PartType)
         """
-        alive_parts = {
-            pt: pid for pt, pid in target_comps['partlist'].parts.items() 
-            if world.try_get_entity(pid)['health'].hp > 0
-        }
-        
-        if not alive_parts:
+        if not part_hps:
             return PartType.HEAD
 
         if is_defense:
             # 防御時は、頭部以外の最もHPが高い部位を盾にする
-            non_head = [pt for pt in alive_parts if pt != PartType.HEAD]
+            non_head = [pt for pt in part_hps if pt != PartType.HEAD]
             if non_head:
-                non_head.sort(key=lambda pt: world.try_get_entity(alive_parts[pt])['health'].hp, reverse=True)
-                return non_head[0]
+                # HPの高い順にソート
+                sorted_parts = sorted(non_head, key=lambda pt: part_hps[pt], reverse=True)
+                return sorted_parts[0]
             return PartType.HEAD
-        
+
         # ターゲット部位が有効なら優先、そうでなければランダム
-        if desired_part in alive_parts:
+        if desired_part in part_hps:
             return desired_part
-           
-        # ※ターゲット部位が無効である状況は想定外
-        return random.choice(list(alive_parts.keys()))
+
+        # ※ターゲット部位が無効（既に壊れている）な場合はランダムに選択
+        return random.choice(list(part_hps.keys()))
