@@ -4,6 +4,8 @@ import random
 from typing import List, Optional, Dict, Any, Tuple
 from domain.constants import TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
+from core.ecs import World
+
 
 class TargetingMechanics:
     """エンティティの生存・有効性・クエリに関するユーティリティ"""
@@ -104,3 +106,41 @@ class TargetingMechanics:
 
         # ※ターゲット部位が無効（既に壊れている）な場合はランダムに選択
         return random.choice(list(part_hps.keys()))
+
+    @staticmethod
+    def is_part_alive(world, entity_id: int, part_type: str) -> bool:
+        """指定部位が生存しているか（機体が機能停止していないことも含む）"""
+        entity_comps = world.try_get_entity(entity_id)
+        if not entity_comps:
+            return False
+        
+        defeated = entity_comps.get('defeated')
+        if defeated and defeated.is_defeated:
+            return False
+        
+        parts = entity_comps.get('partlist')
+        if not parts:
+            return False
+        
+        pid = parts.parts.get(part_type)
+        if pid is None:
+            return False
+        
+        p_comps = world.try_get_entity(pid)
+        return bool(p_comps and 'health' in p_comps and p_comps['health'].hp > 0)
+
+    @staticmethod
+    def get_alive_parts_hp(world, entity_id: int) -> Dict[str, int]:
+        """生存している部位名とその HP の辞書を取得"""
+        entity_comps = world.try_get_entity(entity_id)
+        if not entity_comps or 'partlist' not in entity_comps:
+            return {}
+
+        result = {}
+        for pt, pid in entity_comps['partlist'].parts.items():
+            p_comps = world.try_get_entity(pid)
+            if p_comps and 'health' in p_comps:
+                hp = p_comps['health'].hp
+                if hp > 0:
+                    result[pt] = hp
+        return result

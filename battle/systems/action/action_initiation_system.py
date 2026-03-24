@@ -3,7 +3,7 @@
 from typing import Optional
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
-from battle.mechanics.flow import PhaseTransition
+from battle.mechanics.flow import PhaseTransition, FlowMechanics
 from domain.constants import GaugeStatus, ActionType, PartType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
@@ -12,14 +12,16 @@ from battle.mechanics.action_behavior import ActionBehaviorRegistry, InitiatePar
 from battle.mechanics.log import LogBuilder
 from battle.mechanics.hit_calculator import AttackParams, MedalParams, LegsStats
 from battle.mechanics.targeting_resolvers import TargetResolverFactory
+from battle.mechanics.targeting import TargetingMechanics
+
 
 class ActionInitiationSystem(BattleSystemBase):
     """
     充填が完了したエンティティに対し、ActionEvent を生成してバトルフローを開始する。
     """
     def update(self, dt: float):
-        context = self.query.context
-        flow = self.query.flow
+        context = self.context
+        flow = self.flow
 
         if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
@@ -30,12 +32,12 @@ class ActionInitiationSystem(BattleSystemBase):
         # エンティティが存在しない、または機能停止している場合はキューから削除
         defeated = actor_comps.get('defeated') if actor_comps else None
         if not actor_comps or (defeated and defeated.is_defeated):
-            self.command.manage_queue(actor_eid, False)
+            FlowMechanics.manage_queue(context, actor_eid, False)
             return
 
         required = ['gauge', 'team', 'partlist', 'medal']
         if not all(k in actor_comps for k in required):
-            self.command.manage_queue(actor_eid, False)
+            FlowMechanics.manage_queue(context, actor_eid, False)
             return
 
         gauge = actor_comps['gauge']
@@ -53,11 +55,15 @@ class ActionInitiationSystem(BattleSystemBase):
         is_actor_part_alive = True
         attack_trait = ""
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            is_actor_part_alive = self.query.is_part_alive(actor_eid, gauge.selected_part)
+            is_actor_part_alive = TargetingMechanics.is_part_alive(self.world, actor_eid, gauge.selected_part)
             # 攻撃パーツの特性情報を取得
-            p_comps = self.query.get_part_components(actor_eid, gauge.selected_part, 'attack')
-            if p_comps:
-                attack_trait = p_comps['attack'].trait
+            actor_comps = self.world.try_get_entity(actor_eid)
+            if actor_comps and 'partlist' in actor_comps:
+                part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
+                if part_id:
+                    p_comps = self.world.try_get_entity(part_id)
+                    if p_comps and 'attack' in p_comps:
+                        attack_trait = p_comps['attack'].trait
 
         # 2. TargetResolver によるターゲット解決
         #    System は「どの Resolver を使うか」だけを知り、「どう解決するか」は知らない
@@ -65,8 +71,7 @@ class ActionInitiationSystem(BattleSystemBase):
         resolved_target_id, resolved_target_part = resolver.resolve(
             actor_eid=actor_eid,
             selected_part=gauge.selected_part,
-            world=self.world,
-            query=self.query
+            world=self.world
         )
 
         # 3. パラメータ構築（InitiateParams はシンプルに）
@@ -86,9 +91,11 @@ class ActionInitiationSystem(BattleSystemBase):
             msg = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
             reset = ActionMechanics.get_cooldown_reset_data(gauge.progress)
 
-            self.command.apply_gauge_reset(actor_eid, reset)
-            self.command.manage_queue(actor_eid, False)
-            self.command.apply_phase_transition(PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
+            comps = self.world.try_get_entity(actor_eid)
+            if comps and 'gauge' in comps:
+                ActionMechanics.apply_gauge_reset(comps['gauge'], reset)
+            FlowMechanics.manage_queue(self.context, actor_eid, False)
+            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
             return
 
         # 2. ActionEvent の生成
@@ -113,14 +120,14 @@ class ActionInitiationSystem(BattleSystemBase):
         next_p = behavior.get_initial_phase()
         timer = BattleTiming.TARGET_INDICATION if next_p == BattlePhase.TARGET_INDICATION else 0.0
 
-        self.command.apply_phase_transition(PhaseTransition(
+        FlowMechanics.apply_transition(self.world, PhaseTransition(
             next_phase=next_p,
             timer=timer,
             actor_id=actor_eid,
             event_id=event_eid
         ))
 
-        self.command.manage_queue(actor_eid, False)
+        FlowMechanics.manage_queue(self.context, actor_eid, False)
 
     def _calculate_combat(
         self,
@@ -134,18 +141,25 @@ class ActionInitiationSystem(BattleSystemBase):
         attacker_comps = self.world.try_get_entity(actor_eid)
         if not attacker_comps:
             return None
-        
+
         # メダル情報
         medal_attr = attacker_comps['medal'].attribute
         attacker_medal = MedalParams(attribute=medal_attr)
-        
+
         # 攻撃パーツ情報
-        atk_part_comps = self.query.get_part_components(actor_eid, attacker_part_type, 'attack', 'part')
-        if not atk_part_comps:
-            return None
+        attack_comp = None
+        part_comp = None
+        if 'partlist' in attacker_comps:
+            part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
+            if part_id:
+                p_comps = self.world.try_get_entity(part_id)
+                if p_comps and 'attack' in p_comps and 'part' in p_comps:
+                    attack_comp = p_comps['attack']
+                    part_comp = p_comps['part']
         
-        attack_comp = atk_part_comps['attack']
-        part_comp = atk_part_comps['part']
+        if not attack_comp or not part_comp:
+            return None
+
         attacker_part = AttackParams(
             success=attack_comp.success,
             attack=attack_comp.attack,
@@ -153,42 +167,55 @@ class ActionInitiationSystem(BattleSystemBase):
             skill_type=attack_comp.skill_type,
             trait=attack_comp.trait
         )
-        
+
         # 脚部情報
-        legs_comps = self.query.get_part_components(actor_eid, PartType.LEGS, 'mobility')
-        attacker_legs = LegsStats(
-            mobility=legs_comps['mobility'].mobility if legs_comps else 0,
-            defense=legs_comps['mobility'].defense if legs_comps else 0
-        )
-        
+        attacker_legs = LegsStats(mobility=0, defense=0)
+        if 'partlist' in attacker_comps:
+            legs_id = attacker_comps['partlist'].parts.get(PartType.LEGS)
+            if legs_id:
+                legs_comps = self.world.try_get_entity(legs_id)
+                if legs_comps and 'mobility' in legs_comps:
+                    attacker_legs = LegsStats(
+                        mobility=legs_comps['mobility'].mobility,
+                        defense=legs_comps['mobility'].defense
+                    )
+
         # ターゲット情報
         target_comps = self.world.try_get_entity(target_id)
         if not target_comps:
             return None
-        
+
         target_medal = MedalParams(attribute=target_comps['medal'].attribute)
-        
-        target_legs_comps = self.query.get_part_components(target_id, PartType.LEGS, 'mobility')
-        target_legs = LegsStats(
-            mobility=target_legs_comps['mobility'].mobility if target_legs_comps else 0,
-            defense=target_legs_comps['mobility'].defense if target_legs_comps else 0
-        )
-        
+
+        # ターゲットの脚部情報
+        target_legs = LegsStats(mobility=0, defense=0)
+        if 'partlist' in target_comps:
+            target_legs_id = target_comps['partlist'].parts.get(PartType.LEGS)
+            if target_legs_id:
+                target_legs_comps = self.world.try_get_entity(target_legs_id)
+                if target_legs_comps and 'mobility' in target_legs_comps:
+                    target_legs = LegsStats(
+                        mobility=target_legs_comps['mobility'].mobility,
+                        defense=target_legs_comps['mobility'].defense
+                    )
+
         # ターゲットのゲージ情報
         target_gauge = target_comps.get('gauge')
         target_gauge_status = target_gauge.status if target_gauge else ""
         target_selected_part = target_gauge.selected_part if target_gauge else None
-        
+
         # ターゲットの選択中パーツのスキル情報
         target_part_skill_type = None
-        if target_selected_part:
-            tgt_p_comps = self.query.get_part_components(target_id, target_selected_part, 'attack')
-            if tgt_p_comps:
-                target_part_skill_type = tgt_p_comps['attack'].skill_type
-        
+        if target_selected_part and 'partlist' in target_comps:
+            target_part_id = target_comps['partlist'].parts.get(target_selected_part)
+            if target_part_id:
+                tgt_p_comps = self.world.try_get_entity(target_part_id)
+                if tgt_p_comps and 'attack' in tgt_p_comps:
+                    target_part_skill_type = tgt_p_comps['attack'].skill_type
+
         # 対象の生存パーツ HP
-        target_part_hps = self.query.get_alive_parts_hp(target_id)
-        
+        target_part_hps = TargetingMechanics.get_alive_parts_hp(self.world, target_id)
+
         # 戦闘計算実行
         return CombatMechanics.calculate_combat_result(
             attacker_medal=attacker_medal,

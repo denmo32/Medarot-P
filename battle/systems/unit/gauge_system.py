@@ -4,14 +4,16 @@ from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, ActionType
 from battle.mechanics.gauge_mechanics import GaugeMechanics
 from battle.mechanics.action import ActionMechanics
-from battle.mechanics.flow import PhaseTransition
+from battle.mechanics.flow import PhaseTransition, FlowMechanics
+from battle.mechanics.targeting import TargetingMechanics
+
 
 class GaugeSystem(BattleSystemBase):
     """ATB ゲージの進行管理、および状態異常のカウントダウンを担当"""
 
     def update(self, dt: float):
         # バトルが停止中（ログ表示中や演出中）はゲージを進めない
-        if not self.query.context or not self.query.flow or self.query.flow.current_phase != BattlePhase.IDLE:
+        if not self.context or not self.flow or self.flow.current_phase != BattlePhase.IDLE:
             return
 
         # 機能停止した機体もチェック対象（待機キュー中の中断判定のため）
@@ -27,15 +29,15 @@ class GaugeSystem(BattleSystemBase):
 
         # 2. 中断判定とゲージ進行
         # 誰かが行動待機中の場合は、時間は進めるがゲージ増加は行わない
-        time_step = 0.0 if self.query.context.waiting_queue else dt
+        time_step = 0.0 if self.context.waiting_queue else dt
 
         for eid, comps in all_entities:
             gauge = comps['gauge']
 
             # 機能停止している場合は、待機キューに入っていれば削除
             if comps['defeated'].is_defeated:
-                if eid in self.query.context.waiting_queue:
-                    self.command.manage_queue(eid, False)
+                if eid in self.context.waiting_queue:
+                    FlowMechanics.manage_queue(self.context, eid, False)
                 continue
 
             # 行動の継続妥当性を検証（パーツ破壊チェックなど）
@@ -46,14 +48,14 @@ class GaugeSystem(BattleSystemBase):
             # 実行予定パーツの生存チェック
             is_actor_part_alive = True
             if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-                is_actor_part_alive = self.query.is_part_alive(eid, gauge.selected_part)
+                is_actor_part_alive = TargetingMechanics.is_part_alive(self.world, eid, gauge.selected_part)
 
             # ターゲット部位の生存チェック
             is_target_part_alive = True
             target_data = gauge.part_targets.get(gauge.selected_part)
             if target_data:
                 target_id, target_part = target_data
-                is_target_part_alive = self.query.is_part_alive(target_id, target_part)
+                is_target_part_alive = TargetingMechanics.is_part_alive(self.world, target_id, target_part)
 
             interruption = ActionMechanics.validate_action_continuity(
                 gauge_status=gauge.status,
@@ -67,9 +69,11 @@ class GaugeSystem(BattleSystemBase):
             )
 
             if not interruption.is_valid:
-                self.command.apply_gauge_reset(eid, interruption.reset_data)
-                self.command.manage_queue(eid, False)
-                self.command.apply_phase_transition(PhaseTransition(BattlePhase.LOG_WAIT, logs=[interruption.message]))
+                comps = self.world.try_get_entity(eid)
+                if comps and 'gauge' in comps:
+                    ActionMechanics.apply_gauge_reset(comps['gauge'], interruption.reset_data)
+                FlowMechanics.manage_queue(self.context, eid, False)
+                FlowMechanics.apply_transition(self.world, PhaseTransition(BattlePhase.LOG_WAIT, logs=[interruption.message]))
                 # ログ表示フェーズに入るため、このフレームの処理を打ち切る
                 return
 
@@ -82,9 +86,11 @@ class GaugeSystem(BattleSystemBase):
             # 放熱完了のチェックとリセット
             if summary.is_cooldown_finished:
                 reset = ActionMechanics.get_choice_reset_data()
-                self.command.apply_gauge_reset(eid, reset)
+                comps = self.world.try_get_entity(eid)
+                if comps and 'gauge' in comps:
+                    ActionMechanics.apply_gauge_reset(comps['gauge'], reset)
                 # リセット後は待機列に入る必要がない
-                self.command.manage_queue(eid, False)
+                FlowMechanics.manage_queue(self.context, eid, False)
             else:
                 # 充填完了、または行動選択待ちならキューに追加
-                self.command.manage_queue(eid, summary.should_be_in_queue)
+                FlowMechanics.manage_queue(self.context, eid, summary.should_be_in_queue)

@@ -169,3 +169,14 @@ class ActionMechanics:
                 part_targets=part_targets,
                 is_target_alive=is_target_alive
             )
+
+    @staticmethod
+    def apply_gauge_reset(gauge, reset_data: GaugeResetData) -> None:
+        """計算済みのリセットデータをゲージコンポーネントに適用する"""
+        gauge.status = reset_data.status
+        gauge.progress = reset_data.progress
+
+        if reset_data.clear_selection:
+            gauge.selected_action = None
+            gauge.selected_part = None
+            gauge.part_targets = {}

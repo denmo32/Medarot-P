@@ -32,8 +32,8 @@ class InputSystem(BattleSystemBase):
             return
         input_comp = input_comps['input']
 
-        context = self.query.context
-        flow = self.query.flow
+        context = self.context
+        flow = self.flow
         if not context or not flow:
             return
 
@@ -70,7 +70,8 @@ class InputSystem(BattleSystemBase):
     def _clear_execution_state(self, flow):
         event_id = flow.processing_event_id
         if event_id is not None:
-            self.command.delete_event(event_id)
+            flow.processing_event_id = None
+            self.world.delete_entity(event_id)
 
         flow.current_phase = BattlePhase.IDLE
         flow.active_actor_id = None

@@ -4,12 +4,14 @@ from typing import Dict, Tuple, Optional
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.mechanics.personality import PersonalityRegistry
 from battle.constants import BattlePhase, GaugeStatus, PartType, TraitType
+from battle.mechanics.targeting import TargetingMechanics
+
 
 class TargetSelectionSystem(BattleSystemBase):
     """性格に基づき、各パーツの攻撃対象を事前に決定する"""
 
     def update(self, dt: float):
-        flow = self.query.flow
+        flow = self.flow
         if not flow or flow.current_phase != BattlePhase.IDLE:
             return
 
@@ -22,16 +24,16 @@ class TargetSelectionSystem(BattleSystemBase):
             if gauge.status == GaugeStatus.ACTION_CHOICE and not gauge.part_targets:
                 # System 側で必要なデータを抽出して純粋関数に渡す
                 personality = PersonalityRegistry.get(comps['medal'].personality_id)
-                
+
                 # 1. 生存している敵 ID リスト
                 valid_enemy_ids = self._get_valid_enemy_ids(eid)
-                
+
                 # 2. 各パーツの射撃特性フラグ
                 has_shooting_trait = self._get_shooting_trait_flags(eid)
-                
+
                 # 3. 敵の生存パーツ HP 情報
                 enemy_parts = self._get_enemy_parts(valid_enemy_ids)
-                
+
                 # 純粋関数にデータを渡してターゲット選択
                 targets = personality.select_targets(
                     valid_enemy_ids=valid_enemy_ids,
@@ -45,15 +47,15 @@ class TargetSelectionSystem(BattleSystemBase):
         my_comps = self.world.try_get_entity(my_entity_id)
         if not my_comps or 'team' not in my_comps:
             return []
-        
+
         my_team = my_comps['team'].team_type
         target_team_type = "enemy" if my_team == "player" else "player"
-        
+
         valid_ids = []
         for eid, ecomps in self.world.get_entities_with_components('team', 'defeated'):
             if ecomps['team'].team_type == target_team_type and not ecomps['defeated'].is_defeated:
                 valid_ids.append(eid)
-        
+
         return valid_ids
 
     def _get_shooting_trait_flags(self, entity_id: int) -> Dict[str, bool]:
@@ -61,14 +63,19 @@ class TargetSelectionSystem(BattleSystemBase):
         flags = {}
         for part_type in [PartType.HEAD, PartType.RIGHT_ARM, PartType.LEFT_ARM]:
             flags[part_type] = False
-            p_comps = self.query.get_part_components(entity_id, part_type, 'attack')
-            if p_comps and p_comps['attack'].trait in TraitType.SHOOTING_TRAITS:
-                flags[part_type] = True
+            entity_comps = self.world.try_get_entity(entity_id)
+            if entity_comps and 'partlist' in entity_comps:
+                part_id = entity_comps['partlist'].parts.get(part_type)
+                if part_id:
+                    p_comps = self.world.try_get_entity(part_id)
+                    if p_comps and 'attack' in p_comps:
+                        if p_comps['attack'].trait in TraitType.SHOOTING_TRAITS:
+                            flags[part_type] = True
         return flags
 
     def _get_enemy_parts(self, enemy_ids: list) -> Dict[int, Dict[str, int]]:
         """敵の生存パーツ HP 情報を取得"""
         result = {}
         for eid in enemy_ids:
-            result[eid] = self.query.get_alive_parts_hp(eid)
+            result[eid] = TargetingMechanics.get_alive_parts_hp(self.world, eid)
         return result

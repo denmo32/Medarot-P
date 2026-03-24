@@ -3,11 +3,12 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from components.battle_component import DamageEventComponent
 
+
 class DamageSystem(BattleSystemBase):
     """DamageEventComponent を監視し、実際の HP 減算、状態異常適用を行う"""
 
     def update(self, dt: float):
-        context = self.query.context
+        context = self.context
         if not context:
             return
 

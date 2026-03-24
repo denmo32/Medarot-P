@@ -45,13 +45,13 @@ class FlowMechanics:
     ) -> PhaseTransition:
         """
         ターゲット指示演出終了後の、次のフェーズと付随するログを決定する
-        
+
         Args:
             event_action_type: イベントのアクション種別
             attacker_name: 攻撃者の名前
             attack_trait: 攻撃パーツの特性
             attack_skill_type: 攻撃パーツのスキル種別
-        
+
         Returns:
             フェーズ遷移情報
         """
@@ -71,3 +71,40 @@ class FlowMechanics:
             next_phase=BattlePhase.ATTACK_DECLARATION,
             logs=[log]
         )
+
+    @staticmethod
+    def apply_transition(world: World, transition: PhaseTransition) -> None:
+        """フェーズ遷移を適用する"""
+        ctx, flow = get_battle_state(world)
+        if not flow:
+            return
+
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+
+        if transition.actor_id is not None:
+            flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None:
+            flow.processing_event_id = transition.event_id
+
+        if transition.logs and ctx:
+            if transition.clear_logs:
+                ctx.battle_log.clear()
+            ctx.battle_log.extend(transition.logs)
+
+        # IDLE への遷移時は自動クリーンアップ
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+            flow.cutin_progress = 0.0
+
+    @staticmethod
+    def manage_queue(context, entity_id: int, should_add: bool) -> None:
+        """待機列への追加・削除"""
+        if not context:
+            return
+        queue = context.waiting_queue
+        if should_add and entity_id not in queue:
+            queue.append(entity_id)
+        elif not should_add and entity_id in queue:
+            queue.remove(entity_id)

@@ -16,8 +16,7 @@ class TargetResolver(ABC):
         self,
         actor_eid: int,
         selected_part: Optional[str],
-        world,
-        query
+        world
     ) -> Tuple[Optional[int], Optional[str]]:
         """
         ターゲットを解決する
@@ -26,7 +25,6 @@ class TargetResolver(ABC):
             actor_eid: 行動主体のエンティティ ID
             selected_part: 選択中のパーツ
             world: ワールドオブジェクト
-            query: バトルクエリオブジェクト
 
         Returns:
             (target_id, target_part) のタプル。解決失敗時は (None, None)
@@ -44,8 +42,7 @@ class MeleeTargetResolver(TargetResolver):
         self,
         actor_eid: int,
         selected_part: Optional[str],
-        world,
-        query
+        world
     ) -> Tuple[Optional[int], Optional[str]]:
         # 敵チームのゲージ情報を収集
         actor_comps = world.try_get_entity(actor_eid)
@@ -67,7 +64,7 @@ class MeleeTargetResolver(TargetResolver):
         # 性格に基づいて部位を選択
         personality_id = actor_comps['medal'].personality_id
         personality = PersonalityRegistry.get(personality_id)
-        alive_parts_hp = query.get_alive_parts_hp(closest_enemy_id)
+        alive_parts_hp = TargetingMechanics.get_alive_parts_hp(world, closest_enemy_id)
 
         if not alive_parts_hp:
             return None, None
@@ -86,8 +83,7 @@ class RangedTargetResolver(TargetResolver):
         self,
         actor_eid: int,
         selected_part: Optional[str],
-        world,
-        query
+        world
     ) -> Tuple[Optional[int], Optional[str]]:
         # part_targets から取得（既に行動選択フェーズで決定済み）
         actor_comps = world.try_get_entity(actor_eid)
@@ -96,14 +92,14 @@ class RangedTargetResolver(TargetResolver):
 
         gauge = actor_comps['gauge']
         target_data = gauge.part_targets.get(selected_part)
-        
+
         if target_data:
             target_id, target_part = target_data
             # ターゲット部位の生存確認
-            is_alive = query.is_part_alive(target_id, target_part)
+            is_alive = TargetingMechanics.is_part_alive(world, target_id, target_part)
             if is_alive:
                 return target_id, target_part
-        
+
         return None, None
 
 
@@ -117,8 +113,7 @@ class DefaultTargetResolver(TargetResolver):
         self,
         actor_eid: int,
         selected_part: Optional[str],
-        world,
-        query
+        world
     ) -> Tuple[Optional[int], Optional[str]]:
         # 実装は状況に応じて変更
         # 現時点では未実装

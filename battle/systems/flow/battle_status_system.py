@@ -2,12 +2,14 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, TeamType
+from battle.mechanics.flow import FlowMechanics, PhaseTransition
+
 
 class BattleStatusSystem(BattleSystemBase):
     """勝敗判定とゲームオーバー管理"""
 
     def update(self, dt: float):
-        flow = self.query.flow
+        flow = self.flow
         if not flow or flow.current_phase == BattlePhase.GAME_OVER:
             return
 
@@ -25,7 +27,7 @@ class BattleStatusSystem(BattleSystemBase):
 
         if not player_leader_alive:
             flow.winner = "エネミー"
-            self.command.change_phase(BattlePhase.GAME_OVER)
+            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.GAME_OVER))
         elif not enemy_leader_alive:
             flow.winner = "プレイヤー"
-            self.command.change_phase(BattlePhase.GAME_OVER)
+            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.GAME_OVER))
