@@ -1,28 +1,6 @@
-"""バトル状態へのアクセスと操作を提供するヘルパークラス（非推奨）
+"""バトル状態への操作（副作用）専用クラス"""
 
-このクラスは非推奨です。代わりに BattleQuery と BattleCommand を使用してください。
-
-非推奨理由:
-    CQRS パターンの導入により、「データの取得（Query）」と「状態の変更（Command）」
-    を責務分割するため。
-
-移行ガイド:
-    - 取得系メソッド -> BattleQuery に移動
-    - 副作用系メソッド -> BattleCommand に移動
-    - BattleSystemBase を継承している場合は、self.query と self.command を使用
-
-例:
-    # 旧
-    self.state.flow
-    self.state.apply_phase_transition(...)
-
-    # 新
-    self.query.flow
-    self.command.apply_phase_transition(...)
-"""
-
-import warnings
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, List, Dict, Any
 from core.ecs import World
 from battle.mechanics.flow import get_battle_state, PhaseTransition
 from battle.mechanics.action import GaugeResetData
@@ -30,81 +8,20 @@ from battle.mechanics.action_behavior import ResolutionResult
 from battle.constants import BattlePhase
 
 
-class BattleStateAccessor:
+class BattleCommand:
     """
-    [非推奨] バトル状態の取得と操作を行うヘルパークラス。
+    バトル状態への操作（副作用）のみを行うクラス。
 
-    代わりに BattleQuery と BattleCommand を使用してください。
+    責任範囲:
+    - フェーズ遷移
+    - エンティティ削除
+    - ゲージ操作
+    - 待機列管理
+    - アクション解決結果の適用
     """
 
     def __init__(self, world: World):
-        warnings.warn(
-            "BattleStateAccessor is deprecated. Use BattleQuery and BattleCommand instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
         self.world = world
-
-    # --- データ取得系メソッド ---
-
-    def try_get_components(self, entity_id: int, *names: str) -> Optional[Dict[str, Any]]:
-        """指定エンティティから指定されたコンポーネントを安全に取得"""
-        return self.world.try_get_components(entity_id, *names)
-
-    def get_part_entity_id(self, entity_id: int, part_type: str) -> Optional[int]:
-        """指定機体の指定部位のエンティティ ID を取得"""
-        comps = self.try_get_components(entity_id, 'partlist')
-        if not comps:
-            return None
-        return comps['partlist'].parts.get(part_type)
-
-    def get_part_components(self, entity_id: int, part_type: str, *names: str) -> Optional[Dict[str, Any]]:
-        """指定機体の指定部位から指定されたコンポーネントを取得"""
-        pid = self.get_part_entity_id(entity_id, part_type)
-        if pid is None:
-            return None
-        return self.try_get_components(pid, *names)
-
-    def is_entity_alive(self, entity_id: int) -> bool:
-        """エンティティが生存しているか（敗北フラグが立っていないか）"""
-        comps = self.world.try_get_entity(entity_id)
-        if not comps:
-            return False
-        defeated = comps.get('defeated')
-        return not defeated.is_defeated if defeated else True
-
-    def is_part_alive(self, entity_id: int, part_type: str) -> bool:
-        """指定部位が生存しているか（HP > 0）"""
-        p_comps = self.get_part_components(entity_id, part_type, 'health')
-        return p_comps and p_comps['health'].hp > 0
-
-    def get_alive_parts_hp(self, entity_id: int) -> Dict[str, int]:
-        """生存している部位名とその HP の辞書を取得"""
-        comps = self.try_get_components(entity_id, 'partlist')
-        if not comps:
-            return {}
-        
-        result = {}
-        for pt, pid in comps['partlist'].parts.items():
-            p_comps = self.world.try_get_entity(pid)
-            if p_comps and 'health' in p_comps:
-                hp = p_comps['health'].hp
-                if hp > 0:
-                    result[pt] = hp
-        return result
-
-    def get_team_entities(self, team_type: str, only_alive: bool = True) -> List[int]:
-        """指定チームのエンティティ ID リストを取得"""
-        result = []
-        for eid, comps in self.world.get_entities_with_components('team'):
-            if comps['team'].team_type == team_type:
-                if not only_alive or self.is_entity_alive(eid):
-                    result.append(eid)
-        return result
-
-    def get_entities_with_components(self, *names: str) -> List[Tuple[int, Dict[str, Any]]]:
-        """指定されたコンポーネントをすべて持つエンティティのリストを取得"""
-        return self.world.get_entities_with_components(*names)
 
     @property
     def context(self) -> Optional[Dict[str, Any]]:
@@ -174,7 +91,7 @@ class BattleStateAccessor:
         context = self.context
         if not context:
             return
-            
+
         queue = context.waiting_queue
         if should_add and entity_id not in queue:
             queue.append(entity_id)
@@ -189,7 +106,7 @@ class BattleStateAccessor:
     ) -> None:
         """
         アクション解決結果を適用する。
-        
+
         Args:
             entity_id: 結果を適用するエンティティ ID
             result: 解決結果オブジェクト

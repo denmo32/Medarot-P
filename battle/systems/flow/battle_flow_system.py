@@ -7,12 +7,12 @@ class BattleFlowSystem(BattleSystemBase):
     """バトルフェーズの遷移管理"""
 
     def update(self, dt: float):
-        context = self.state.context
-        flow = self.state.flow
-        
+        context = self.query.context
+        flow = self.query.flow
+
         if not context or not flow:
             return
 
         if flow.current_phase == BattlePhase.LOG_WAIT:
             if not context.battle_log:
-                self.state.change_phase(BattlePhase.IDLE)
+                self.command.change_phase(BattlePhase.IDLE)

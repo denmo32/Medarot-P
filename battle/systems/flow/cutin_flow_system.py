@@ -7,7 +7,7 @@ class CutinFlowSystem(BattleSystemBase):
     """カットイン演出の進行管理"""
 
     def update(self, dt: float):
-        flow = self.state.flow
+        flow = self.query.flow
         if not flow or flow.current_phase != BattlePhase.CUTIN:
             return
 
@@ -17,5 +17,5 @@ class CutinFlowSystem(BattleSystemBase):
         flow.cutin_progress = min(1.0, elapsed / max_time)
 
         if flow.phase_timer <= 0:
-            self.state.change_phase(BattlePhase.EXECUTING)
+            self.command.change_phase(BattlePhase.EXECUTING)
             flow.cutin_progress = 1.0

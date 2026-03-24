@@ -9,9 +9,9 @@ class AISystem(BattleSystemBase):
     """エネミーの行動決定"""
 
     def update(self, dt: float):
-        context = self.state.context
-        flow = self.state.flow
-        
+        context = self.query.context
+        flow = self.query.flow
+
         if not context or flow.current_phase != BattlePhase.ENEMY_TURN:
             return
 
@@ -21,6 +21,6 @@ class AISystem(BattleSystemBase):
             return
 
         strategy = StrategyRegistry.get("random")
-        action, part = strategy.decide_action(self.state, eid)
+        action, part = strategy.decide_action(self.query, eid)
 
         self.world.add_component(eid, ActionCommandComponent(action, part))

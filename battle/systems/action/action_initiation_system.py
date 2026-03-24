@@ -15,22 +15,22 @@ class ActionInitiationSystem(BattleSystemBase):
     充填が完了したエンティティに対し、ActionEvent を生成してバトルフローを開始する。
     """
     def update(self, dt: float):
-        context = self.state.context
-        flow = self.state.flow
-        
+        context = self.query.context
+        flow = self.query.flow
+
         if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
 
         actor_eid = context.waiting_queue[0]
         actor_comps = self.world.try_get_entity(actor_eid)
-        
+
         if not actor_comps:
-            self.state.manage_queue(actor_eid, False)
+            self.command.manage_queue(actor_eid, False)
             return
 
         required = ['gauge', 'team', 'partlist', 'medal']
         if not all(k in actor_comps for k in required):
-            self.state.manage_queue(actor_eid, False)
+            self.command.manage_queue(actor_eid, False)
             return
 
         gauge = actor_comps['gauge']
@@ -44,16 +44,16 @@ class ActionInitiationSystem(BattleSystemBase):
         behavior = ActionBehaviorRegistry.get(gauge.selected_action)
 
         # 1. ターゲット解決
-        target_id, target_part = behavior.initiate(self.state, actor_eid, actor_comps, gauge)
+        target_id, target_part = behavior.initiate(self.query, actor_eid, actor_comps, gauge)
 
         # ターゲットロスト時の中断処理
         if not target_id:
             msg = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
             reset = ActionMechanics.get_cooldown_reset_data(gauge.progress)
 
-            self.state.apply_gauge_reset(actor_eid, reset)
-            self.state.manage_queue(actor_eid, False)
-            self.state.apply_phase_transition(PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
+            self.command.apply_gauge_reset(actor_eid, reset)
+            self.command.manage_queue(actor_eid, False)
+            self.command.apply_phase_transition(PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
             return
 
         # 2. ActionEvent の生成
@@ -69,7 +69,7 @@ class ActionInitiationSystem(BattleSystemBase):
         # 攻撃の場合は事前に計算を実行
         if gauge.selected_action == ActionType.ATTACK:
             event.calculation_result = CombatMechanics.calculate_combat_result(
-                self.state, actor_eid, target_id, target_part, gauge.selected_part
+                self.query, actor_eid, target_id, target_part, gauge.selected_part
             )
 
         self.world.add_component(event_eid, event)
@@ -78,11 +78,11 @@ class ActionInitiationSystem(BattleSystemBase):
         next_p = behavior.get_initial_phase()
         timer = BattleTiming.TARGET_INDICATION if next_p == BattlePhase.TARGET_INDICATION else 0.0
 
-        self.state.apply_phase_transition(PhaseTransition(
+        self.command.apply_phase_transition(PhaseTransition(
             next_phase=next_p,
             timer=timer,
             actor_id=actor_eid,
             event_id=event_eid
         ))
 
-        self.state.manage_queue(actor_eid, False)
+        self.command.manage_queue(actor_eid, False)

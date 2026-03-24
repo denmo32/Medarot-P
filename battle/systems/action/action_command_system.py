@@ -9,9 +9,9 @@ class ActionCommandSystem(BattleSystemBase):
     """プレイヤー/エネミーの行動コマンドをゲージに適用"""
 
     def update(self, dt: float):
-        context = self.state.context
-        flow = self.state.flow
-        
+        context = self.query.context
+        flow = self.query.flow
+
         if not context or not flow:
             return
 
@@ -39,7 +39,7 @@ class ActionCommandSystem(BattleSystemBase):
             context.current_turn_entity_id = None
 
             # フェーズを IDLE に戻す（キュー操作含む）
-            self.state.change_phase(BattlePhase.IDLE)
+            self.command.change_phase(BattlePhase.IDLE)
 
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)

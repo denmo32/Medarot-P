@@ -7,7 +7,7 @@ class DamageSystem(BattleSystemBase):
     """DamageEventComponent を監視し、実際の HP 減算、状態異常適用を行う"""
 
     def update(self, dt: float):
-        context = self.state.context
+        context = self.query.context
         if not context:
             return
 

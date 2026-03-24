@@ -7,9 +7,9 @@ class TurnSystem(BattleSystemBase):
     """ターン開始とプレイヤー/エネミーの判定"""
 
     def update(self, dt: float):
-        context = self.state.context
-        flow = self.state.flow
-        
+        context = self.query.context
+        flow = self.query.flow
+
         if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
             return
 
@@ -25,6 +25,6 @@ class TurnSystem(BattleSystemBase):
         if gauge.status == GaugeStatus.ACTION_CHOICE:
             context.current_turn_entity_id = eid
             if team.team_type == TeamType.PLAYER:
-                self.state.change_phase(BattlePhase.INPUT)
+                self.command.change_phase(BattlePhase.INPUT)
             else:
-                self.state.change_phase(BattlePhase.ENEMY_TURN)
+                self.command.change_phase(BattlePhase.ENEMY_TURN)
