@@ -71,19 +71,20 @@ class BattleScene:
     def _process_ui_input(self, input_comp, context, flow):
         """
         UI 入力処理：マウス/キーボードによる選択変更と決定を処理する。
-        
+
         ECS ロジック層（InputSystem）は座標を知らず、
         このメソッドが設定した「コマンド」のみを処理する。
         """
-        screen_size = (self.event_manager.mouse_x, self.event_manager.mouse_y)
         sw, sh = self.screen.get_size()
         screen_size = (sw, sh)
 
         # マウスによるボタン選択
+        # ViewModel が生成した Snapshot のボタンデータ（Rect 含む）を使用して当たり判定
+        snapshot = self.view_model.create_snapshot(screen_size)
         mouse_idx = UIHitTester.hit_test_action_menu(
             self.event_manager.mouse_x,
             self.event_manager.mouse_y,
-            screen_size
+            snapshot.action_menu.buttons
         )
         if mouse_idx is not None:
             input_comp.selected_menu_index = mouse_idx

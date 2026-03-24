@@ -12,7 +12,7 @@ from ui.config import UI_PARAMS, MENU_PART_ORDER
 class UIHitTester:
     """
     UI 要素のレイアウト計算と当たり判定を担当する。
-    
+
     このクラスは「画面ピクセル座標」の概念を持ち、
     ECS ロジック層（InputSystem など）とは完全に分離されている。
     """
@@ -22,6 +22,8 @@ class UIHitTester:
         """
         アクションメニューのボタン配置を計算し、Rect のリストを返す。
         画面サイズに基づいて動的に計算する。
+        
+        このメソッドは ViewModel が Snapshot 生成時に呼び出すことを想定している。
         """
         sw, sh = screen_size
 
@@ -65,16 +67,18 @@ class UIHitTester:
         return layout
 
     @staticmethod
-    def hit_test_action_menu(mx: int, my: int, screen_size: tuple[int, int]) -> int | None:
+    def hit_test_action_menu(mx: int, my: int, buttons: list) -> int | None:
         """
         マウス座標がアクションメニューのどのボタンにあるかを判定。
-        
+
+        引数：
+            mx, my: マウス座標
+            buttons: ActionButtonData のリスト（rect を含む）
+
         戻り値：
             ボタンのインデックス（0-based）。どのボタンにも該当しない場合は None。
         """
-        layout = UIHitTester.calculate_action_menu_layout(len(MENU_PART_ORDER) + 1, screen_size)
-
-        for i, rect in enumerate(layout):
-            if rect.collidepoint(mx, my):
+        for i, btn in enumerate(buttons):
+            if btn.rect and btn.rect.collidepoint(mx, my):
                 return i
         return None

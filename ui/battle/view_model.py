@@ -9,10 +9,10 @@ from .builders import FieldSnapshotBuilder, UISnapshotBuilder, CutinSnapshotBuil
 class BattleViewModel:
     """
     各ビルダーを統括し、World の状態を描画用の Snapshot に変換するファサード。
-    
+
     リファクタリング後：
-    - レイアウト計算・当たり判定の責務を削除（UIHitTester/Renderer に移動）
-    - Snapshot 生成のみに専念する「純粋なデータ変換層」
+    - Snapshot 生成時に画面サイズを渡し、レイアウト計算（Rect）も実施
+    - Snapshot は「完全な設計図」となり、Renderer/Scene はそれを見るのみ
     """
 
     def __init__(self, world):
@@ -35,7 +35,7 @@ class BattleViewModel:
         snapshot.target_line = self.field_builder.build_target_line(snapshot.characters, flow)
 
         snapshot.log_window = self.ui_builder.build_log_window(context, flow)
-        snapshot.action_menu = self.ui_builder.build_action_menu(context, flow)
+        snapshot.action_menu = self.ui_builder.build_action_menu(context, flow, screen_size)
         snapshot.game_over = self.ui_builder.build_game_over(flow)
 
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
