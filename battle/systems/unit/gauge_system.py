@@ -14,13 +14,13 @@ class GaugeSystem(BattleSystemBase):
         if not self.query.context or not self.query.flow or self.query.flow.current_phase != BattlePhase.IDLE:
             return
 
-        active_entities = [
-            (eid, comps) for eid, comps in self.world.get_entities_with_components('gauge', 'defeated')
-            if not comps['defeated'].is_defeated
-        ]
+        # 機能停止した機体もチェック対象（待機キュー中の中断判定のため）
+        all_entities = self.world.get_entities_with_components('gauge', 'defeated')
 
-        # 1. 状態異常の更新
-        for _, comps in active_entities:
+        # 1. 状態異常の更新（機能停止していない機体のみ）
+        for _, comps in all_entities:
+            if comps['defeated'].is_defeated:
+                continue
             gauge = comps['gauge']
             if gauge.active_effects:
                 gauge.active_effects = GaugeMechanics.get_updated_effects(gauge.active_effects, dt)
@@ -29,26 +29,32 @@ class GaugeSystem(BattleSystemBase):
         # 誰かが行動待機中の場合は、時間は進めるがゲージ増加は行わない
         time_step = 0.0 if self.query.context.waiting_queue else dt
 
-        for eid, comps in active_entities:
+        for eid, comps in all_entities:
             gauge = comps['gauge']
+
+            # 機能停止している場合は、待機キューに入っていれば削除
+            if comps['defeated'].is_defeated:
+                if eid in self.query.context.waiting_queue:
+                    self.command.manage_queue(eid, False)
+                continue
 
             # 行動の継続妥当性を検証（パーツ破壊チェックなど）
             # System 側で必要なデータを抽出して純粋関数に渡す
             actor_comps = self.world.try_get_entity(eid)
             actor_name = actor_comps['medal'].nickname if actor_comps and 'medal' in actor_comps else "Unknown"
-            
+
             # 実行予定パーツの生存チェック
             is_actor_part_alive = True
             if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
                 is_actor_part_alive = self.query.is_part_alive(eid, gauge.selected_part)
-            
+
             # ターゲット部位の生存チェック
             is_target_part_alive = True
             target_data = gauge.part_targets.get(gauge.selected_part)
             if target_data:
                 target_id, target_part = target_data
                 is_target_part_alive = self.query.is_part_alive(target_id, target_part)
-            
+
             interruption = ActionMechanics.validate_action_continuity(
                 gauge_status=gauge.status,
                 gauge_progress=gauge.progress,
@@ -59,7 +65,7 @@ class GaugeSystem(BattleSystemBase):
                 is_actor_part_alive=is_actor_part_alive,
                 is_target_part_alive=is_target_part_alive
             )
-            
+
             if not interruption.is_valid:
                 self.command.apply_gauge_reset(eid, interruption.reset_data)
                 self.command.manage_queue(eid, False)

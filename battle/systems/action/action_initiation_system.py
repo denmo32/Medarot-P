@@ -27,7 +27,9 @@ class ActionInitiationSystem(BattleSystemBase):
         actor_eid = context.waiting_queue[0]
         actor_comps = self.world.try_get_entity(actor_eid)
 
-        if not actor_comps:
+        # エンティティが存在しない、または機能停止している場合はキューから削除
+        defeated = actor_comps.get('defeated') if actor_comps else None
+        if not actor_comps or (defeated and defeated.is_defeated):
             self.command.manage_queue(actor_eid, False)
             return
 

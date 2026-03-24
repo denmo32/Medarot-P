@@ -15,7 +15,10 @@ class TurnSystem(BattleSystemBase):
 
         eid = context.waiting_queue[0]
         comps = self.world.try_get_entity(eid)
-        if not comps:
+        
+        # エンティティが存在しない、または機能停止している場合はキューから削除
+        defeated = comps.get('defeated') if comps else None
+        if not comps or (defeated and defeated.is_defeated):
             context.waiting_queue.pop(0)
             return
 

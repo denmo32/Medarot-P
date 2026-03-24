@@ -70,8 +70,8 @@ class ActionMechanics:
         is_target_part_alive: bool
     ) -> ActionInterruptionResult:
         """
-        アクションの継続妥当性を検証する（充填中のパーツ破壊チェックなど）。
-        
+        アクションの継続妥当性を検証する（充填中・待機中のパーツ破壊チェックなど）。
+
         Args:
             gauge_status: ゲージ状態（"charging", "cooldown" など）
             gauge_progress: ゲージ進行度（0.0-100.0）
@@ -81,12 +81,13 @@ class ActionMechanics:
             actor_name: 実行者の名前
             is_actor_part_alive: 実行予定パーツが生存しているか
             is_target_part_alive: ターゲット部位が生存しているか
-        
+
         Returns:
             検証結果。is_valid=False の場合は中断が必要。
         """
-        # 充填中でない場合は常に有効
-        if gauge_status != GaugeStatus.CHARGING:
+        # 充填中または行動選択待ち（待機キュー中）のみチェック
+        # 放熱中（COOLDOWN）はチェック不要（既に行動が確定していないため）
+        if gauge_status not in (GaugeStatus.CHARGING, GaugeStatus.ACTION_CHOICE):
             return ActionInterruptionResult(is_valid=True)
 
         # 1. 実行予定パーツの生存チェック

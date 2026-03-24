@@ -47,7 +47,24 @@ class BattleQuery:
         return not defeated.is_defeated if defeated else True
 
     def is_part_alive(self, entity_id: int, part_type: str) -> bool:
-        """指定部位が生存しているか（HP > 0）"""
+        """
+        指定部位が生存しているか（HP > 0 かつ機体が機能停止していない）。
+        
+        Args:
+            entity_id: 機体エンティティ ID
+            part_type: 部位種別（PartType）
+        
+        Returns:
+            機体が機能停止しておらず、かつ部位 HP が 1 以上なら True
+        """
+        # 機体全体の生存チェック（機能停止判定）
+        entity_comps = self.world.try_get_entity(entity_id)
+        if entity_comps:
+            defeated = entity_comps.get('defeated')
+            if defeated and defeated.is_defeated:
+                return False  # 機能停止している場合は全て NG
+        
+        # 部位の HP チェック
         p_comps = self.get_part_components(entity_id, part_type, 'health')
         return p_comps and p_comps['health'].hp > 0
 
