@@ -96,23 +96,27 @@ class CustomizeRenderer(BaseRenderer):
         title = "メダル詳細" if data['slot_idx'] == 0 else "パーツ詳細"
         start_y = self._draw_panel_base(2, title)
         col, fd = self.cols[2], data['focused_data']
-        if not fd: return
-        
+        if not fd:
+            return
+
         gap = self.scale_y(0.03)
-        self.draw_text(fd.get('name', '---'), (col['x'] + 15, start_y + gap), COLORS['SELECT_HIGHLIGHT'], 'medium')
-        
+        # dataclass のプロパティアクセスを使用
+        self.draw_text(fd.name, (col['x'] + 15, start_y + gap), COLORS['SELECT_HIGHLIGHT'], 'medium')
+
         attr_label = data['focused_attr_label']
         stats = []
         if data['slot_idx'] == 0:
-            stats = [("ニックネーム", fd.get('nickname', '---')), 
-                     ("性格", fd.get('personality', 'random')),
+            # MedalData
+            stats = [("ニックネーム", fd.nickname),
+                     ("性格", fd.personality),
                      ("属性", attr_label)]
         else:
+            # PartData
             stats = [("属性", attr_label),
-                     ("装甲", fd.get('hp', 0)), 
-                     ("威力", fd.get('attack', '---')), 
-                     ("機動", fd.get('mobility', '---')), 
-                     ("耐久", fd.get('defense', '---'))]
+                     ("装甲", fd.hp),
+                     ("威力", fd.attack if fd.attack is not None else '---'),
+                     ("機動", fd.mobility),
+                     ("耐久", fd.defense)]
         
         info_start_y = start_y + gap + 40
         row_h = self.scale_y(0.07)

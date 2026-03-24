@@ -1,7 +1,10 @@
 """カスタマイズ画面のロジック管理"""
 
+from typing import Optional, Dict, Any, List
 from data.save_data_manager import SaveDataManager
 from data.game_data_manager import GameDataManager
+from domain.models import PartData, MedalData
+
 
 class CustomizeManager:
     """カスタマイズ画面の状態管理と操作ロジック"""
@@ -92,8 +95,13 @@ class CustomizeManager:
         else:
             focused_id = self._get_current_part_id(slot_name)
 
-        focused_data = self.data_manager.get_part_data(focused_id) or self.data_manager.get_medal_data(focused_id)
-        attr_label = self.data_manager.get_attribute_label(focused_data.get('attribute', 'undefined'))
+        focused_data: Optional[PartData] = self.data_manager.get_part_data(focused_id)
+        focused_medal_data: Optional[MedalData] = None
+        if focused_data is None:
+            focused_medal_data = self.data_manager.get_medal_data(focused_id)
+            focused_data = focused_medal_data
+
+        attr_label = self.data_manager.get_attribute_label(focused_data.attribute if focused_data else "undefined")
 
         # 3. リスト情報の事前構築
         available_ids = self.data_manager.get_part_ids_for_type(slot_name)
@@ -101,7 +109,7 @@ class CustomizeManager:
 
         # 4. メダル属性（ボーナス判定用）
         medal_data = self.data_manager.get_medal_data(setup["medal"])
-        current_medal_attr = medal_data.get("attribute", "undefined")
+        current_medal_attr = medal_data.attribute if medal_data else "undefined"
 
         return {
             "state": self.state,

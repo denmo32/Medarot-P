@@ -164,3 +164,4 @@ battle/systems/__pycache__/battle_query.cpython-313.pyc
 battle/mechanics/__pycache__/targeting_resolvers.cpython-313.pyc
 .qwen/settings.json.orig
 ui/battle/__pycache__/ui_hit_tester.cpython-313.pyc
+domain/__pycache__/models.cpython-313.pyc

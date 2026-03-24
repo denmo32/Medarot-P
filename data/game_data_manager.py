@@ -1,8 +1,10 @@
 """パーツ・メダルデータ管理クラス"""
 
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from core.utils import resource_path
+from domain.models import PartData, MedalData
+
 
 class GameDataManager:
     """parts_data.jsonおよびmedals_data.jsonからデータを管理するクラス"""
@@ -33,56 +35,63 @@ class GameDataManager:
         # 引数でパスが指定された場合は、それをパーツデータパスとして優先使用（テスト容易性のため）
         if json_path is not None:
             self.parts_json_path = json_path
-        
+
         self.data = self._load_all_data()
-    
+
     def _load_all_data(self) -> Dict[str, Any]:
         """全データを読み込んで統合する"""
         data = {}
-        
+
         # パーツデータ読み込み
         parts_data = self._load_json(self.parts_json_path)
         data.update(parts_data)
-        
+
         # メダルデータ読み込み
         medals_data = self._load_json(self.medals_json_path)
         data.update(medals_data)
-        
+
         return data
 
     def _load_json(self, path: str) -> Dict[str, Any]:
-        """単一のJSONファイルを読み込む"""
+        """単一の JSON ファイルを読み込む"""
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
-            print(f"警告: {path} が見つかりません")
+            print(f"警告：{path} が見つかりません")
             return {}
         except json.JSONDecodeError as e:
-            print(f"警告: JSON解析エラー {path}: {e}")
+            print(f"警告：JSON 解析エラー {path}: {e}")
             return {}
 
-    def get_part_data(self, part_id: str) -> Dict[str, Any]:
-        """パーツIDからパーツデータを取得"""
+    def get_part_data(self, part_id: str) -> Optional[PartData]:
+        """パーツ ID からパーツデータを取得"""
         parts = self.data.get('parts', {})
         for part_type, part_dict in parts.items():
             if part_id in part_dict:
-                return part_dict[part_id]
-        return {}
+                return PartData.from_dict(part_dict[part_id])
+        return None
 
-    def get_medal_data(self, medal_id: str) -> Dict[str, Any]:
-        """メダルIDからメダルデータを取得"""
-        return self.data.get('medals', {}).get(medal_id, {})
+    def get_medal_data(self, medal_id: str) -> Optional[MedalData]:
+        """メダル ID からメダルデータを取得"""
+        medals = self.data.get('medals', {})
+        if medal_id in medals:
+            return MedalData.from_dict(medals[medal_id])
+        return None
 
     def get_part_name(self, item_id: str) -> str:
-        """IDから表示名（パーツ名またはメダル名）を取得"""
+        """ID から表示名（パーツ名またはメダル名）を取得"""
         # パーツから探す
-        data = self.get_part_data(item_id)
-        if not data:
-            # メダルから探す
-            data = self.get_medal_data(item_id)
-            
-        return data.get('name', item_id)
+        part_data = self.get_part_data(item_id)
+        if part_data is not None:
+            return part_data.name
+
+        # メダルから探す
+        medal_data = self.get_medal_data(item_id)
+        if medal_data is not None:
+            return medal_data.name
+
+        return item_id
 
     def get_parts_for_part_type(self, part_type: str) -> Dict[str, Dict[str, Any]]:
         """部位タイプからその部位の全パーツを取得"""
@@ -90,10 +99,10 @@ class GameDataManager:
         return parts.get(part_type, {})
 
     def get_part_ids_for_type(self, part_type: str) -> List[str]:
-        """部位タイプまたはメダルからIDのリストを取得"""
+        """部位タイプまたはメダルから ID のリストを取得"""
         if part_type == "medal":
             return list(self.data.get('medals', {}).keys())
-        
+
         part_dict = self.get_parts_for_part_type(part_type)
         return list(part_dict.keys())
 
@@ -106,7 +115,7 @@ class GameDataManager:
         return self.ATTRIBUTE_LABELS.get(attr_key, attr_key)
 
     def get_next_part_id(self, current_id: str, direction: int = 1) -> str:
-        """現在選択中のアイテムの次または前のIDを取得"""
+        """現在選択中のアイテムの次または前の ID を取得"""
         # まず部位を探す
         target_type = None
         parts = self.data.get('parts', {})
@@ -114,14 +123,15 @@ class GameDataManager:
             if current_id in p_dict:
                 target_type = p_type
                 break
-        
+
         # パーツに見つからなければメダル
         if not target_type:
             if current_id in self.data.get('medals', {}):
                 target_type = "medal"
 
-        if not target_type: return current_id
-        
+        if not target_type:
+            return current_id
+
         ids = self.get_part_ids_for_type(target_type)
         idx = ids.index(current_id)
         new_idx = (idx + direction) % len(ids)
