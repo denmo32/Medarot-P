@@ -1,7 +1,7 @@
 """ターゲット選定・状態確認ロジック"""
 
 import random
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from domain.constants import TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
 
@@ -9,39 +9,68 @@ class TargetingMechanics:
     """エンティティの生存・有効性・クエリに関するユーティリティ"""
 
     @staticmethod
-    def is_action_target_valid(state, target_id: Optional[int], target_part: Optional[str] = None) -> bool:
-        """エンティティおよび指定部位が有効（生存）か一括チェック"""
-        if target_id is None: return False
-        if not state.is_entity_alive(target_id): return False
+    def is_action_target_valid(
+        is_entity_alive: bool,
+        is_part_alive: bool,
+        target_id: Optional[int],
+        target_part: Optional[str] = None
+    ) -> bool:
+        """エンティティおよび指定部位が有効（生存）か一括チェック
+        
+        Args:
+            is_entity_alive: ターゲット機体が生存しているか
+            is_part_alive: ターゲット部位が生存しているか
+            target_id: ターゲット ID
+            target_part: ターゲット部位
+        
+        Returns:
+            有効な場合は True
+        """
+        if target_id is None:
+            return False
+        if not is_entity_alive:
+            return False
         if target_part:
-            return state.is_part_alive(target_id, target_part)
+            return is_part_alive
         return True
 
     @staticmethod
-    def get_enemy_team_entities(state, my_entity_id: int) -> List[int]:
-        my_comps = state.try_get_components(my_entity_id, 'team')
-        if not my_comps: return []
+    def get_random_alive_part(alive_parts_hp: Dict[str, int]) -> Optional[str]:
+        """生存パーツからランダムに部位を選択
         
-        my_team = my_comps['team'].team_type
-        target_team_type = TeamType.ENEMY if my_team == TeamType.PLAYER else TeamType.PLAYER
-        return state.get_team_entities(target_team_type)
+        Args:
+            alive_parts_hp: 生存しているパーツと HP {part_type: hp}
+        
+        Returns:
+            選択された部位種別
+        """
+        if not alive_parts_hp:
+            return None
+        return random.choice(list(alive_parts_hp.keys()))
 
     @staticmethod
-    def get_random_alive_part(state, entity_id: int) -> Optional[str]:
-        alive_parts_hp = state.get_alive_parts_hp(entity_id)
-        return random.choice(list(alive_parts_hp.keys())) if alive_parts_hp else None
-
-    @staticmethod
-    def get_closest_target_by_gauge(state, my_team_type: str) -> Optional[int]:
-        """最もゲージが進んでいる（中央に近い）敵を取得"""
-        target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
+    def get_closest_target_by_gauge(
+        enemy_gauge_data: List[Tuple[int, str, float]]
+    ) -> Optional[int]:
+        """
+        最もゲージが進んでいる（中央に近い）敵を取得
+        
+        Args:
+            enemy_gauge_data: 敵のゲージ情報リスト [(enemy_id, status, progress), ...]
+        
+        Returns:
+            最もゲージが進んでいる敵の ID
+        """
+        if not enemy_gauge_data:
+            return None
+        
         best_target, max_ratio = None, float('-inf')
         
-        for teid, tcomps in state.get_entities_with_components('team', 'defeated', 'gauge'):
-            if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated:
-                ratio = calculate_gauge_ratio(tcomps['gauge'].status, tcomps['gauge'].progress)
-                if ratio > max_ratio:
-                    max_ratio, best_target = ratio, teid
+        for enemy_id, status, progress in enemy_gauge_data:
+            ratio = calculate_gauge_ratio(status, progress)
+            if ratio > max_ratio:
+                max_ratio, best_target = ratio, enemy_id
+        
         return best_target
 
     @staticmethod
@@ -61,10 +90,10 @@ class TargetingMechanics:
             return PartType.HEAD
 
         if is_defense:
-            # 防御時は、頭部以外の最もHPが高い部位を盾にする
+            # 防御時は、頭部以外の最も HP が高い部位を盾にする
             non_head = [pt for pt in part_hps if pt != PartType.HEAD]
             if non_head:
-                # HPの高い順にソート
+                # HP の高い順にソート
                 sorted_parts = sorted(non_head, key=lambda pt: part_hps[pt], reverse=True)
                 return sorted_parts[0]
             return PartType.HEAD

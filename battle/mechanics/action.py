@@ -1,11 +1,11 @@
 """アクションの状態遷移・妥当性検証ロジック"""
 
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict
 from dataclasses import dataclass
 from domain.constants import GaugeStatus, ActionType
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.log import LogBuilder
-from battle.mechanics.trait import TraitRegistry
+from battle.mechanics.trait import TraitRegistry, MeleeTrait
 
 @dataclass(frozen=True)
 class GaugeResetData:
@@ -24,7 +24,7 @@ class ActionInterruptionResult:
 class ActionMechanics:
     """
     アクションに関する判断ロジックと状態更新ヘルパー。
-    副作用（コンポーネント書き換え）は持たず、Systemに適用すべき値を計算して返す。
+    副作用（コンポーネント書き換え）は持たず、System に適用すべき値を計算して返す。
     """
 
     @staticmethod
@@ -59,59 +59,112 @@ class ActionMechanics:
         )
 
     @staticmethod
-    def validate_action_continuity(state, entity_id: int) -> ActionInterruptionResult:
+    def validate_action_continuity(
+        gauge_status: str,
+        gauge_progress: float,
+        gauge_selected_action: str,
+        gauge_selected_part: Optional[str],
+        gauge_part_targets: Dict[Optional[str], Tuple[int, Optional[str]]],
+        actor_name: str,
+        is_actor_part_alive: bool,
+        is_target_part_alive: bool
+    ) -> ActionInterruptionResult:
         """
         アクションの継続妥当性を検証する（充填中のパーツ破壊チェックなど）。
+        
+        Args:
+            gauge_status: ゲージ状態（"charging", "cooldown" など）
+            gauge_progress: ゲージ進行度（0.0-100.0）
+            gauge_selected_action: 選択中のアクション種別
+            gauge_selected_part: 選択中のパーツ種別
+            gauge_part_targets: パーツごとのターゲット情報 {part_type: (target_id, target_part)}
+            actor_name: 実行者の名前
+            is_actor_part_alive: 実行予定パーツが生存しているか
+            is_target_part_alive: ターゲット部位が生存しているか
+        
+        Returns:
+            検証結果。is_valid=False の場合は中断が必要。
         """
-        comps = state.try_get_components(entity_id, 'gauge', 'medal')
-        if not comps:
+        # 充填中でない場合は常に有効
+        if gauge_status != GaugeStatus.CHARGING:
             return ActionInterruptionResult(is_valid=True)
-
-        gauge = comps['gauge']
-        if gauge.status != GaugeStatus.CHARGING:
-            return ActionInterruptionResult(is_valid=True)
-
-        actor_name = comps['medal'].nickname
 
         # 1. 実行予定パーツの生存チェック
-        if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            if not state.is_part_alive(entity_id, gauge.selected_part):
+        if gauge_selected_action == ActionType.ATTACK and gauge_selected_part:
+            if not is_actor_part_alive:
                 return ActionInterruptionResult(
                     is_valid=False,
                     message=LogBuilder.get_part_broken_interruption(actor_name),
-                    reset_data=ActionMechanics.get_cooldown_reset_data(gauge.progress)
+                    reset_data=ActionMechanics.get_cooldown_reset_data(gauge_progress)
                 )
 
         # 2. ターゲットの生存チェック
-        target_data = gauge.part_targets.get(gauge.selected_part)
+        target_data = gauge_part_targets.get(gauge_selected_part)
         if target_data:
-            target_id, target_part_type = target_data
-            if not state.is_part_alive(target_id, target_part_type):
+            if not is_target_part_alive:
                 return ActionInterruptionResult(
                     is_valid=False,
                     message=LogBuilder.get_target_lost(actor_name),
-                    reset_data=ActionMechanics.get_cooldown_reset_data(gauge.progress)
+                    reset_data=ActionMechanics.get_cooldown_reset_data(gauge_progress)
                 )
 
         return ActionInterruptionResult(is_valid=True)
 
     @staticmethod
-    def resolve_action_target(state, actor_eid: int, actor_comps, gauge) -> Tuple[Optional[int], Optional[str]]:
+    def resolve_action_target(
+        selected_action: str,
+        selected_part: Optional[str],
+        is_actor_part_alive: bool,
+        attack_trait: str,
+        # 射撃特性用：予約済みターゲット情報
+        part_targets: Dict[Optional[str], Tuple[int, Optional[str]]],
+        is_target_alive: bool,
+        # 格闘特性用： closest enemy 情報
+        closest_enemy_id: Optional[int],
+        personality_id: str,
+        target_part_from_personality: Optional[str],
+        is_personality_target_alive: bool
+    ) -> Tuple[Optional[int], Optional[str]]:
         """
         行動実行の瞬間に、特性やスキルの性質に基づいてターゲット（eid, part）を確定させる。
+        
+        Args:
+            selected_action: 選択中のアクション種別
+            selected_part: 選択中のパーツ種別
+            is_actor_part_alive: 実行パーツが生存しているか
+            attack_trait: 攻撃パーツの特性
+            part_targets: パーツごとのターゲット情報 {part_type: (target_id, target_part)}
+            is_target_alive: 予約済みターゲットが生存しているか
+            closest_enemy_id: 最もゲージが進んでいる敵の ID（格闘特性用）
+            personality_id: 性格 ID
+            target_part_from_personality: 性格によって選択された部位
+            is_personality_target_alive: 性格が選択したターゲットが生存しているか
+        
+        Returns:
+            (target_id, target_part) のタプル。無効な場合は (None, None)
         """
-        if gauge.selected_action != ActionType.ATTACK or not gauge.selected_part:
+        if selected_action != ActionType.ATTACK or not selected_part:
             return None, None
 
         # 実行パーツ自体の生存確認
-        if not state.is_part_alive(actor_eid, gauge.selected_part):
-            return None, None
-
-        p_comps = state.get_part_components(actor_eid, gauge.selected_part, 'attack')
-        attack_comp = p_comps['attack'] if p_comps else None
-        if not attack_comp:
+        if not is_actor_part_alive:
             return None, None
 
         # 特性振る舞い（格闘/射撃のターゲット解決ロジック）に委譲
-        trait_behavior = TraitRegistry.get(attack_comp.trait)
-        return trait_behavior.resolve_target(state, actor_eid, actor_comps, gauge)
+        trait_behavior = TraitRegistry.get(attack_trait)
+        
+        # 格闘特性の場合は MeleeTrait.resolve_target を使用
+        if isinstance(trait_behavior, MeleeTrait):
+            return trait_behavior.resolve_target(
+                closest_enemy_id=closest_enemy_id,
+                personality_id=personality_id,
+                target_part=target_part_from_personality,
+                is_target_alive=is_personality_target_alive
+            )
+        else:
+            # 射撃特性などの場合は基底クラスの resolve_target を使用
+            return trait_behavior.resolve_target(
+                selected_part=selected_part,
+                part_targets=part_targets,
+                is_target_alive=is_target_alive
+            )

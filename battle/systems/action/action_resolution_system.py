@@ -3,7 +3,7 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
 from battle.mechanics.flow import PhaseTransition
-from battle.mechanics.action_behavior import ActionBehaviorRegistry
+from battle.mechanics.action_behavior import ActionBehaviorRegistry, ResolveContext
 
 class ActionResolutionSystem(BattleSystemBase):
     """
@@ -28,8 +28,18 @@ class ActionResolutionSystem(BattleSystemBase):
         if attacker_comps and 'gauge' in attacker_comps:
             behavior = ActionBehaviorRegistry.get(event.action_type)
 
+            # System 側で必要なデータを抽出して純粋関数に渡す
+            attacker_name = attacker_comps['medal'].nickname if attacker_comps and 'medal' in attacker_comps else "Unknown"
+            is_actor_part_alive = self.query.is_part_alive(event.attacker_id, event.part_type)
+            
+            context = ResolveContext(
+                attacker_name=attacker_name,
+                is_actor_part_alive=is_actor_part_alive,
+                calculation_result=event.calculation_result
+            )
+
             # 1. 結果オブジェクトの取得
-            result = behavior.resolve(self.query, event, self.query.context)
+            result = behavior.resolve(context)
 
             # 2. 世界への適用（副作用：ダメージ付与、ゲージリセット、フェーズ遷移）
             self.command.apply_resolution_result(event.attacker_id, result, event_id=event_eid)

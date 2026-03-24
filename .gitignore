@@ -160,3 +160,4 @@ battle/mechanics/__pycache__/hit_calculator.cpython-313.pyc
 battle/systems/__pycache__/battle_state_accessor.cpython-313.pyc
 battle/systems/__pycache__/battle_command.cpython-313.pyc
 battle/systems/__pycache__/battle_query.cpython-313.pyc
+.qwen/settings.json

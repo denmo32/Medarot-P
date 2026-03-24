@@ -1,7 +1,7 @@
 """ATB ゲージ更新システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import BattlePhase
+from battle.constants import BattlePhase, ActionType
 from battle.mechanics.gauge_mechanics import GaugeMechanics
 from battle.mechanics.action import ActionMechanics
 from battle.mechanics.flow import PhaseTransition
@@ -33,7 +33,33 @@ class GaugeSystem(BattleSystemBase):
             gauge = comps['gauge']
 
             # 行動の継続妥当性を検証（パーツ破壊チェックなど）
-            interruption = ActionMechanics.validate_action_continuity(self.query, eid)
+            # System 側で必要なデータを抽出して純粋関数に渡す
+            actor_comps = self.world.try_get_entity(eid)
+            actor_name = actor_comps['medal'].nickname if actor_comps and 'medal' in actor_comps else "Unknown"
+            
+            # 実行予定パーツの生存チェック
+            is_actor_part_alive = True
+            if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
+                is_actor_part_alive = self.query.is_part_alive(eid, gauge.selected_part)
+            
+            # ターゲット部位の生存チェック
+            is_target_part_alive = True
+            target_data = gauge.part_targets.get(gauge.selected_part)
+            if target_data:
+                target_id, target_part = target_data
+                is_target_part_alive = self.query.is_part_alive(target_id, target_part)
+            
+            interruption = ActionMechanics.validate_action_continuity(
+                gauge_status=gauge.status,
+                gauge_progress=gauge.progress,
+                gauge_selected_action=gauge.selected_action,
+                gauge_selected_part=gauge.selected_part,
+                gauge_part_targets=gauge.part_targets,
+                actor_name=actor_name,
+                is_actor_part_alive=is_actor_part_alive,
+                is_target_part_alive=is_target_part_alive
+            )
+            
             if not interruption.is_valid:
                 self.command.apply_gauge_reset(eid, interruption.reset_data)
                 self.command.manage_queue(eid, False)
