@@ -2,7 +2,7 @@
 
 import pygame
 from ui.config import COLORS, UI_PARAMS
-from .layout_utils import calculate_action_menu_layout
+from .ui_hit_tester import UIHitTester
 
 class UIPanelRenderer:
     def __init__(self, master):
@@ -59,8 +59,8 @@ class UIPanelRenderer:
                 # 機体名の下に配置
                 skill_y = wy + pad + int(sh * 0.05)
                 self.master.draw_text(f"{selected_btn.skill_label}", (pad, skill_y), (200, 255, 100), 'medium')
-        
-        layout = calculate_action_menu_layout(len(data.buttons), (sw, sh))
+
+        layout = UIHitTester.calculate_action_menu_layout(len(data.buttons), (sw, sh))
         
         for i, (btn, rect) in enumerate(zip(data.buttons, layout)):
             is_selected = (i == data.selected_index)

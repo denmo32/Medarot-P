@@ -31,18 +31,18 @@ from battle.systems.impact.destruction_system import DestructionSystem
 from ui.battle.view_model import BattleViewModel
 
 class BattleEngine:
-    def __init__(self, 
+    def __init__(self,
                  data_manager: GameDataManager,
                  save_manager: SaveDataManager,
                  ui_params: dict,
-                 player_count: int = PLAYER_COUNT, 
+                 player_count: int = PLAYER_COUNT,
                  enemy_count: int = ENEMY_COUNT):
-        
+
         self.data_manager = data_manager
         self.save_manager = save_manager
 
         self.world = World()
-        BattleEntityFactory.create_battle_context(self.world)
+        self.context_entity_id = BattleEntityFactory.create_battle_context(self.world)
         BattleEntityFactory.create_input_manager(self.world)
         
         # UI設定から比率パラメータを渡す（外部から注入されたui_paramsを使用）
