@@ -57,12 +57,9 @@ class InitiateParams:
     selected_part: Optional[str]
     is_actor_part_alive: bool
     attack_trait: str
-    part_targets: dict
-    is_target_alive: bool
-    closest_enemy_id: Optional[int]
-    personality_id: str
-    target_part_from_personality: Optional[str]
-    is_personality_target_alive: bool
+    # TargetResolver によって解決されたターゲット
+    resolved_target_id: Optional[int]
+    resolved_target_part: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -93,18 +90,10 @@ class ActionBehavior(ABC):
 
 class AttackAction(ActionBehavior):
     def initiate(self, params: InitiateParams) -> Tuple[Optional[int], Optional[str]]:
-        return ActionMechanics.resolve_action_target(
-            selected_action=params.selected_action,
-            selected_part=params.selected_part,
-            is_actor_part_alive=params.is_actor_part_alive,
-            attack_trait=params.attack_trait,
-            part_targets=params.part_targets,
-            is_target_alive=params.is_target_alive,
-            closest_enemy_id=params.closest_enemy_id,
-            personality_id=params.personality_id,
-            target_part_from_personality=params.target_part_from_personality,
-            is_personality_target_alive=params.is_personality_target_alive
-        )
+        # TargetResolver によって解決済みのターゲットを使用
+        if not params.is_actor_part_alive:
+            return None, None
+        return params.resolved_target_id, params.resolved_target_part
 
     def get_initial_phase(self) -> str:
         return BattlePhase.TARGET_INDICATION

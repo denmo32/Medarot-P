@@ -8,9 +8,10 @@ from domain.constants import GaugeStatus, ActionType, PartType
 from battle.constants import BattlePhase, BattleTiming
 from battle.mechanics.combat import CombatMechanics
 from battle.mechanics.action import ActionMechanics
-from battle.mechanics.action_behavior import ActionBehaviorRegistry, InitiateParams, ResolveContext
+from battle.mechanics.action_behavior import ActionBehaviorRegistry, InitiateParams
 from battle.mechanics.log import LogBuilder
 from battle.mechanics.hit_calculator import AttackParams, MedalParams, LegsStats
+from battle.mechanics.targeting_resolvers import TargetResolverFactory
 
 class ActionInitiationSystem(BattleSystemBase):
     """
@@ -56,59 +57,26 @@ class ActionInitiationSystem(BattleSystemBase):
             if p_comps:
                 attack_trait = p_comps['attack'].trait
 
-        # 2. ターゲットの生存チェック
-        is_target_alive = True
-        target_data = gauge.part_targets.get(gauge.selected_part)
-        if target_data:
-            target_id, target_part = target_data
-            is_target_alive = self.query.is_part_alive(target_id, target_part)
+        # 2. TargetResolver によるターゲット解決
+        #    System は「どの Resolver を使うか」だけを知り、「どう解決するか」は知らない
+        resolver = TargetResolverFactory.get(attack_trait)
+        resolved_target_id, resolved_target_part = resolver.resolve(
+            actor_eid=actor_eid,
+            selected_part=gauge.selected_part,
+            world=self.world,
+            query=self.query
+        )
 
-        # 3. 格闘特性用の情報（closest enemy）
-        closest_enemy_id = None
-        personality_id = actor_comps['medal'].personality_id
-        target_part_from_personality = None
-        is_personality_target_alive = False
-        
-        if attack_trait in ["ソード", "サンダー", "ハンマー"]:  # 格闘特性
-            from battle.mechanics.targeting import TargetingMechanics
-            from domain.gauge_logic import calculate_gauge_ratio
-            
-            # 敵チームのゲージ情報を収集
-            enemy_gauge_data = []
-            target_team = "enemy" if actor_comps['team'].team_type == "player" else "player"
-            
-            for eid, ecomps in self.world.get_entities_with_components('team', 'defeated', 'gauge'):
-                if ecomps['team'].team_type == target_team and not ecomps['defeated'].is_defeated:
-                    ratio = calculate_gauge_ratio(ecomps['gauge'].status, ecomps['gauge'].progress)
-                    enemy_gauge_data.append((eid, ecomps['gauge'].status, ecomps['gauge'].progress))
-            
-            closest_enemy_id = TargetingMechanics.get_closest_target_by_gauge(enemy_gauge_data)
-            
-            if closest_enemy_id:
-                # 性格に基づいて部位を選択
-                from battle.mechanics.personality import PersonalityRegistry
-                personality = PersonalityRegistry.get(personality_id)
-                alive_parts_hp = self.query.get_alive_parts_hp(closest_enemy_id)
-                target_part_from_personality = personality.select_target_part(alive_parts_hp)
-                is_personality_target_alive = True  # get_alive_parts_hp が返す時点で生存
-
-        # 4. パーツターゲット情報
-        part_targets = gauge.part_targets
-
-        # ターゲット解決
+        # 3. パラメータ構築（InitiateParams はシンプルに）
         params = InitiateParams(
             selected_action=gauge.selected_action,
             selected_part=gauge.selected_part,
             is_actor_part_alive=is_actor_part_alive,
             attack_trait=attack_trait,
-            part_targets=part_targets,
-            is_target_alive=is_target_alive,
-            closest_enemy_id=closest_enemy_id,
-            personality_id=personality_id,
-            target_part_from_personality=target_part_from_personality,
-            is_personality_target_alive=is_personality_target_alive
+            resolved_target_id=resolved_target_id,
+            resolved_target_part=resolved_target_part
         )
-        
+
         target_id, target_part = behavior.initiate(params)
 
         # ターゲットロスト時の中断処理
