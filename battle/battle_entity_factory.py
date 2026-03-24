@@ -13,9 +13,9 @@ from components.input_component import InputComponent
 from data.game_data_manager import GameDataManager
 from data.save_data_manager import SaveDataManager
 from domain.models import PartData, MedalData
+from domain.combat import CombatDomain
 from ui.config import TEAM_SETTINGS
 from battle.constants import PartType, TeamType, GaugeStatus
-from battle.mechanics.stats_logic import StatsLogic
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -24,23 +24,29 @@ class BattleEntityFactory:
     def create_medabot_from_setup(world: World, setup: dict, data_manager: GameDataManager) -> dict:
         parts = {}
 
-        medal_attr = "undefined"
+        # メダルデータを取得（ドメイン計算に使用）
+        medal_data: Optional[MedalData] = None
         if "medal" in setup:
             medal_data = data_manager.get_medal_data(setup["medal"])
-            if medal_data is not None:
-                medal_attr = medal_data.attribute
+
+        # メダルデータがない場合はデフォルト値を設定
+        if medal_data is None:
+            medal_data = MedalData(name="", nickname="", personality="random", attribute="undefined")
 
         for p_type, p_id in setup["parts"].items():
-            data = data_manager.get_part_data(p_id)
-            if data is None:
+            part_data = data_manager.get_part_data(p_id)
+            if part_data is None:
                 continue
-            stats = StatsLogic.calculate_initial_stats(data, p_type, medal_attr)
 
+            # ドメイン層にステータス計算を委譲
+            battle_stats = CombatDomain.create_battle_stats(part_data, medal_data, p_type)
+
+            # ECS への登録に専念する
             parts[p_type] = BattleEntityFactory._create_part_entity(
                 world,
                 p_type,
-                data.name,
-                stats
+                part_data.name,
+                battle_stats
             )
         return parts
 
