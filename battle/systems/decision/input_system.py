@@ -4,6 +4,7 @@ from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from ui.config import MENU_PART_ORDER
 from battle.constants import BattlePhase, ActionType, BattleTiming
+from battle.mechanics.flow import FlowMechanics, PhaseTransition
 
 class InputSystem(BattleSystemBase):
     """
@@ -52,8 +53,10 @@ class InputSystem(BattleSystemBase):
     def _handle_attack_declaration_wait(self, input_comp, context, flow):
         if input_comp.btn_ok:
             context.battle_log.clear()
-            flow.current_phase = BattlePhase.CUTIN
-            flow.phase_timer = BattleTiming.CUTIN_ANIMATION
+            FlowMechanics.apply_transition(self.world, PhaseTransition(
+                next_phase=BattlePhase.CUTIN,
+                timer=BattleTiming.CUTIN_ANIMATION
+            ))
 
     def _handle_cutin_result(self, input_comp, context, flow):
         if not context.battle_log and context.pending_logs:
@@ -73,8 +76,7 @@ class InputSystem(BattleSystemBase):
             flow.processing_event_id = None
             self.world.delete_entity(event_id)
 
-        flow.current_phase = BattlePhase.IDLE
-        flow.active_actor_id = None
+        FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
 
     def _handle_action_selection(self, input_comp, context, flow):
         """
@@ -87,7 +89,7 @@ class InputSystem(BattleSystemBase):
         """
         eid = context.current_turn_entity_id
         if eid is None or eid not in self.world.entities:
-            flow.current_phase = BattlePhase.IDLE
+            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         # 選択インデックスの更新（Scene から渡されたコマンドを反映）

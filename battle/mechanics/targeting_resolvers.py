@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, List
-from domain.constants import PartType
+from domain.constants import PartType, TraitType
 from domain.gauge_logic import calculate_gauge_ratio
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.personality import PersonalityRegistry
@@ -123,11 +123,6 @@ class DefaultTargetResolver(TargetResolver):
 class TargetResolverFactory:
     """特性に応じた TargetResolver を生成するファクトリ"""
 
-    # 格闘特性のリスト
-    MELEE_TRAITS = {"ソード", "サンダー", "ハンマー"}
-    # 射撃特性のリスト
-    RANGED_TRAITS = {"ライフル", "ガトリング"}
-
     _resolvers = {
         "melee": MeleeTargetResolver(),
         "ranged": RangedTargetResolver(),
@@ -145,9 +140,9 @@ class TargetResolverFactory:
         Returns:
             適切な TargetResolver インスタンス
         """
-        if attack_trait in cls.MELEE_TRAITS:
+        if attack_trait in TraitType.MELEE_TRAITS:
             return cls._resolvers["melee"]
-        elif attack_trait in cls.RANGED_TRAITS:
+        elif attack_trait in TraitType.SHOOTING_TRAITS:
             return cls._resolvers["ranged"]
         # 特性がない場合や未知の特性はデフォルト
         return cls._resolvers["default"]

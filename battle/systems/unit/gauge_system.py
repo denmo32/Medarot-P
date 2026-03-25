@@ -13,7 +13,7 @@ class GaugeSystem(BattleSystemBase):
 
     def update(self, dt: float):
         # バトルが停止中（ログ表示中や演出中）はゲージを進めない
-        if not self.context or not self.flow or self.flow.current_phase != BattlePhase.IDLE:
+        if not self.is_ready(BattlePhase.IDLE):
             return
 
         # 機能停止した機体もチェック対象（待機キュー中の中断判定のため）
@@ -42,8 +42,7 @@ class GaugeSystem(BattleSystemBase):
 
             # 行動の継続妥当性を検証（パーツ破壊チェックなど）
             # System 側で必要なデータを抽出して純粋関数に渡す
-            actor_comps = self.world.try_get_entity(eid)
-            actor_name = actor_comps['medal'].nickname if actor_comps and 'medal' in actor_comps else "Unknown"
+            actor_name = self.get_entity_name(eid)
 
             # 実行予定パーツの生存チェック
             is_actor_part_alive = True

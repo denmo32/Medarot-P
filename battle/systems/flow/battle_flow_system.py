@@ -9,11 +9,11 @@ class BattleFlowSystem(BattleSystemBase):
     """バトルフェーズの遷移管理"""
 
     def update(self, dt: float):
+        if not self.is_ready():
+            return
+
         context = self.context
         flow = self.flow
-
-        if not context or not flow:
-            return
 
         if flow.current_phase == BattlePhase.LOG_WAIT:
             if not context.battle_log:

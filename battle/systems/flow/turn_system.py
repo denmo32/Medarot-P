@@ -9,10 +9,11 @@ class TurnSystem(BattleSystemBase):
     """ターン開始とプレイヤー/エネミーの判定"""
 
     def update(self, dt: float):
-        context = self.context
-        flow = self.flow
+        if not self.is_ready(BattlePhase.IDLE):
+            return
 
-        if not context or flow.current_phase != BattlePhase.IDLE or not context.waiting_queue:
+        context = self.context
+        if not context.waiting_queue:
             return
 
         eid = context.waiting_queue[0]

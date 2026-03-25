@@ -55,20 +55,19 @@ class TitleScene:
         # マウス操作（当たり判定のために現在の画面サイズで Rect を計算する必要がある）
         # ホバーも判定するため常に計算
         mouse_clicked = self.event_manager.mouse_clicked
-        if mouse_clicked or True:
-            sw, sh = self.renderer.screen.get_width(), self.renderer.screen.get_height()
+        sw, sh = self.renderer.screen.get_width(), self.renderer.screen.get_height()
 
-            for i, button in enumerate(self.buttons):
-                layout = button['layout']
-                w, h = sw * layout['w_ratio'], sh * layout['h_ratio']
-                x = sw * layout['cx'] - w / 2
-                y = sh * layout['cy'] - h / 2
-                rect = pygame.Rect(x, y, w, h)
+        for i, button in enumerate(self.buttons):
+            layout = button['layout']
+            w, h = sw * layout['w_ratio'], sh * layout['h_ratio']
+            x = sw * layout['cx'] - w / 2
+            y = sh * layout['cy'] - h / 2
+            rect = pygame.Rect(x, y, w, h)
 
-                if rect.collidepoint(self.event_manager.mouse_x, self.event_manager.mouse_y):
-                    self.selected_index = i
-                    if mouse_clicked:
-                        return button['action']
+            if rect.collidepoint(self.event_manager.mouse_x, self.event_manager.mouse_y):
+                self.selected_index = i
+                if mouse_clicked:
+                    return button['action']
 
         return None
 
