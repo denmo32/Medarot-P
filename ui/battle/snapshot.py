@@ -2,6 +2,7 @@
 バトル描画に必要な全データ構造（スナップショット）定義。
 """
 
+import pygame
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Tuple, Any
 
@@ -24,6 +25,8 @@ class ActionButtonData:
     """コマンドボタン情報"""
     label: str
     enabled: bool
+    skill_label: str = ""
+    rect: Optional[pygame.Rect] = None
 
 @dataclass
 class LogWindowData:

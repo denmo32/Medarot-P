@@ -1,6 +1,7 @@
 """エンティティ生成ファクトリ"""
 
 import random
+from typing import Optional
 from core.ecs import World
 from components.common_component import NameComponent, PositionComponent
 from components.battle_component import (GaugeComponent, TeamComponent, RenderComponent,
@@ -11,9 +12,10 @@ from components.battle_flow_component import BattleFlowComponent
 from components.input_component import InputComponent
 from data.game_data_manager import GameDataManager
 from data.save_data_manager import SaveDataManager
+from domain.models import PartData, MedalData
+from domain.combat import CombatDomain
 from ui.config import TEAM_SETTINGS
 from battle.constants import PartType, TeamType, GaugeStatus
-from battle.mechanics.stats_logic import StatsLogic
 
 class BattleEntityFactory:
     """バトルに必要なエンティティを生成するファクトリ"""
@@ -21,21 +23,30 @@ class BattleEntityFactory:
     @staticmethod
     def create_medabot_from_setup(world: World, setup: dict, data_manager: GameDataManager) -> dict:
         parts = {}
-        
-        medal_attr = "undefined"
+
+        # メダルデータを取得（ドメイン計算に使用）
+        medal_data: Optional[MedalData] = None
         if "medal" in setup:
             medal_data = data_manager.get_medal_data(setup["medal"])
-            medal_attr = medal_data.get("attribute", "undefined")
+
+        # メダルデータがない場合はデフォルト値を設定
+        if medal_data is None:
+            medal_data = MedalData(name="", nickname="", personality="random", attribute="undefined")
 
         for p_type, p_id in setup["parts"].items():
-            data = data_manager.get_part_data(p_id)
-            stats = StatsLogic.calculate_initial_stats(data, p_type, medal_attr)
+            part_data = data_manager.get_part_data(p_id)
+            if part_data is None:
+                continue
 
+            # ドメイン層にステータス計算を委譲
+            battle_stats = CombatDomain.create_battle_stats(part_data, medal_data, p_type)
+
+            # ECS への登録に専念する
             parts[p_type] = BattleEntityFactory._create_part_entity(
-                world, 
-                p_type, 
-                data.get("name", p_id), 
-                stats
+                world,
+                p_type,
+                part_data.name,
+                battle_stats
             )
         return parts
 
@@ -117,12 +128,16 @@ class BattleEntityFactory:
         eid = world.create_entity()
         
         medal_data = data_manager.get_medal_data(setup["medal"])
+        if medal_data is None:
+            # デフォルト値を設定
+            medal_data = MedalData(name="", nickname="", personality="random", attribute="undefined")
+
         world.add_component(eid, MedalComponent(
-            setup["medal"], 
-            medal_data["name"], 
-            medal_data["nickname"],
-            medal_data.get("personality", "random"),
-            medal_data.get("attribute", "undefined")
+            setup["medal"],
+            medal_data.name,
+            medal_data.nickname,
+            medal_data.personality,
+            medal_data.attribute
         ))
         
         # 描画・配置情報の追加（相対座標）

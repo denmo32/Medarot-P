@@ -1,102 +1,146 @@
 """ターゲット選定・状態確認ロジック"""
 
 import random
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from domain.constants import TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
+from core.ecs import World
+
 
 class TargetingMechanics:
     """エンティティの生存・有効性・クエリに関するユーティリティ"""
 
     @staticmethod
-    def is_entity_alive(world, entity_id: int) -> bool:
-        comps = world.try_get_entity(entity_id)
-        if not comps: return False
-        defeated = comps.get('defeated')
-        return not defeated.is_defeated if defeated else True
-
-    @staticmethod
-    def is_part_alive(world, entity_id: int, part_type: str) -> bool:
-        comps = world.try_get_components(entity_id, 'partlist')
-        if not comps: return False
+    def is_action_target_valid(
+        is_entity_alive: bool,
+        is_part_alive: bool,
+        target_id: Optional[int],
+        target_part: Optional[str] = None
+    ) -> bool:
+        """エンティティおよび指定部位が有効（生存）か一括チェック
         
-        part_id = comps['partlist'].parts.get(part_type)
-        if part_id is None: return False
+        Args:
+            is_entity_alive: ターゲット機体が生存しているか
+            is_part_alive: ターゲット部位が生存しているか
+            target_id: ターゲット ID
+            target_part: ターゲット部位
         
-        p_comps = world.try_get_entity(part_id)
-        return p_comps and p_comps['health'].hp > 0
-
-    @staticmethod
-    def is_action_target_valid(world, target_id: Optional[int], target_part: Optional[str] = None) -> bool:
-        """エンティティおよび指定部位が有効（生存）か一括チェック"""
-        if target_id is None: return False
-        if not TargetingMechanics.is_entity_alive(world, target_id): return False
+        Returns:
+            有効な場合は True
+        """
+        if target_id is None:
+            return False
+        if not is_entity_alive:
+            return False
         if target_part:
-            return TargetingMechanics.is_part_alive(world, target_id, target_part)
+            return is_part_alive
         return True
 
     @staticmethod
-    def get_alive_parts(world, entity_id: int) -> List[str]:
-        comps = world.try_get_components(entity_id, 'partlist')
-        if not comps: return []
+    def get_random_alive_part(alive_parts_hp: Dict[str, int]) -> Optional[str]:
+        """生存パーツからランダムに部位を選択
         
-        return [pt for pt, pid in comps['partlist'].parts.items() 
-                if world.try_get_entity(pid)['health'].hp > 0]
+        Args:
+            alive_parts_hp: 生存しているパーツと HP {part_type: hp}
+        
+        Returns:
+            選択された部位種別
+        """
+        if not alive_parts_hp:
+            return None
+        return random.choice(list(alive_parts_hp.keys()))
 
     @staticmethod
-    def get_enemy_team_entities(world, my_entity_id: int) -> List[int]:
-        my_comps = world.try_get_components(my_entity_id, 'team')
-        if not my_comps: return []
+    def get_closest_target_by_gauge(
+        enemy_gauge_data: List[Tuple[int, str, float]]
+    ) -> Optional[int]:
+        """
+        最もゲージが進んでいる（中央に近い）敵を取得
         
-        my_team = my_comps['team'].team_type
-        target_team_type = TeamType.ENEMY if my_team == TeamType.PLAYER else TeamType.PLAYER
+        Args:
+            enemy_gauge_data: 敵のゲージ情報リスト [(enemy_id, status, progress), ...]
         
-        return [eid for eid, comps in world.get_entities_with_components('team', 'defeated')
-                if comps['team'].team_type == target_team_type and not comps['defeated'].is_defeated]
-
-    @staticmethod
-    def get_random_alive_part(world, entity_id: int) -> Optional[str]:
-        alive_parts = TargetingMechanics.get_alive_parts(world, entity_id)
-        return random.choice(alive_parts) if alive_parts else None
-
-    @staticmethod
-    def get_closest_target_by_gauge(world, my_team_type: str) -> Optional[int]:
-        """最もゲージが進んでいる（中央に近い）敵を取得"""
-        target_team = TeamType.ENEMY if my_team_type == TeamType.PLAYER else TeamType.PLAYER
+        Returns:
+            最もゲージが進んでいる敵の ID
+        """
+        if not enemy_gauge_data:
+            return None
+        
         best_target, max_ratio = None, float('-inf')
         
-        for teid, tcomps in world.get_entities_with_components('team', 'defeated', 'gauge'):
-            if tcomps['team'].team_type == target_team and not tcomps['defeated'].is_defeated:
-                ratio = calculate_gauge_ratio(tcomps['gauge'].status, tcomps['gauge'].progress)
-                if ratio > max_ratio:
-                    max_ratio, best_target = ratio, teid
+        for enemy_id, status, progress in enemy_gauge_data:
+            ratio = calculate_gauge_ratio(status, progress)
+            if ratio > max_ratio:
+                max_ratio, best_target = ratio, enemy_id
+        
         return best_target
 
     @staticmethod
-    def resolve_hit_part(world, target_comps: Dict[str, Any], desired_part: Optional[str], is_defense: bool) -> str:
+    def resolve_hit_part(part_hps: Dict[str, int], desired_part: Optional[str], is_defense: bool) -> str:
         """
         被弾部位を決定するポリシー。
-        防御時は頭部以外が優先され、通常時は指定部位になる。
+
+        Args:
+            part_hps: 生存しているパーツとその HP の辞書
+            desired_part: 指定部位
+            is_defense: 防御成功フラグ
+
+        Returns:
+            被弾した部位の名称 (PartType)
         """
-        alive_parts = {
-            pt: pid for pt, pid in target_comps['partlist'].parts.items() 
-            if world.try_get_entity(pid)['health'].hp > 0
-        }
-        
-        if not alive_parts:
+        if not part_hps:
             return PartType.HEAD
 
         if is_defense:
-            # 防御時は、頭部以外の最もHPが高い部位を盾にする
-            non_head = [pt for pt in alive_parts if pt != PartType.HEAD]
+            # 防御時は、頭部以外の最も HP が高い部位を盾にする
+            non_head = [pt for pt in part_hps if pt != PartType.HEAD]
             if non_head:
-                non_head.sort(key=lambda pt: world.try_get_entity(alive_parts[pt])['health'].hp, reverse=True)
-                return non_head[0]
+                # HP の高い順にソート
+                sorted_parts = sorted(non_head, key=lambda pt: part_hps[pt], reverse=True)
+                return sorted_parts[0]
             return PartType.HEAD
-        
+
         # ターゲット部位が有効なら優先、そうでなければランダム
-        if desired_part in alive_parts:
+        if desired_part in part_hps:
             return desired_part
-           
-        # ※ターゲット部位が無効である状況は想定外
-        return random.choice(list(alive_parts.keys()))
+
+        # ※ターゲット部位が無効（既に壊れている）な場合はランダムに選択
+        return random.choice(list(part_hps.keys()))
+
+    @staticmethod
+    def is_part_alive(world, entity_id: int, part_type: str) -> bool:
+        """指定部位が生存しているか（機体が機能停止していないことも含む）"""
+        entity_comps = world.try_get_entity(entity_id)
+        if not entity_comps:
+            return False
+        
+        defeated = entity_comps.get('defeated')
+        if defeated and defeated.is_defeated:
+            return False
+        
+        parts = entity_comps.get('partlist')
+        if not parts:
+            return False
+        
+        pid = parts.parts.get(part_type)
+        if pid is None:
+            return False
+        
+        p_comps = world.try_get_entity(pid)
+        return bool(p_comps and 'health' in p_comps and p_comps['health'].hp > 0)
+
+    @staticmethod
+    def get_alive_parts_hp(world, entity_id: int) -> Dict[str, int]:
+        """生存している部位名とその HP の辞書を取得"""
+        entity_comps = world.try_get_entity(entity_id)
+        if not entity_comps or 'partlist' not in entity_comps:
+            return {}
+
+        result = {}
+        for pt, pid in entity_comps['partlist'].parts.items():
+            p_comps = world.try_get_entity(pid)
+            if p_comps and 'health' in p_comps:
+                hp = p_comps['health'].hp
+                if hp > 0:
+                    result[pt] = hp
+        return result

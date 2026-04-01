@@ -5,9 +5,14 @@ from battle.constants import BattlePhase
 from battle.mechanics.ai import StrategyRegistry
 from components.action_command_component import ActionCommandComponent
 
+
 class AISystem(BattleSystemBase):
+    """エネミーの行動決定"""
+
     def update(self, dt: float):
-        context, flow = self.battle_state
+        context = self.context
+        flow = self.flow
+
         if not context or flow.current_phase != BattlePhase.ENEMY_TURN:
             return
 

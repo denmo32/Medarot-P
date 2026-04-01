@@ -1,123 +1,69 @@
-"""バトル系システムの基底クラス"""
+"""バトル系システムの基底クラス
 
-from typing import Optional
+ECS の World を直接操作することを基本とし、
+頻繁にアクセスする Context と Flow へのショートカットのみを提供する。
+"""
+
+from typing import Optional, Dict, Any
 from core.ecs import System
-from battle.mechanics.flow import get_battle_state, PhaseTransition
-from battle.mechanics.action import GaugeResetData
-from battle.mechanics.action_behavior import ResolutionResult
-from components.battle_component import DamageEventComponent
-from battle.constants import BattlePhase
+from battle.mechanics.flow import get_battle_state
+
 
 class BattleSystemBase(System):
-    """BattleContextとBattleFlowへのアクセスと副作用適用を容易にする基底システム"""
-
-    @property
-    def battle_state(self):
-        """(context, flow) のタプルを返す"""
-        return get_battle_state(self.world)
-
+    """
+    バトルシステム共通の基底クラス。
+    """
     @property
     def context(self):
-        """BattleContextComponent へのショートカットアクセス"""
         ctx, _ = get_battle_state(self.world)
         return ctx
 
     @property
     def flow(self):
-        """BattleFlowComponent へのショートカットアクセス"""
         _, flow = get_battle_state(self.world)
         return flow
 
-    # --- Side Effect Helpers (副作用の集中実行) ---
-
-    def change_phase(self, next_phase: str, timer: float = 0.0):
+    def is_ready(self, required_phase: Optional[str] = None) -> bool:
         """
-        単純なフェーズ遷移を行うショートカット。
-        IDLE遷移時のクリーンアップなどは apply_phase_transition で処理される。
-        """
-        self.apply_phase_transition(PhaseTransition(next_phase=next_phase, timer=timer))
-
-    def apply_phase_transition(self, transition: PhaseTransition):
-        """フェーズ遷移指示をワールドに適用する"""
-        flow = self.flow
-        if not flow: return
-
-        flow.current_phase = transition.next_phase
-        flow.phase_timer = transition.timer
+        システムが更新処理を実行できる状態かチェックする。
         
-        if transition.actor_id is not None:
-            flow.active_actor_id = transition.actor_id
-        if transition.event_id is not None:
-            flow.processing_event_id = transition.event_id
-            
-        if transition.logs:
-            if transition.clear_logs:
-                self.context.battle_log.clear()
-            self.context.battle_log.extend(transition.logs)
-            
-        # IDLEへの遷移時は自動クリーンアップ
-        if transition.next_phase == BattlePhase.IDLE:
-            flow.processing_event_id = None
-            flow.active_actor_id = None
-            flow.cutin_progress = 0.0
+        Args:
+            required_phase: 必要なフェーズ（指定しない場合はフェーズチェックをスキップ）
+        
+        Returns:
+            実行可能な場合は True
+        """
+        if not self.context or not self.flow:
+            return False
+        if required_phase and self.flow.current_phase != required_phase:
+            return False
+        return True
 
-    def apply_gauge_reset(self, entity_id: int, reset_data: GaugeResetData):
-        """ゲージリセット指示を適用する"""
+    def get_entity_name(self, entity_id: int) -> str:
+        """
+        エンティティの名前を取得する。
+        
+        Args:
+            entity_id: エンティティID
+        
+        Returns:
+            エンティティの名前（見つからない場合は "Unknown"）
+        """
         comps = self.world.try_get_entity(entity_id)
-        if not comps or 'gauge' not in comps:
-            return
-            
-        gauge = comps['gauge']
-        gauge.status = reset_data.status
-        gauge.progress = reset_data.progress
+        if comps and 'medal' in comps:
+            return comps['medal'].nickname
+        return "Unknown"
+
+    def get_entity_comps(self, entity_id: int, *component_names: str) -> Optional[Dict[str, Any]]:
+        """
+        エンティティから指定されたコンポーネントを取得する。
+        一つでも欠けていれば None を返す。
         
-        if reset_data.clear_selection:
-            gauge.selected_action = None
-            gauge.selected_part = None
-            gauge.part_targets = {}
-
-    def manage_queue(self, entity_id: int, should_add: bool):
-        """待機列への追加・削除を一括管理する"""
-        queue = self.context.waiting_queue
-        if should_add and entity_id not in queue:
-            queue.append(entity_id)
-        elif not should_add and entity_id in queue:
-            queue.remove(entity_id)
-
-    def apply_resolution_result(self, entity_id: int, result: ResolutionResult, event_id: Optional[int] = None):
-        """アクション解決結果を適用する"""
-        # ログの追加
-        if result.logs:
-            self.context.battle_log.extend(result.logs)
-            
-        # ダメージの発生
-        if result.damage_result:
-            dr = result.damage_result
-            damage_comp = DamageEventComponent(
-                attacker_id=dr.attacker_id,
-                attacker_part=dr.attacker_part,
-                damage=dr.damage,
-                target_part=dr.target_part,
-                is_critical=dr.is_critical,
-                added_effects=dr.added_effects
-            )
-            # 現在のイベントターゲットを取得して付与
-            if event_id is not None:
-                event_comps = self.world.try_get_entity(event_id)
-                if event_comps and 'actionevent' in event_comps:
-                    target_id = event_comps['actionevent'].current_target_id
-                    self.world.add_component(target_id, damage_comp)
-
-        # ゲージのリセット
-        if result.gauge_reset:
-            self.apply_gauge_reset(entity_id, result.gauge_reset)
+        Args:
+            entity_id: エンティティID
+            component_names: 取得するコンポーネント名
         
-        # キューからの削除
-        if result.should_remove_from_queue:
-            self.manage_queue(entity_id, False)
-
-        # フェーズ遷移
-        self.apply_phase_transition(PhaseTransition(
-            next_phase=result.next_phase,
-            timer=result.phase_timer
-        ))
+        Returns:
+            コンポーネント辞書（見つからない場合は None）
+        """
+        return self.world.try_get_components(entity_id, *component_names)

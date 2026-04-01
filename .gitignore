@@ -155,3 +155,14 @@ ui/__pycache__/title_renderer.cpython-313.pyc
 ui/__pycache__/config.cpython-313.pyc
 domain/__pycache__/config.cpython-313.pyc
 core/__pycache__/utils.cpython-313.pyc
+battle/mechanics/__pycache__/damage_calculator.cpython-313.pyc
+battle/mechanics/__pycache__/hit_calculator.cpython-313.pyc
+battle/systems/__pycache__/battle_state_accessor.cpython-313.pyc
+battle/systems/__pycache__/battle_command.cpython-313.pyc
+battle/systems/__pycache__/battle_query.cpython-313.pyc
+.qwen/settings.json
+battle/mechanics/__pycache__/targeting_resolvers.cpython-313.pyc
+.qwen/settings.json.orig
+ui/battle/__pycache__/ui_hit_tester.cpython-313.pyc
+domain/__pycache__/models.cpython-313.pyc
+domain/__pycache__/combat.cpython-313.pyc

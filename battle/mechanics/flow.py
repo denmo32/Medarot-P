@@ -1,10 +1,11 @@
 """バトルフロー制御ロジック"""
 
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict, Any
 from dataclasses import dataclass, field
 from battle.constants import BattlePhase, ActionType
 from battle.mechanics.skill import SkillRegistry
 from battle.mechanics.log import LogBuilder
+from core.ecs import World
 
 @dataclass
 class PhaseTransition:
@@ -16,8 +17,17 @@ class PhaseTransition:
     logs: List[str] = field(default_factory=list)
     clear_logs: bool = False
 
-def get_battle_state(world) -> tuple[Optional[any], Optional[any]]:
-    """ワールドからBattleContextとBattleFlowを取得する"""
+def get_battle_state(world: World) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """
+    ワールドから BattleContext と BattleFlow を取得する。
+
+    Args:
+        world: ECS のワールドインスタンス
+
+    Returns:
+        (battle_context, battle_flow) のタプル。
+        見つからない場合は (None, None)。
+    """
     _, comps = world.get_first_entity('battlecontext', 'battleflow')
     if not comps:
         return None, None
@@ -27,35 +37,74 @@ class FlowMechanics:
     """フェーズ遷移に関する判断ロジック"""
 
     @staticmethod
-    def resolve_indicator_transition(world, event_eid: int) -> PhaseTransition:
-        """ターゲット指示演出終了後の、次のフェーズと付随するログを決定する"""
-        event_comps = world.try_get_entity(event_eid)
-        if not event_comps or 'actionevent' not in event_comps:
-            return PhaseTransition(next_phase=BattlePhase.EXECUTING)
+    def resolve_indicator_transition(
+        event_action_type: str,
+        attacker_name: str,
+        attack_trait: str,
+        attack_skill_type: str
+    ) -> PhaseTransition:
+        """
+        ターゲット指示演出終了後の、次のフェーズと付随するログを決定する
 
-        event = event_comps['actionevent']
-        if event.action_type != ActionType.ATTACK:
+        Args:
+            event_action_type: イベントのアクション種別
+            attacker_name: 攻撃者の名前
+            attack_trait: 攻撃パーツの特性
+            attack_skill_type: 攻撃パーツのスキル種別
+
+        Returns:
+            フェーズ遷移情報
+        """
+        if event_action_type != ActionType.ATTACK:
             return PhaseTransition(next_phase=BattlePhase.EXECUTING)
 
         # 攻撃の場合の宣言ログ構築
-        attacker_id = event.attacker_id
-        attacker_comps = world.try_get_entity(attacker_id)
-        if not attacker_comps:
-            return PhaseTransition(next_phase=BattlePhase.EXECUTING)
-
-        attacker_name = attacker_comps['medal'].nickname
         trait_text, skill_name = "", "攻撃"
-        
-        part_id = attacker_comps['partlist'].parts.get(event.part_type)
-        part_comps = world.try_get_entity(part_id)
-        if part_comps and 'attack' in part_comps:
-            attack_comp = part_comps['attack']
-            trait_text = f" {attack_comp.trait}！"
-            skill_name = SkillRegistry.get(attack_comp.skill_type).name
-        
+
+        if attack_trait:
+            trait_text = f" {attack_trait}！"
+            skill_name = SkillRegistry.get(attack_skill_type).name
+
         log = LogBuilder.get_attack_declaration(attacker_name, skill_name, trait_text)
-        
+
         return PhaseTransition(
             next_phase=BattlePhase.ATTACK_DECLARATION,
             logs=[log]
         )
+
+    @staticmethod
+    def apply_transition(world: World, transition: PhaseTransition) -> None:
+        """フェーズ遷移を適用する"""
+        ctx, flow = get_battle_state(world)
+        if not flow:
+            return
+
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+
+        if transition.actor_id is not None:
+            flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None:
+            flow.processing_event_id = transition.event_id
+
+        if transition.logs and ctx:
+            if transition.clear_logs:
+                ctx.battle_log.clear()
+            ctx.battle_log.extend(transition.logs)
+
+        # IDLE への遷移時は自動クリーンアップ
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+            flow.cutin_progress = 0.0
+
+    @staticmethod
+    def manage_queue(context, entity_id: int, should_add: bool) -> None:
+        """待機列への追加・削除"""
+        if not context:
+            return
+        queue = context.waiting_queue
+        if should_add and entity_id not in queue:
+            queue.append(entity_id)
+        elif not should_add and entity_id in queue:
+            queue.remove(entity_id)
