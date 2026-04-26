@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from domain.constants import GaugeStatus, ActionType
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.log import LogBuilder
-from battle.mechanics.trait import TraitRegistry, MeleeTrait
+from battle.mechanics.trait import TraitRegistry
 
 @dataclass(frozen=True)
 class GaugeResetData:
