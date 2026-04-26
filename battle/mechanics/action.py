@@ -1,11 +1,14 @@
 """アクションの状態遷移・妥当性検証ロジック"""
 
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, Optional, List, Dict, TYPE_CHECKING
 from dataclasses import dataclass
 from domain.constants import GaugeStatus, ActionType
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.log import LogBuilder
 from battle.mechanics.trait import TraitRegistry
+
+if TYPE_CHECKING:
+    from components.battle_component import PartTargets
 
 @dataclass(frozen=True)
 class GaugeResetData:
@@ -28,12 +31,16 @@ class ActionMechanics:
     """
 
     @staticmethod
-    def get_cooldown_reset_data(current_progress: float, penalty_ratio: float = 1.0) -> GaugeResetData:
+    def get_cooldown_reset_data(current_progress: float, use_penalty: bool = True) -> GaugeResetData:
         """
         放熱状態へリセットするためのデータを計算する。
+
+        Args:
+            current_progress: 現在のゲージ進行度
+            use_penalty: 中断ペナルティ（進行度に応じた放熱開始）を適用するかどうか
         """
         # 充填中断位置から放熱を開始するため、ゲージを反転させる
-        if penalty_ratio > 0:
+        if use_penalty:
             new_progress = max(0.0, 100.0 - current_progress)
         else:
             new_progress = 0.0
@@ -64,7 +71,7 @@ class ActionMechanics:
         gauge_progress: float,
         gauge_selected_action: str,
         gauge_selected_part: Optional[str],
-        gauge_part_targets: Dict[Optional[str], Tuple[int, Optional[str]]],
+        gauge_part_targets: "PartTargets",
         actor_name: str,
         is_actor_part_alive: bool,
         is_target_part_alive: bool

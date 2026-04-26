@@ -1,10 +1,95 @@
 """戦闘計算ロジック - 統合インターフェース"""
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from battle.mechanics.hit_calculator import (
     HitCalculator, AttackParams, MedalParams, LegsStats
 )
 from battle.mechanics.damage_calculator import DamageCalculator, CombatResult
+from domain.constants import PartType
+from battle.mechanics.targeting import TargetingMechanics
+
+if TYPE_CHECKING:
+    from core.ecs import World
+
+class CombatParamsBuilder:
+    """
+    ECS の World から戦闘計算に必要なパラメータを抽出するビルダー（純粋関数的ヘルパー）。
+    System がドメイン知識を持ちすぎないようにするための抽象化レイヤー。
+    """
+    
+    @staticmethod
+    def build_attacker_medal(world: "World", attacker_eid: int) -> Optional[MedalParams]:
+        comps = world.try_get_entity(attacker_eid)
+        if not comps or 'medal' not in comps:
+            return None
+        return MedalParams(attribute=comps['medal'].attribute)
+
+    @staticmethod
+    def build_attacker_part(world: "World", attacker_eid: int, part_type: str) -> Optional[AttackParams]:
+        comps = world.try_get_entity(attacker_eid)
+        if not comps or 'partlist' not in comps:
+            return None
+        
+        part_id = comps['partlist'].parts.get(part_type)
+        if not part_id:
+            return None
+            
+        p_comps = world.try_get_entity(part_id)
+        if not p_comps or 'attack' not in p_comps or 'part' not in p_comps:
+            return None
+            
+        attack_comp = p_comps['attack']
+        part_comp = p_comps['part']
+        
+        return AttackParams(
+            success=attack_comp.success,
+            attack=attack_comp.attack,
+            part_attribute=part_comp.attribute,
+            skill_type=attack_comp.skill_type,
+            trait=attack_comp.trait
+        )
+
+    @staticmethod
+    def build_legs_stats(world: "World", entity_eid: int) -> LegsStats:
+        comps = world.try_get_entity(entity_eid)
+        if comps and 'partlist' in comps:
+            legs_id = comps['partlist'].parts.get(PartType.LEGS)
+            if legs_id:
+                legs_comps = world.try_get_entity(legs_id)
+                if legs_comps and 'mobility' in legs_comps:
+                    return LegsStats(
+                        mobility=legs_comps['mobility'].mobility,
+                        defense=legs_comps['mobility'].defense
+                    )
+        return LegsStats(mobility=0, defense=0)
+
+    @staticmethod
+    def build_target_medal(world: "World", target_id: int) -> Optional[MedalParams]:
+        comps = world.try_get_entity(target_id)
+        if not comps or 'medal' not in comps:
+            return None
+        return MedalParams(attribute=comps['medal'].attribute)
+
+    @staticmethod
+    def get_target_gauge_data(world: "World", target_id: int) -> tuple[str, Optional[str], Optional[str]]:
+        """(status, selected_part, skill_type) を返す"""
+        comps = world.try_get_entity(target_id)
+        if not comps:
+            return "", None, None
+            
+        gauge = comps.get('gauge')
+        status = gauge.status if gauge else ""
+        selected_part = gauge.selected_part if gauge else None
+        
+        skill_type = None
+        if selected_part and 'partlist' in comps:
+            part_id = comps['partlist'].parts.get(selected_part)
+            if part_id:
+                p_comps = world.try_get_entity(part_id)
+                if p_comps and 'attack' in p_comps:
+                    skill_type = p_comps['attack'].skill_type
+                    
+        return status, selected_part, skill_type
 
 
 class CombatMechanics:

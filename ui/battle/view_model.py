@@ -3,7 +3,7 @@
 from typing import Tuple
 from battle.constants import BattlePhase
 from battle.mechanics.flow import get_battle_state
-from .snapshot import BattleStateSnapshot
+from .snapshot import BattleStateSnapshot, ActionMenuData
 from .builders import FieldSnapshotBuilder, UISnapshotBuilder, CutinSnapshotBuilder
 
 class BattleViewModel:
@@ -42,3 +42,10 @@ class BattleViewModel:
             snapshot.cutin = self.cutin_builder.build(flow, screen_size)
 
         return snapshot
+
+    def get_action_menu_data(self) -> ActionMenuData:
+        """アクションメニューの情報のみを軽量に取得する"""
+        context, flow = get_battle_state(self.world)
+        if not context or not flow:
+            return ActionMenuData(is_active=False)
+        return self.ui_builder.build_action_menu(context, flow)

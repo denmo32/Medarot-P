@@ -75,10 +75,9 @@ class BattleScene:
         sw, sh = self.screen.get_size()
         screen_size = (sw, sh)
 
-        # Snapshot からボタン数を取得（スキップボタン等を含めた総数）
-        # ※ ViewModel.create_snapshot は以前より軽量になっている
-        snapshot = self.view_model.create_snapshot(screen_size)
-        buttons = snapshot.action_menu.buttons
+        # Snapshot 全体ではなく、メニュー情報のみを軽量に取得
+        menu_data = self.view_model.get_action_menu_data()
+        buttons = menu_data.buttons
         if not buttons:
             return
 

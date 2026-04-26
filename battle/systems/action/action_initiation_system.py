@@ -6,11 +6,10 @@ from components.action_event_component import ActionEventComponent
 from battle.mechanics.flow import PhaseTransition, FlowMechanics
 from domain.constants import GaugeStatus, ActionType, PartType
 from battle.constants import BattlePhase, BattleTiming
-from battle.mechanics.combat import CombatMechanics
+from battle.mechanics.combat import CombatMechanics, CombatParamsBuilder
 from battle.mechanics.action import ActionMechanics
 from battle.mechanics.action_behavior import ActionBehaviorRegistry, InitiateParams
 from battle.mechanics.log import LogBuilder
-from battle.mechanics.hit_calculator import AttackParams, MedalParams, LegsStats
 from battle.mechanics.targeting_resolvers import TargetResolverFactory
 from battle.mechanics.targeting import TargetingMechanics
 
@@ -89,7 +88,7 @@ class ActionInitiationSystem(BattleSystemBase):
         # ターゲットロスト時の中断処理
         if not target_id:
             msg = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
-            reset = ActionMechanics.get_cooldown_reset_data(gauge.progress)
+            reset = ActionMechanics.get_cooldown_reset_data(gauge.progress, use_penalty=True)
 
             comps = self.world.try_get_entity(actor_eid)
             if comps and 'gauge' in comps:
@@ -137,86 +136,24 @@ class ActionInitiationSystem(BattleSystemBase):
         target_desired_part: Optional[str]
     ):
         """戦闘計算を実行する"""
-        # 攻撃者情報の取得
-        attacker_comps = self.world.try_get_entity(actor_eid)
-        if not attacker_comps:
-            return None
+        # 1. パラメータ収集（CombatParamsBuilder に委譲）
+        attacker_medal = CombatParamsBuilder.build_attacker_medal(self.world, actor_eid)
+        attacker_part = CombatParamsBuilder.build_attacker_part(self.world, actor_eid, attacker_part_type)
+        attacker_legs = CombatParamsBuilder.build_legs_stats(self.world, actor_eid)
 
-        # メダル情報
-        medal_attr = attacker_comps['medal'].attribute
-        attacker_medal = MedalParams(attribute=medal_attr)
-
-        # 攻撃パーツ情報
-        attack_comp = None
-        part_comp = None
-        if 'partlist' in attacker_comps:
-            part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
-            if part_id:
-                p_comps = self.world.try_get_entity(part_id)
-                if p_comps and 'attack' in p_comps and 'part' in p_comps:
-                    attack_comp = p_comps['attack']
-                    part_comp = p_comps['part']
+        target_medal = CombatParamsBuilder.build_target_medal(self.world, target_id)
+        target_legs = CombatParamsBuilder.build_legs_stats(self.world, target_id)
         
-        if not attack_comp or not part_comp:
+        target_gauge_status, target_selected_part, target_part_skill_type = \
+            CombatParamsBuilder.get_target_gauge_data(self.world, target_id)
+
+        if not all([attacker_medal, attacker_part, target_medal]):
             return None
-
-        attacker_part = AttackParams(
-            success=attack_comp.success,
-            attack=attack_comp.attack,
-            part_attribute=part_comp.attribute,
-            skill_type=attack_comp.skill_type,
-            trait=attack_comp.trait
-        )
-
-        # 脚部情報
-        attacker_legs = LegsStats(mobility=0, defense=0)
-        if 'partlist' in attacker_comps:
-            legs_id = attacker_comps['partlist'].parts.get(PartType.LEGS)
-            if legs_id:
-                legs_comps = self.world.try_get_entity(legs_id)
-                if legs_comps and 'mobility' in legs_comps:
-                    attacker_legs = LegsStats(
-                        mobility=legs_comps['mobility'].mobility,
-                        defense=legs_comps['mobility'].defense
-                    )
-
-        # ターゲット情報
-        target_comps = self.world.try_get_entity(target_id)
-        if not target_comps:
-            return None
-
-        target_medal = MedalParams(attribute=target_comps['medal'].attribute)
-
-        # ターゲットの脚部情報
-        target_legs = LegsStats(mobility=0, defense=0)
-        if 'partlist' in target_comps:
-            target_legs_id = target_comps['partlist'].parts.get(PartType.LEGS)
-            if target_legs_id:
-                target_legs_comps = self.world.try_get_entity(target_legs_id)
-                if target_legs_comps and 'mobility' in target_legs_comps:
-                    target_legs = LegsStats(
-                        mobility=target_legs_comps['mobility'].mobility,
-                        defense=target_legs_comps['mobility'].defense
-                    )
-
-        # ターゲットのゲージ情報
-        target_gauge = target_comps.get('gauge')
-        target_gauge_status = target_gauge.status if target_gauge else ""
-        target_selected_part = target_gauge.selected_part if target_gauge else None
-
-        # ターゲットの選択中パーツのスキル情報
-        target_part_skill_type = None
-        if target_selected_part and 'partlist' in target_comps:
-            target_part_id = target_comps['partlist'].parts.get(target_selected_part)
-            if target_part_id:
-                tgt_p_comps = self.world.try_get_entity(target_part_id)
-                if tgt_p_comps and 'attack' in tgt_p_comps:
-                    target_part_skill_type = tgt_p_comps['attack'].skill_type
 
         # 対象の生存パーツ HP
         target_part_hps = TargetingMechanics.get_alive_parts_hp(self.world, target_id)
 
-        # 戦闘計算実行
+        # 2. 戦闘計算実行（CombatMechanics へ委譲）
         return CombatMechanics.calculate_combat_result(
             attacker_medal=attacker_medal,
             attacker_part=attacker_part,
