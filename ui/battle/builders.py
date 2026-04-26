@@ -134,10 +134,10 @@ class UISnapshotBuilder:
         logs = [] if is_cutin else context.battle_log[-UI_PARAMS['LOG_DISPLAY_LINES']:]
         return LogWindowData(logs=logs, show_input_guidance=show_guide, is_active=True)
 
-    def build_action_menu(self, context, flow, screen_size: Tuple[int, int]) -> ActionMenuData:
+    def build_action_menu(self, context, flow) -> ActionMenuData:
         """
         アクションメニューの Snapshot を生成する。
-        画面サイズを受け取り、レイアウト計算（Rect）も行ってボタンデータに含める。
+        純粋なデータのみを保持し、ピクセル座標は持たない。
         """
         if flow.current_phase != BattlePhase.INPUT:
             return ActionMenuData(is_active=False)
@@ -163,11 +163,6 @@ class UISnapshotBuilder:
                     skill_label=skill_name
                 ))
         buttons.append(ActionButtonData(label="スキップ", enabled=True, skill_label="なし"))
-
-        # レイアウト計算：ViewModel 側で Rect を計算してボタンデータに設定
-        layout = UIHitTester.calculate_action_menu_layout(len(buttons), screen_size)
-        for btn, rect in zip(buttons, layout):
-            btn.rect = rect
 
         return ActionMenuData(actor_name=comps['medal'].nickname, buttons=buttons, selected_index=context.selected_menu_index, is_active=True)
 

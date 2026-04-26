@@ -59,10 +59,13 @@ class UIPanelRenderer:
                 skill_y = wy + pad + int(sh * 0.05)
                 self.master.draw_text(f"{selected_btn.skill_label}", (pad, skill_y), (200, 255, 100), 'medium')
 
-        # Snapshot に Rect が含まれているので、それを使用して描画
+        # 描画時にその場でレイアウトを計算
+        from .ui_hit_tester import UIHitTester
+        layouts = UIHitTester.calculate_action_menu_layout(len(data.buttons), (sw, sh))
+
         for i, btn in enumerate(data.buttons):
             is_selected = (i == data.selected_index)
-            rect = btn.rect  # ViewModel が計算した Rect を使用
+            rect = layouts[i]
 
             if not btn.enabled:
                 bg = COLORS['BUTTON_DISABLED_BG']

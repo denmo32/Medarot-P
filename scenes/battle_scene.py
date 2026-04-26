@@ -71,38 +71,38 @@ class BattleScene:
     def _process_ui_input(self, input_comp, context, flow):
         """
         UI 入力処理：マウス/キーボードによる選択変更と決定を処理する。
-
-        ECS ロジック層（InputSystem）は座標を知らず、
-        このメソッドが設定した「コマンド」のみを処理する。
         """
         sw, sh = self.screen.get_size()
         screen_size = (sw, sh)
 
-        # マウスによるボタン選択
-        # ViewModel が生成した Snapshot のボタンデータ（Rect 含む）を使用して当たり判定
+        # Snapshot からボタン数を取得（スキップボタン等を含めた総数）
+        # ※ ViewModel.create_snapshot は以前より軽量になっている
         snapshot = self.view_model.create_snapshot(screen_size)
+        buttons = snapshot.action_menu.buttons
+        if not buttons:
+            return
+
+        # 1. マウスによるボタン選択（動的にレイアウトを計算して判定）
+        layouts = UIHitTester.calculate_action_menu_layout(len(buttons), screen_size)
         mouse_idx = UIHitTester.hit_test_action_menu(
             self.event_manager.mouse_x,
             self.event_manager.mouse_y,
-            snapshot.action_menu.buttons
+            layouts
         )
         if mouse_idx is not None:
             input_comp.selected_menu_index = mouse_idx
 
-        # キーボードによる選択変更
-        if input_comp.btn_up:
-            input_comp.selected_menu_index = 0
-        elif input_comp.btn_left:
-            input_comp.selected_menu_index = 1
-        elif input_comp.btn_right:
-            if input_comp.selected_menu_index == 2:
-                input_comp.selected_menu_index = 3
-            else:
-                input_comp.selected_menu_index = 2
+        # 2. キーボードによる選択変更（ロジックを UIHitTester に委譲）
+        current_idx = input_comp.selected_menu_index if input_comp.selected_menu_index is not None else context.selected_menu_index
+        input_comp.selected_menu_index = UIHitTester.resolve_navigation(
+            current_idx,
+            input_comp.btn_up, input_comp.btn_down, input_comp.btn_left, input_comp.btn_right,
+            len(buttons) - 1
+        )
 
-        # 決定入力（OK ボタン or マウスクリック）
+        # 3. 決定入力（論理コマンドの発行）
         if input_comp.btn_ok or self.event_manager.mouse_clicked:
-            idx = input_comp.selected_menu_index if input_comp.selected_menu_index is not None else context.selected_menu_index
+            idx = input_comp.selected_menu_index
             if idx is not None and idx < len(MENU_PART_ORDER):
                 p_type = MENU_PART_ORDER[idx]
                 input_comp.action_commands.append(("attack", p_type))

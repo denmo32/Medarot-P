@@ -1,11 +1,13 @@
 """UI関連の設定値"""
 
-# 画面設定（デフォルト基準値）
+from domain.constants import TeamType, PartType
+
+# === SCREEN SETTINGS ===
 # 起動時のサイズだが、ロジック上は比率計算の基準としてのみ意識される
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 600
 
-# 色の定義
+# === COLOR PALETTE ===
 COLORS = {
     'BACKGROUND': (50, 50, 50),
     'PLAYER': (0, 100, 200),
@@ -43,13 +45,13 @@ COLORS = {
     'MSG_TEXT': (0, 0, 0),        # 黒
 }
 
-# フォント設定
+# === TYPOGRAPHY ===
 FONT_NAMES = ['ui/assets/fonts/NotoSansJP-Regular.ttf']
 ACTION_BUTTON_FONT_NAME = 'ui/assets/fonts/851Gkktt_005.ttf'
 # ACTION_BUTTON_FONT_NAME = 'ui/assets/fonts/NaishoMoji-Regular.otf'
 # ACTION_BUTTON_FONT_NAME = 'ui/assets/fonts/002zouver.2-Regular.ttf'
 
-# レイアウトパラメータ (比率定義 0.0 ~ 1.0)
+# === LAYOUT PARAMETERS (Ratio 0.0 ~ 1.0) ===
 UI_PARAMS = {
     # フィールド配置 (Screen Width/Heightに対する比率)
     'PLAYER_TEAM_X_RATIO': 0.06,  # 左端からの位置
@@ -85,8 +87,7 @@ UI_PARAMS = {
     }
 }
 
-# チームごとの設定（カラー）
-from domain.constants import TeamType, PartType
+# === DOMAIN MAPPINGS ===
 TEAM_SETTINGS = {
     TeamType.PLAYER: {
         'color': COLORS['PLAYER']

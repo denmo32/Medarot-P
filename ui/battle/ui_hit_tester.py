@@ -67,18 +67,39 @@ class UIHitTester:
         return layout
 
     @staticmethod
-    def hit_test_action_menu(mx: int, my: int, buttons: list) -> int | None:
+    def hit_test_action_menu(mx: int, my: int, layouts: list[pygame.Rect]) -> int | None:
         """
         マウス座標がアクションメニューのどのボタンにあるかを判定。
 
         引数：
             mx, my: マウス座標
-            buttons: ActionButtonData のリスト（rect を含む）
+            layouts: pygame.Rect のリスト
 
         戻り値：
             ボタンのインデックス（0-based）。どのボタンにも該当しない場合は None。
         """
-        for i, btn in enumerate(buttons):
-            if btn.rect and btn.rect.collidepoint(mx, my):
+        for i, rect in enumerate(layouts):
+            if rect.collidepoint(mx, my):
                 return i
         return None
+
+    @staticmethod
+    def resolve_navigation(current_idx: int, btn_up: bool, btn_down: bool, btn_left: bool, btn_right: bool, max_idx: int) -> int:
+        """
+        キー入力に基づく次の選択インデックスを計算して返す（純粋関数）。
+        
+        Medarot-P の特殊な十字レイアウト：
+        0: 頭部 (上)
+        1: 右腕 (左下)
+        2: 左腕 (右下)
+        3: スキップ (右)
+        """
+        if btn_up:
+            return 0
+        if btn_left:
+            return 1
+        if btn_right:
+            # 2 (左腕) の時は 3 (スキップ) へ、それ以外は 2 へ
+            return 3 if current_idx == 2 else 2
+        # Medarot-P では下入力は未定義（またはスキップへ？）だが、現状のロジックに合わせる
+        return current_idx

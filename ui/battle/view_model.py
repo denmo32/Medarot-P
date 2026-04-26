@@ -35,7 +35,7 @@ class BattleViewModel:
         snapshot.target_line = self.field_builder.build_target_line(snapshot.characters, flow)
 
         snapshot.log_window = self.ui_builder.build_log_window(context, flow)
-        snapshot.action_menu = self.ui_builder.build_action_menu(context, flow, screen_size)
+        snapshot.action_menu = self.ui_builder.build_action_menu(context, flow)
         snapshot.game_over = self.ui_builder.build_game_over(flow)
 
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:

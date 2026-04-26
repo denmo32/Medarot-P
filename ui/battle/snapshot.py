@@ -26,7 +26,6 @@ class ActionButtonData:
     label: str
     enabled: bool
     skill_label: str = ""
-    rect: Optional[pygame.Rect] = None
 
 @dataclass
 class LogWindowData:
