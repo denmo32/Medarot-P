@@ -5,7 +5,7 @@ from typing import Optional, TYPE_CHECKING
 from core.ecs import Component
 
 if TYPE_CHECKING:
-    from battle.mechanics.combat import CombatResult
+    from battle.mechanics.damage_calculator import CombatResult
 
 @dataclass
 class ActionEventComponent(Component):

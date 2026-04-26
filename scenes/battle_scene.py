@@ -102,37 +102,12 @@ class BattleScene:
 
         # 決定入力（OK ボタン or マウスクリック）
         if input_comp.btn_ok or self.event_manager.mouse_clicked:
-            self._issue_action_command(input_comp, context)
-
-    def _issue_action_command(self, input_comp, context):
-        """
-        現在の選択状態に基づいて、アクションコマンドを InputComponent にキューイングする。
-        
-        例：
-            input_comp.action_commands.append(("attack", "head"))
-            input_comp.action_commands.append(("skip", None))
-        """
-        eid = context.current_turn_entity_id
-        if eid is None or eid not in self.world.entities:
-            return
-
-        comps = self.world.try_get_entity(eid)
-        if not comps or 'partlist' not in comps:
-            return
-
-        part_list = comps['partlist']
-        idx = input_comp.selected_menu_index if input_comp.selected_menu_index is not None else context.selected_menu_index
-
-        if idx is not None and idx < len(MENU_PART_ORDER):
-            p_type = MENU_PART_ORDER[idx]
-            p_id = part_list.parts.get(p_type)
-            p_comps = self.world.try_get_entity(p_id)
-            if p_comps and 'health' in p_comps and p_comps['health'].hp > 0:
+            idx = input_comp.selected_menu_index if input_comp.selected_menu_index is not None else context.selected_menu_index
+            if idx is not None and idx < len(MENU_PART_ORDER):
+                p_type = MENU_PART_ORDER[idx]
                 input_comp.action_commands.append(("attack", p_type))
-                return
-
-        # 無効な選択または範囲外の場合はスキップ
-        input_comp.action_commands.append(("skip", None))
+            else:
+                input_comp.action_commands.append(("skip", None))
 
     def update(self, dt):
         """更新処理"""

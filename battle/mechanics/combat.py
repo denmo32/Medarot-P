@@ -1,29 +1,10 @@
 """戦闘計算ロジック - 統合インターフェース"""
 
-from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
-from components.battle_component import StatusEffect
 from battle.mechanics.hit_calculator import (
-    HitCalculator, CombatStats, DefensivePenalty,
-    AttackParams, MedalParams, LegsStats
+    HitCalculator, AttackParams, MedalParams, LegsStats
 )
-from battle.mechanics.damage_calculator import DamageCalculator, DamageResult
-
-
-@dataclass
-class CombatResult:
-    """戦闘計算の結果"""
-    is_hit: bool
-    is_critical: bool = False
-    is_defense: bool = False
-    damage: int = 0
-    hit_part: Optional[str] = None
-    added_effects: list = field(default_factory=list)
-
-    @classmethod
-    def miss(cls) -> 'CombatResult':
-        """ミス時の結果を生成"""
-        return cls(is_hit=False)
+from battle.mechanics.damage_calculator import DamageCalculator, CombatResult
 
 
 class CombatMechanics:
@@ -85,20 +66,11 @@ class CombatMechanics:
             return CombatResult.miss()
 
         # 3. ダメージ計算（DamageCalculator へ委譲）
-        damage_result = DamageCalculator.calculate_damage_result(
+        return DamageCalculator.calculate_damage_result(
             attack_comp=attacker_part.to_attack_component(),
             stats=stats,
             hit_prob=hit_prob,
             target_part_hps=target_part_hps,
             target_desired_part=target_desired_part,
             prevent_defense=penalty.prevent_defense
-        )
-
-        return CombatResult(
-            is_hit=True,
-            is_critical=damage_result.is_critical,
-            is_defense=damage_result.is_defense,
-            damage=damage_result.damage,
-            hit_part=damage_result.hit_part,
-            added_effects=damage_result.added_effects
         )

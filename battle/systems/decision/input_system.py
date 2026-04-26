@@ -15,10 +15,8 @@ class InputSystem(BattleSystemBase):
     - この System は「コマンドを消費して ActionCommandComponent を生成する」のみを担当
     - 画面座標の概念は一切持たない（ECS と UI の完全分離）
     """
-    def __init__(self, world, view_model):
+    def __init__(self, world):
         super().__init__(world)
-        # view_model は他システムとの共有のため保持するが、このクラスでは使用しない
-        self.view_model = view_model
         self.handlers = {
             BattlePhase.LOG_WAIT: self._handle_log_wait,
             BattlePhase.ATTACK_DECLARATION: self._handle_attack_declaration_wait,

@@ -56,11 +56,15 @@ class ActionResolutionSystem(BattleSystemBase):
         if result.logs and context:
             context.battle_log.extend(result.logs)
 
-        if result.damage_result and event_id is not None:
+        if result.calculation_result and result.calculation_result.is_hit and event_id is not None:
             event_comps = self.world.try_get_entity(event_id)
             if event_comps and 'actionevent' in event_comps:
-                target_id = event_comps['actionevent'].current_target_id
-                self.world.add_component(target_id, result.damage_result.to_component())
+                event = event_comps['actionevent']
+                target_id = event.current_target_id
+                # CombatResult から DamageEventComponent を生成
+                self.world.add_component(target_id, result.calculation_result.to_component(
+                    event.attacker_id, event.part_type
+                ))
 
         if result.gauge_reset:
             comps = self.world.try_get_entity(entity_id)
