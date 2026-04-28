@@ -14,5 +14,6 @@ class BattleFlowComponent(Component):
     winner: Optional[str] = None              # 勝者（game_over時）
     phase_timer: float = 0.0                  # フェーズ遷移待ち用タイマー
     cutin_progress: float = 0.0               # カットイン演出進行度(0.0~1.0)
+    is_opening_done: bool = False             # 開始演出が完了したか
     
     # UI用の target_line_offset は削除（ViewModelで計算）

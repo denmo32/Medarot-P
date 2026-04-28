@@ -3,8 +3,8 @@
 """
 
 import pygame
+from typing import List, Optional, Dict, Tuple, Any, TypedDict
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Tuple, Any
 
 @dataclass
 class CharacterViewData:
@@ -26,7 +26,6 @@ class ActionButtonData:
     label: str
     enabled: bool
     skill_label: str = ""
-    rect: Optional[pygame.Rect] = None
 
 @dataclass
 class LogWindowData:
@@ -42,12 +41,47 @@ class ActionMenuData:
     buttons: List[ActionButtonData] = field(default_factory=list)
     selected_index: int = 0
     is_active: bool = False
+    button_rects: List[pygame.Rect] = field(default_factory=list) # 追加
 
 @dataclass
 class GameOverData:
     """ゲームオーバー画面情報"""
     winner: str = ""
     is_active: bool = False
+
+class AttackerData(TypedDict, total=False):
+    x: float
+    y: float
+    visible: bool
+    color: Tuple[int, int, int]
+    is_alive_map: Dict[str, bool]
+
+class DefenderData(TypedDict, total=False):
+    x: float
+    y: float
+    visible: bool
+    color: Tuple[int, int, int]
+    is_alive_map: Dict[str, bool]
+    hp_bars: Optional[List[Dict[str, Any]]]
+
+class BulletData(TypedDict, total=False):
+    x: float
+    y: float
+    visible: bool
+    type: str
+
+class EffectData(TypedDict, total=False):
+    x: float
+    y: float
+    visible: bool
+    progress: float
+    start_time: float
+
+class PopupData(TypedDict, total=False):
+    x: float
+    y: float
+    visible: bool
+    result: Any
 
 @dataclass
 class CutinStateData:
@@ -58,13 +92,13 @@ class CutinStateData:
     mirror: bool = False
     
     # キャラクター表示（座標はピクセル計算済み）
-    attacker: Dict[str, Any] = field(default_factory=dict)
-    defender: Dict[str, Any] = field(default_factory=dict)
+    attacker: AttackerData = field(default_factory=lambda: AttackerData())
+    defender: DefenderData = field(default_factory=lambda: DefenderData())
     
     # オブジェクト
-    bullet: Dict[str, Any] = field(default_factory=dict)
-    effect: Dict[str, Any] = field(default_factory=dict)
-    popup: Dict[str, Any] = field(default_factory=dict)
+    bullet: BulletData = field(default_factory=lambda: BulletData())
+    effect: EffectData = field(default_factory=lambda: EffectData())
+    popup: PopupData = field(default_factory=lambda: PopupData())
 
 @dataclass
 class BattleStateSnapshot:
@@ -86,3 +120,4 @@ class BattleStateSnapshot:
     
     # 演出
     cutin: CutinStateData = field(default_factory=CutinStateData)
+    opening_popup_text: Optional[str] = None

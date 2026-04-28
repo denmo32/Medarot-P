@@ -1,9 +1,13 @@
 """バトル固有の ECS コンポーネント定義（純粋データ構造）"""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from core.ecs import Component
 from battle.constants import GaugeStatus
+
+# 型エイリアスの定義
+# {部位名: (ターゲットID, ターゲット部位名)}
+PartTargets = Dict[str, Optional[Tuple[int, Optional[str]]]]
 
 @dataclass
 class StatusEffect:
@@ -20,7 +24,7 @@ class GaugeComponent(Component):
 
     selected_action: Optional[str] = field(init=False, default=None)
     selected_part: Optional[str] = field(init=False, default=None)
-    part_targets: Dict[str, Optional[int]] = field(default_factory=dict)
+    part_targets: PartTargets = field(default_factory=dict)
 
     charging_time: float = field(init=False, default=2.0)
     cooldown_time: float = field(init=False, default=2.0)

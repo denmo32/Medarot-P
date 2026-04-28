@@ -58,7 +58,7 @@ class BattleEngine:
         self.view_model = BattleViewModel(self.world)
         
         self.systems = [
-            InputSystem(self.world, self.view_model),
+            InputSystem(self.world),
             BattleFlowSystem(self.world),
             GaugeSystem(self.world),
             TargetSelectionSystem(self.world),

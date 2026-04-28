@@ -71,68 +71,41 @@ class BattleScene:
     def _process_ui_input(self, input_comp, context, flow):
         """
         UI 入力処理：マウス/キーボードによる選択変更と決定を処理する。
-
-        ECS ロジック層（InputSystem）は座標を知らず、
-        このメソッドが設定した「コマンド」のみを処理する。
         """
         sw, sh = self.screen.get_size()
         screen_size = (sw, sh)
 
-        # マウスによるボタン選択
-        # ViewModel が生成した Snapshot のボタンデータ（Rect 含む）を使用して当たり判定
-        snapshot = self.view_model.create_snapshot(screen_size)
+        # Snapshot 全体ではなく、メニュー情報のみを軽量に取得
+        menu_data = self.view_model.get_action_menu_data(screen_size)
+        buttons = menu_data.buttons
+        if not buttons or not menu_data.button_rects:
+            return
+
+        # 1. マウスによるボタン選択（Snapshot に保持されているレイアウトを使用して判定）
         mouse_idx = UIHitTester.hit_test_action_menu(
             self.event_manager.mouse_x,
             self.event_manager.mouse_y,
-            snapshot.action_menu.buttons
+            menu_data.button_rects
         )
         if mouse_idx is not None:
             input_comp.selected_menu_index = mouse_idx
 
-        # キーボードによる選択変更
-        if input_comp.btn_up:
-            input_comp.selected_menu_index = 0
-        elif input_comp.btn_left:
-            input_comp.selected_menu_index = 1
-        elif input_comp.btn_right:
-            if input_comp.selected_menu_index == 2:
-                input_comp.selected_menu_index = 3
-            else:
-                input_comp.selected_menu_index = 2
+        # 2. キーボードによる選択変更（ロジックを UIHitTester に委譲）
+        current_idx = input_comp.selected_menu_index if input_comp.selected_menu_index is not None else context.selected_menu_index
+        input_comp.selected_menu_index = UIHitTester.resolve_navigation(
+            current_idx,
+            input_comp.btn_up, input_comp.btn_down, input_comp.btn_left, input_comp.btn_right,
+            len(buttons) - 1
+        )
 
-        # 決定入力（OK ボタン or マウスクリック）
+        # 3. 決定入力（論理コマンドの発行）
         if input_comp.btn_ok or self.event_manager.mouse_clicked:
-            self._issue_action_command(input_comp, context)
-
-    def _issue_action_command(self, input_comp, context):
-        """
-        現在の選択状態に基づいて、アクションコマンドを InputComponent にキューイングする。
-        
-        例：
-            input_comp.action_commands.append(("attack", "head"))
-            input_comp.action_commands.append(("skip", None))
-        """
-        eid = context.current_turn_entity_id
-        if eid is None or eid not in self.world.entities:
-            return
-
-        comps = self.world.try_get_entity(eid)
-        if not comps or 'partlist' not in comps:
-            return
-
-        part_list = comps['partlist']
-        idx = input_comp.selected_menu_index if input_comp.selected_menu_index is not None else context.selected_menu_index
-
-        if idx is not None and idx < len(MENU_PART_ORDER):
-            p_type = MENU_PART_ORDER[idx]
-            p_id = part_list.parts.get(p_type)
-            p_comps = self.world.try_get_entity(p_id)
-            if p_comps and 'health' in p_comps and p_comps['health'].hp > 0:
+            idx = input_comp.selected_menu_index
+            if idx is not None and idx < len(MENU_PART_ORDER):
+                p_type = MENU_PART_ORDER[idx]
                 input_comp.action_commands.append(("attack", p_type))
-                return
-
-        # 無効な選択または範囲外の場合はスキップ
-        input_comp.action_commands.append(("skip", None))
+            else:
+                input_comp.action_commands.append(("skip", None))
 
     def update(self, dt):
         """更新処理"""

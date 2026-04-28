@@ -27,3 +27,5 @@ class HealthAnimationSystem(System):
                     h.display_hp = float(h.hp)
                 else:
                     h.display_hp += change
+                    # クランプ処理を追加して境界値を守る
+                    h.display_hp = max(0.0, min(float(h.max_hp), h.display_hp))

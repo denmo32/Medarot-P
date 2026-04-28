@@ -129,7 +129,12 @@ class UISnapshotBuilder:
         self.world = world
 
     def build_log_window(self, context, flow) -> LogWindowData:
-        show_guide = flow.current_phase in [BattlePhase.LOG_WAIT, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN_RESULT]
+        show_guide = flow.current_phase in [
+            BattlePhase.LOG_WAIT, 
+            BattlePhase.ATTACK_DECLARATION, 
+            BattlePhase.CUTIN_RESULT,
+            BattlePhase.OPENING_LOG
+        ]
         is_cutin = flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]
         logs = [] if is_cutin else context.battle_log[-UI_PARAMS['LOG_DISPLAY_LINES']:]
         return LogWindowData(logs=logs, show_input_guidance=show_guide, is_active=True)
@@ -137,7 +142,7 @@ class UISnapshotBuilder:
     def build_action_menu(self, context, flow, screen_size: Tuple[int, int]) -> ActionMenuData:
         """
         アクションメニューの Snapshot を生成する。
-        画面サイズを受け取り、レイアウト計算（Rect）も行ってボタンデータに含める。
+        レイアウト計算（Rect）もここで行う。
         """
         if flow.current_phase != BattlePhase.INPUT:
             return ActionMenuData(is_active=False)
@@ -164,12 +169,16 @@ class UISnapshotBuilder:
                 ))
         buttons.append(ActionButtonData(label="スキップ", enabled=True, skill_label="なし"))
 
-        # レイアウト計算：ViewModel 側で Rect を計算してボタンデータに設定
-        layout = UIHitTester.calculate_action_menu_layout(len(buttons), screen_size)
-        for btn, rect in zip(buttons, layout):
-            btn.rect = rect
+        # レイアウト計算
+        layouts = UIHitTester.calculate_action_menu_layout(len(buttons), screen_size)
 
-        return ActionMenuData(actor_name=comps['medal'].nickname, buttons=buttons, selected_index=context.selected_menu_index, is_active=True)
+        return ActionMenuData(
+            actor_name=comps['medal'].nickname,
+            buttons=buttons,
+            selected_index=context.selected_menu_index,
+            is_active=True,
+            button_rects=layouts
+        )
 
     def build_game_over(self, flow) -> GameOverData:
         return GameOverData(winner=flow.winner or "", is_active=(flow.current_phase == BattlePhase.GAME_OVER))

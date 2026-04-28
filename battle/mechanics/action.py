@@ -1,11 +1,14 @@
 """アクションの状態遷移・妥当性検証ロジック"""
 
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, Optional, List, Dict, TYPE_CHECKING
 from dataclasses import dataclass
 from domain.constants import GaugeStatus, ActionType
 from battle.mechanics.targeting import TargetingMechanics
 from battle.mechanics.log import LogBuilder
-from battle.mechanics.trait import TraitRegistry, MeleeTrait
+from battle.mechanics.trait import TraitRegistry
+
+if TYPE_CHECKING:
+    from components.battle_component import PartTargets
 
 @dataclass(frozen=True)
 class GaugeResetData:
@@ -28,12 +31,16 @@ class ActionMechanics:
     """
 
     @staticmethod
-    def get_cooldown_reset_data(current_progress: float, penalty_ratio: float = 1.0) -> GaugeResetData:
+    def get_cooldown_reset_data(current_progress: float, use_penalty: bool = True) -> GaugeResetData:
         """
         放熱状態へリセットするためのデータを計算する。
+
+        Args:
+            current_progress: 現在のゲージ進行度
+            use_penalty: 中断ペナルティ（進行度に応じた放熱開始）を適用するかどうか
         """
         # 充填中断位置から放熱を開始するため、ゲージを反転させる
-        if penalty_ratio > 0:
+        if use_penalty:
             new_progress = max(0.0, 100.0 - current_progress)
         else:
             new_progress = 0.0
@@ -64,7 +71,7 @@ class ActionMechanics:
         gauge_progress: float,
         gauge_selected_action: str,
         gauge_selected_part: Optional[str],
-        gauge_part_targets: Dict[Optional[str], Tuple[int, Optional[str]]],
+        gauge_part_targets: "PartTargets",
         actor_name: str,
         is_actor_part_alive: bool,
         is_target_part_alive: bool
@@ -110,65 +117,6 @@ class ActionMechanics:
                 )
 
         return ActionInterruptionResult(is_valid=True)
-
-    @staticmethod
-    def resolve_action_target(
-        selected_action: str,
-        selected_part: Optional[str],
-        is_actor_part_alive: bool,
-        attack_trait: str,
-        # 射撃特性用：予約済みターゲット情報
-        part_targets: Dict[Optional[str], Tuple[int, Optional[str]]],
-        is_target_alive: bool,
-        # 格闘特性用： closest enemy 情報
-        closest_enemy_id: Optional[int],
-        personality_id: str,
-        target_part_from_personality: Optional[str],
-        is_personality_target_alive: bool
-    ) -> Tuple[Optional[int], Optional[str]]:
-        """
-        行動実行の瞬間に、特性やスキルの性質に基づいてターゲット（eid, part）を確定させる。
-        
-        Args:
-            selected_action: 選択中のアクション種別
-            selected_part: 選択中のパーツ種別
-            is_actor_part_alive: 実行パーツが生存しているか
-            attack_trait: 攻撃パーツの特性
-            part_targets: パーツごとのターゲット情報 {part_type: (target_id, target_part)}
-            is_target_alive: 予約済みターゲットが生存しているか
-            closest_enemy_id: 最もゲージが進んでいる敵の ID（格闘特性用）
-            personality_id: 性格 ID
-            target_part_from_personality: 性格によって選択された部位
-            is_personality_target_alive: 性格が選択したターゲットが生存しているか
-        
-        Returns:
-            (target_id, target_part) のタプル。無効な場合は (None, None)
-        """
-        if selected_action != ActionType.ATTACK or not selected_part:
-            return None, None
-
-        # 実行パーツ自体の生存確認
-        if not is_actor_part_alive:
-            return None, None
-
-        # 特性振る舞い（格闘/射撃のターゲット解決ロジック）に委譲
-        trait_behavior = TraitRegistry.get(attack_trait)
-        
-        # 格闘特性の場合は MeleeTrait.resolve_target を使用
-        if isinstance(trait_behavior, MeleeTrait):
-            return trait_behavior.resolve_target(
-                closest_enemy_id=closest_enemy_id,
-                personality_id=personality_id,
-                target_part=target_part_from_personality,
-                is_target_alive=is_personality_target_alive
-            )
-        else:
-            # 射撃特性などの場合は基底クラスの resolve_target を使用
-            return trait_behavior.resolve_target(
-                selected_part=selected_part,
-                part_targets=part_targets,
-                is_target_alive=is_target_alive
-            )
 
     @staticmethod
     def apply_gauge_reset(gauge, reset_data: GaugeResetData) -> None:

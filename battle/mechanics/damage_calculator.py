@@ -1,11 +1,43 @@
 """ダメージ計算に関する戦闘計算ロジック"""
 
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List, Dict, Any, TYPE_CHECKING
 from components.battle_component import StatusEffect, AttackComponent
 from battle.mechanics.trait import TraitRegistry
 from battle.mechanics.targeting import TargetingMechanics
 from domain.combat_formula import calculate_break_probability, check_attack_outcome, calculate_damage
+
+if TYPE_CHECKING:
+    from components.battle_component import DamageEventComponent
+
+@dataclass
+class CombatResult:
+    """戦闘計算の結果"""
+    is_hit: bool
+    is_critical: bool = False
+    is_defense: bool = False
+    damage: int = 0
+    hit_part: Optional[str] = None
+    added_effects: List[StatusEffect] = field(default_factory=list)
+
+    @classmethod
+    def miss(cls) -> 'CombatResult':
+        """ミス時の結果を生成"""
+        return cls(is_hit=False)
+
+    def to_component(self, attacker_id: int, attacker_part: str) -> 'DamageEventComponent':
+        """
+        DamageEventComponent を生成する。
+        """
+        from components.battle_component import DamageEventComponent
+        return DamageEventComponent(
+            attacker_id=attacker_id,
+            attacker_part=attacker_part,
+            damage=self.damage,
+            target_part=self.hit_part if self.hit_part else "",
+            is_critical=self.is_critical,
+            added_effects=self.added_effects
+        )
 
 
 @dataclass
@@ -48,7 +80,7 @@ class DamageCalculator:
         target_part_hps: Dict[str, int],
         target_desired_part: Optional[str],
         prevent_defense: bool
-    ) -> 'DamageResult':
+    ) -> CombatResult:
         """
         命中確定後のダメージ結果を計算する。
 
@@ -61,7 +93,7 @@ class DamageCalculator:
             prevent_defense: 防御不能フラグ
 
         Returns:
-            ダメージ計算結果
+            ダメージ計算結果（CombatResult）
         """
         # 1. 攻撃性質（クリティカル・防御）の決定
         quality = DamageCalculator._evaluate_attack_quality(
@@ -85,7 +117,8 @@ class DamageCalculator:
         trait_behavior = TraitRegistry.get(attack_comp.trait)
         added_effects = trait_behavior.get_added_effects(stats.success, stats.tgt_mobility)
 
-        return DamageResult(
+        return CombatResult(
+            is_hit=True,
             is_critical=quality.is_critical,
             is_defense=quality.is_defense,
             damage=damage,
@@ -125,13 +158,3 @@ class DamageCalculator:
             is_defense = False
 
         return AttackQuality(is_critical=is_critical, is_defense=is_defense)
-
-
-@dataclass
-class DamageResult:
-    """ダメージ計算の結果"""
-    is_critical: bool
-    is_defense: bool
-    damage: int
-    hit_part: str
-    added_effects: List[StatusEffect] = field(default_factory=list)

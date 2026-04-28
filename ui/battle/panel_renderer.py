@@ -14,8 +14,17 @@ class UIPanelRenderer:
         elif snapshot.log_window.is_active:
             self._render_log_window(snapshot.log_window)
 
+        if snapshot.opening_popup_text:
+            self._render_opening_popup(snapshot.opening_popup_text)
+
         if snapshot.game_over.is_active:
             self._render_game_over(snapshot.game_over)
+
+    def _render_opening_popup(self, text):
+        sw, sh = self.master.get_screen_size()
+        mid_x, mid_y = sw // 2, sh // 2
+        # 中央に大きく表示 (notice フォントを使用)
+        self.master.draw_text_with_outline(text, mid_x, mid_y, COLORS['TEXT'], 'notice', 'center')
 
     def _render_log_window(self, data):
         sw, sh = self.master.get_screen_size()
@@ -59,10 +68,10 @@ class UIPanelRenderer:
                 skill_y = wy + pad + int(sh * 0.05)
                 self.master.draw_text(f"{selected_btn.skill_label}", (pad, skill_y), (200, 255, 100), 'medium')
 
-        # Snapshot に Rect が含まれているので、それを使用して描画
+        # Snapshot に保持されているレイアウトを使用
         for i, btn in enumerate(data.buttons):
             is_selected = (i == data.selected_index)
-            rect = btn.rect  # ViewModel が計算した Rect を使用
+            rect = data.button_rects[i]
 
             if not btn.enabled:
                 bg = COLORS['BUTTON_DISABLED_BG']
@@ -92,5 +101,3 @@ class UIPanelRenderer:
 
         # BaseRenderer に移設したメソッドを使用。強調のため large/center を指定
         self.master.draw_text_with_outline(f"{data.winner} の勝利！", mid_x, mid_y, color, 'notice', 'center')
-
-        notice_off_y = int(sh * 0.08)

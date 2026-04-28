@@ -1,29 +1,95 @@
 """戦闘計算ロジック - 統合インターフェース"""
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
-from components.battle_component import StatusEffect
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from battle.mechanics.hit_calculator import (
-    HitCalculator, CombatStats, DefensivePenalty,
-    AttackParams, MedalParams, LegsStats
+    HitCalculator, AttackParams, MedalParams, LegsStats
 )
-from battle.mechanics.damage_calculator import DamageCalculator, DamageResult
+from battle.mechanics.damage_calculator import DamageCalculator, CombatResult
+from domain.constants import PartType
+from battle.mechanics.targeting import TargetingMechanics
 
+if TYPE_CHECKING:
+    from core.ecs import World
 
-@dataclass
-class CombatResult:
-    """戦闘計算の結果"""
-    is_hit: bool
-    is_critical: bool = False
-    is_defense: bool = False
-    damage: int = 0
-    hit_part: Optional[str] = None
-    added_effects: list = field(default_factory=list)
+class CombatParamsBuilder:
+    """
+    ECS の World から戦闘計算に必要なパラメータを抽出するビルダー（純粋関数的ヘルパー）。
+    System がドメイン知識を持ちすぎないようにするための抽象化レイヤー。
+    """
+    
+    @staticmethod
+    def build_attacker_medal(world: "World", attacker_eid: int) -> Optional[MedalParams]:
+        comps = world.try_get_entity(attacker_eid)
+        if not comps or 'medal' not in comps:
+            return None
+        return MedalParams(attribute=comps['medal'].attribute)
 
-    @classmethod
-    def miss(cls) -> 'CombatResult':
-        """ミス時の結果を生成"""
-        return cls(is_hit=False)
+    @staticmethod
+    def build_attacker_part(world: "World", attacker_eid: int, part_type: str) -> Optional[AttackParams]:
+        comps = world.try_get_entity(attacker_eid)
+        if not comps or 'partlist' not in comps:
+            return None
+        
+        part_id = comps['partlist'].parts.get(part_type)
+        if not part_id:
+            return None
+            
+        p_comps = world.try_get_entity(part_id)
+        if not p_comps or 'attack' not in p_comps or 'part' not in p_comps:
+            return None
+            
+        attack_comp = p_comps['attack']
+        part_comp = p_comps['part']
+        
+        return AttackParams(
+            success=attack_comp.success,
+            attack=attack_comp.attack,
+            part_attribute=part_comp.attribute,
+            skill_type=attack_comp.skill_type,
+            trait=attack_comp.trait
+        )
+
+    @staticmethod
+    def build_legs_stats(world: "World", entity_eid: int) -> LegsStats:
+        comps = world.try_get_entity(entity_eid)
+        if comps and 'partlist' in comps:
+            legs_id = comps['partlist'].parts.get(PartType.LEGS)
+            if legs_id:
+                legs_comps = world.try_get_entity(legs_id)
+                if legs_comps and 'mobility' in legs_comps:
+                    return LegsStats(
+                        mobility=legs_comps['mobility'].mobility,
+                        defense=legs_comps['mobility'].defense
+                    )
+        return LegsStats(mobility=0, defense=0)
+
+    @staticmethod
+    def build_target_medal(world: "World", target_id: int) -> Optional[MedalParams]:
+        comps = world.try_get_entity(target_id)
+        if not comps or 'medal' not in comps:
+            return None
+        return MedalParams(attribute=comps['medal'].attribute)
+
+    @staticmethod
+    def get_target_gauge_data(world: "World", target_id: int) -> tuple[str, Optional[str], Optional[str]]:
+        """(status, selected_part, skill_type) を返す"""
+        comps = world.try_get_entity(target_id)
+        if not comps:
+            return "", None, None
+            
+        gauge = comps.get('gauge')
+        status = gauge.status if gauge else ""
+        selected_part = gauge.selected_part if gauge else None
+        
+        skill_type = None
+        if selected_part and 'partlist' in comps:
+            part_id = comps['partlist'].parts.get(selected_part)
+            if part_id:
+                p_comps = world.try_get_entity(part_id)
+                if p_comps and 'attack' in p_comps:
+                    skill_type = p_comps['attack'].skill_type
+                    
+        return status, selected_part, skill_type
 
 
 class CombatMechanics:
@@ -85,20 +151,11 @@ class CombatMechanics:
             return CombatResult.miss()
 
         # 3. ダメージ計算（DamageCalculator へ委譲）
-        damage_result = DamageCalculator.calculate_damage_result(
+        return DamageCalculator.calculate_damage_result(
             attack_comp=attacker_part.to_attack_component(),
             stats=stats,
             hit_prob=hit_prob,
             target_part_hps=target_part_hps,
             target_desired_part=target_desired_part,
             prevent_defense=penalty.prevent_defense
-        )
-
-        return CombatResult(
-            is_hit=True,
-            is_critical=damage_result.is_critical,
-            is_defense=damage_result.is_defense,
-            damage=damage_result.damage,
-            hit_part=damage_result.hit_part,
-            added_effects=damage_result.added_effects
         )

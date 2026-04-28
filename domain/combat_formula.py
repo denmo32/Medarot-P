@@ -1,6 +1,7 @@
 """バトル計算ロジック（純粋関数群）"""
 
 import random
+from typing import Optional
 
 # 計算用定数
 MOBILITY_WEIGHT = 0.2       # 回避率計算時の機動性の重み
@@ -30,17 +31,23 @@ def calculate_break_probability(success: int, defense: int) -> float:
         return 1.0
     return max(MIN_PROBABILITY, min(MAX_PROBABILITY, success / denominator))
 
-def check_is_hit(hit_prob: float) -> bool:
-    """命中したかどうかを判定"""
-    return random.random() < hit_prob
-
-def check_attack_outcome(hit_prob: float, break_prob: float) -> tuple[bool, bool]:
+def check_is_hit(hit_prob: float, rng: Optional[random.Random] = None) -> bool:
     """
-    攻撃の結果詳細（クリティカル、防御成功）を判定する。
+    命中したかどうかを判定（乱数を使用するため純粋関数ではない）。
+    rng を渡すことでテスト等で結果を固定可能。
+    """
+    source = rng if rng else random
+    return source.random() < hit_prob
+
+def check_attack_outcome(hit_prob: float, break_prob: float, rng: Optional[random.Random] = None) -> tuple[bool, bool]:
+    """
+    攻撃の結果詳細（クリティカル、防御成功）を判定する（乱数を使用するため純粋関数ではない）。
     Returns: (is_critical, is_defense)
     """
+    source = rng if rng else random
+    
     # 突破判定
-    is_break_success = (random.random() < break_prob)
+    is_break_success = (source.random() < break_prob)
     is_defense = not is_break_success
     
     is_critical = False

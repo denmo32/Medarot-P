@@ -28,8 +28,10 @@ class GaugeSystem(BattleSystemBase):
                 gauge.active_effects = GaugeMechanics.get_updated_effects(gauge.active_effects, dt)
 
         # 2. 中断判定とゲージ進行
-        # 誰かが行動待機中の場合は、時間は進めるがゲージ増加は行わない
-        time_step = 0.0 if self.context.waiting_queue else dt
+        # 誰かが行動待機中の場合、または開始演出が終わっていない場合は、時間は進めるがゲージ増加は行わない
+        time_step = dt
+        if self.context.waiting_queue or not self.flow.is_opening_done:
+            time_step = 0.0
 
         for eid, comps in all_entities:
             gauge = comps['gauge']

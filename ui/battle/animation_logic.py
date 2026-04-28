@@ -4,7 +4,7 @@ UI・演出専用の計算ロジック
 
 from typing import Any, Tuple
 from domain.constants import TraitType
-from .snapshot import CutinStateData
+from .snapshot import CutinStateData, AttackerData, DefenderData, BulletData, EffectData, PopupData
 from ui.config import SCREEN_HEIGHT
 
 class CutinAnimationLogic:
@@ -52,7 +52,7 @@ class CutinAnimationLogic:
             # 画面右側、中央より少し上
             px = sw - (sw * 0.18)
             py = cy - (sh * 0.1) - (sh * 0.06 * anim_t)
-            state.popup = {'visible': True, 'x': px, 'y': py, 'result': hit_result}
+            state.popup = PopupData(visible=True, x=px, y=py, result=hit_result)
 
         if is_enemy:
             cls._apply_mirroring(state, sw)
@@ -60,13 +60,14 @@ class CutinAnimationLogic:
         return state
 
     @classmethod
-    def _calc_melee_sequence(cls, state, progress, sw, cy, sh):
+    def _calc_melee_sequence(cls, state: CutinStateData, progress: float, sw: int, cy: int, sh: int):
         # 画面幅に応じた相対的なオフセット
         l_x = sw * 0.18
         r_x = sw * 0.82
         off = sw * 0.5 
         
-        atk, defn = {'y': cy, 'visible': True}, {'x': r_x, 'y': cy, 'visible': True}
+        atk: AttackerData = {'y': cy, 'visible': True}
+        defn: DefenderData = {'x': r_x, 'y': cy, 'visible': True}
         
         if progress < cls.T_ENTER:
             r = progress / cls.T_ENTER
@@ -79,9 +80,11 @@ class CutinAnimationLogic:
             # 相手の手前まで突進
             target_x = r_x - (sw * 0.12)
             atk['x'] = l_x + (target_x - l_x) * (r * r)
+        elif progress < cls.T_MELEE_HIT + 0.2: # Effect visible period
+            atk['x'] = r_x - (sw * 0.12)
+            state.effect = EffectData(visible=True, x=r_x, y=cy, progress=progress, start_time=cls.T_MELEE_HIT)
         elif progress < cls.T_MELEE_LEAVE:
             atk['x'] = r_x - (sw * 0.12)
-            state.effect = {'visible': True, 'x': r_x, 'y': cy, 'progress': progress, 'start_time': cls.T_MELEE_HIT}
         else:
             r = (progress - cls.T_MELEE_LEAVE) / (1.0 - cls.T_MELEE_LEAVE)
             start_x = r_x - (sw * 0.12)
@@ -91,13 +94,14 @@ class CutinAnimationLogic:
         state.attacker, state.defender = atk, defn
 
     @classmethod
-    def _calc_shoot_sequence(cls, state, progress, sw, cy, hit_result, sh):
+    def _calc_shoot_sequence(cls, state: CutinStateData, progress: float, sw: int, cy: int, hit_result: Any, sh: int):
         l_x = sw * 0.18
         r_x = sw * 0.82
         off = sw * 0.5
         
-        atk, defn = {'y': cy, 'visible': True}, {'y': cy, 'visible': True}
-        bul = {'visible': False, 'x': 0, 'y': cy}
+        atk: AttackerData = {'y': cy, 'visible': True}
+        defn: DefenderData = {'y': cy, 'visible': True}
+        bul: BulletData = {'visible': False, 'x': 0, 'y': cy}
 
         # アタッカー退場 & ディフェンダー入場
         if progress < cls.T_SHOOT_SWAP_START:
@@ -111,7 +115,7 @@ class CutinAnimationLogic:
             r = (progress - cls.T_SHOOT_SWAP_START) / (cls.T_SHOOT_SWAP_END - cls.T_SHOOT_SWAP_START)
             atk['x'], defn['x'] = l_x - (l_x + off) * r, (sw + off) - (sw + off - r_x) * r
         else:
-            atk['x'], defn['x'] = -off * 2, r_x
+            atk['x'], defn['x'] = -float(off * 2), r_x
 
         # 弾丸
         if progress >= cls.T_SHOOT_FIRE:
@@ -122,9 +126,9 @@ class CutinAnimationLogic:
             if progress < cls.T_SHOOT_SWAP_START:
                 r = (progress - cls.T_SHOOT_FIRE) / (cls.T_SHOOT_SWAP_START - cls.T_SHOOT_FIRE)
                 bul['x'] = (l_x + bullet_offset) + (mid_x - (l_x + bullet_offset)) * r
-            elif progress < cls.T_SHOOT_SWAP_END:
-                r = (progress - cls.T_SHOOT_SWAP_START) / (cls.T_SHOOT_SWAP_END - cls.T_SHOOT_SWAP_START)
-                bul['x'] = mid_x + (bullet_offset * r)
+            elif progress < cls.T_SHOOT_SWAP_START + (cls.T_SHOOT_SWAP_END - cls.T_SHOOT_SWAP_START):
+                # Swap period: bullet stays at center
+                bul['x'] = mid_x + bullet_offset * ((progress - cls.T_SHOOT_SWAP_START) / (cls.T_SHOOT_SWAP_END - cls.T_SHOOT_SWAP_START))
             else:
                 r = (progress - cls.T_SHOOT_SWAP_END) / (cls.T_SHOOT_IMPACT - cls.T_SHOOT_SWAP_END)
                 start_b = mid_x + bullet_offset

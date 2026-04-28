@@ -12,6 +12,8 @@ class BattlePhase:
     EXECUTING = "executing"
     LOG_WAIT = "log_wait"
     GAME_OVER = "game_over"
+    OPENING_LOG = "opening_log"
+    OPENING_POPUP = "opening_popup"
 
 class BattleTiming:
     """演出やフェーズ遷移のタイミング（秒）"""

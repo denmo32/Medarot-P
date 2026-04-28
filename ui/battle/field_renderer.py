@@ -32,18 +32,31 @@ class FieldRenderer:
             
             name_x, name_y = self.m.to_px(char.x_ratio, char.y_ratio)
 
-            r_home = int(22 * base_scale)
+            # リングの基本サイズ
+            rx = int(24 * base_scale)
+            ry = int(rx * 0.4)  # 扁平率を上げて立体感を出す
             
-            # ホーム位置
-            pygame.draw.circle(self.m.screen, COLORS['HOME_MARKER'], (home_x, home_y + int(20*base_scale)), r_home, 2)
+            # ホーム位置（ガイドとしての楕円）
+            home_cy = home_y + int(20 * base_scale)
+            home_rect = pygame.Rect(home_x - rx, home_cy - ry, rx * 2, ry * 2)
+            pygame.draw.ellipse(self.m.screen, COLORS['HOME_MARKER'], home_rect, 1)
             
             # 現在位置（アイコン）
-            cx, cy = icon_x, icon_y + int(20*base_scale)
-            if char.border_color:
-                pygame.draw.circle(self.m.screen, char.border_color, (cx, cy), r_home, 2)
+            cx, cy = icon_x, icon_y + int(20 * base_scale)
+            ring_rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
             
-            # ロボット外形描画
-            self.m.widgets.draw_robot_icon(cx, cy - int(6*base_scale), char.team_color, char.part_status, scale=0.4)
+            if char.border_color:
+                # 1. リングの奥半分を描画
+                pygame.draw.arc(self.m.screen, char.border_color, ring_rect, 0, math.pi, 3)
+            
+            # 2. ロボット外形描画
+            # 足元がリングの中央に来るように微調整
+            self.m.widgets.draw_robot_icon(cx, cy - int(4 * base_scale), char.team_color, char.part_status, scale=0.4)
+            
+            if char.border_color:
+                # 3. リングの手前半分を描画
+                pygame.draw.arc(self.m.screen, char.border_color, ring_rect, math.pi, 2 * math.pi, 3)
+            
             self.m.draw_text(char.name, (name_x - int(20*base_scale), name_y - int(25*base_scale)), font_type='medium')
 
     def _render_target_marker(self, snapshot):

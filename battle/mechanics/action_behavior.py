@@ -7,44 +7,14 @@ from domain.constants import ActionType
 from battle.constants import BattlePhase
 from battle.mechanics.action import ActionMechanics, GaugeResetData
 from battle.mechanics.log import LogBuilder
-from components.battle_component import StatusEffect
-
-if TYPE_CHECKING:
-    from components.battle_component import DamageEventComponent
-
-@dataclass(frozen=True)
-class DamageResult:
-    """攻撃によって発生するダメージ情報の指示書"""
-    attacker_id: int
-    attacker_part: str
-    damage: int
-    target_part: str
-    is_critical: bool = False
-    added_effects: List[StatusEffect] = field(default_factory=list)
-
-    def to_component(self) -> 'DamageEventComponent':
-        """
-        DamageEventComponent を生成する。
-
-        Returns:
-            DamageEventComponent インスタンス
-        """
-        from components.battle_component import DamageEventComponent
-        return DamageEventComponent(
-            attacker_id=self.attacker_id,
-            attacker_part=self.attacker_part,
-            damage=self.damage,
-            target_part=self.target_part,
-            is_critical=self.is_critical,
-            added_effects=self.added_effects
-        )
+from battle.mechanics.damage_calculator import CombatResult
 
 @dataclass
 class ResolutionResult:
     """アクション解決の結果を表すデータオブジェクト（副作用の指示書）"""
     next_phase: str
     phase_timer: float = 0.0
-    damage_result: Optional[DamageResult] = None
+    calculation_result: Optional[CombatResult] = None
     logs: List[str] = field(default_factory=list)
     gauge_reset: Optional[GaugeResetData] = None
     should_remove_from_queue: bool = True
@@ -67,7 +37,7 @@ class ResolveContext:
     """ActionBehavior.resolve に渡すコンテキスト"""
     attacker_name: str
     is_actor_part_alive: bool
-    calculation_result: Optional['CombatResult']
+    calculation_result: Optional[CombatResult]
 
 
 class ActionBehavior(ABC):
@@ -107,21 +77,9 @@ class AttackAction(ActionBehavior):
                 gauge_reset=ActionMechanics.get_cooldown_reset_data(0.0)
             )
 
-        damage_result = None
-        if context.calculation_result and context.calculation_result.is_hit:
-            res = context.calculation_result
-            damage_result = DamageResult(
-                attacker_id=0,  # event から取得されるため、ここではダミー
-                attacker_part="",  # event から取得されるため、ここではダミー
-                damage=res.damage,
-                target_part=res.hit_part,
-                is_critical=res.is_critical,
-                added_effects=res.added_effects
-            )
-
         return ResolutionResult(
             next_phase=BattlePhase.CUTIN_RESULT,
-            damage_result=damage_result,
+            calculation_result=context.calculation_result,
             gauge_reset=ActionMechanics.get_cooldown_reset_data(100.0)  # 実行完了なので 100% から放熱
         )
 
