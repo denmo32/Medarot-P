@@ -85,3 +85,4 @@ class BattleStateSnapshot:
     
     # 演出
     cutin: CutinStateData = field(default_factory=CutinStateData)
+    opening_popup_text: Optional[str] = None

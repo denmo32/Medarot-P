@@ -129,7 +129,12 @@ class UISnapshotBuilder:
         self.world = world
 
     def build_log_window(self, context, flow) -> LogWindowData:
-        show_guide = flow.current_phase in [BattlePhase.LOG_WAIT, BattlePhase.ATTACK_DECLARATION, BattlePhase.CUTIN_RESULT]
+        show_guide = flow.current_phase in [
+            BattlePhase.LOG_WAIT, 
+            BattlePhase.ATTACK_DECLARATION, 
+            BattlePhase.CUTIN_RESULT,
+            BattlePhase.OPENING_LOG
+        ]
         is_cutin = flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]
         logs = [] if is_cutin else context.battle_log[-UI_PARAMS['LOG_DISPLAY_LINES']:]
         return LogWindowData(logs=logs, show_input_guidance=show_guide, is_active=True)

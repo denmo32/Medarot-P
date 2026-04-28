@@ -38,6 +38,9 @@ class BattleViewModel:
         snapshot.action_menu = self.ui_builder.build_action_menu(context, flow)
         snapshot.game_over = self.ui_builder.build_game_over(flow)
 
+        if flow.current_phase == BattlePhase.OPENING_POPUP:
+            snapshot.opening_popup_text = "ロボトルファイト！"
+
         if flow.current_phase in [BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT]:
             snapshot.cutin = self.cutin_builder.build(flow, screen_size)
 

@@ -21,7 +21,8 @@ class InputSystem(BattleSystemBase):
             BattlePhase.LOG_WAIT: self._handle_log_wait,
             BattlePhase.ATTACK_DECLARATION: self._handle_attack_declaration_wait,
             BattlePhase.CUTIN_RESULT: self._handle_cutin_result,
-            BattlePhase.INPUT: self._handle_action_selection
+            BattlePhase.INPUT: self._handle_action_selection,
+            BattlePhase.OPENING_LOG: self._handle_opening_log
         }
 
     def update(self, dt: float):
@@ -39,6 +40,14 @@ class InputSystem(BattleSystemBase):
         handler = self.handlers.get(flow.current_phase)
         if handler:
             handler(input_comp, context, flow)
+
+    def _handle_opening_log(self, input_comp, context, flow):
+        if input_comp.btn_ok:
+            context.battle_log.clear()
+            FlowMechanics.apply_transition(self.world, PhaseTransition(
+                next_phase=BattlePhase.OPENING_POPUP,
+                timer=1.5
+            ))
 
     def _handle_log_wait(self, input_comp, context, flow):
         if input_comp.btn_ok:
