@@ -10,12 +10,20 @@ from core.utils import resource_path
 class BaseRenderer:
     def __init__(self, screen):
         self.screen = screen
+        self._last_scale = self.ui_scale
         self._init_fonts()
 
     @property
     def ui_scale(self) -> float:
         """現在の画面高さに基づくスケーリング係数"""
         return self.screen.get_height() / SCREEN_HEIGHT
+
+    def _ensure_fonts(self):
+        """スケールが変更された場合、フォントを再生成する"""
+        current_scale = self.ui_scale
+        if current_scale != self._last_scale:
+            self._init_fonts()
+            self._last_scale = current_scale
 
     def scaled(self, value: float) -> int:
         """基準解像度(高さ)に基づく値を現在の解像度にスケーリングして整数で返す"""
@@ -26,7 +34,7 @@ class BaseRenderer:
         font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
         button_font_path = resource_path(ACTION_BUTTON_FONT_NAME)
         
-        # フォントサイズ設定 (初期化時のスケールで固定)
+        # フォントサイズ設定 (現在のスケールで生成)
         scale = self.ui_scale
 
         self.fonts = {
@@ -40,6 +48,7 @@ class BaseRenderer:
         }
 
     def clear(self):
+        self._ensure_fonts()
         self.screen.fill(COLORS['BACKGROUND'])
 
     def present(self):

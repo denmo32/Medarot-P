@@ -68,13 +68,10 @@ class UIPanelRenderer:
                 skill_y = wy + pad + int(sh * 0.05)
                 self.master.draw_text(f"{selected_btn.skill_label}", (pad, skill_y), (200, 255, 100), 'medium')
 
-        # 描画時にその場でレイアウトを計算
-        from .ui_hit_tester import UIHitTester
-        layouts = UIHitTester.calculate_action_menu_layout(len(data.buttons), (sw, sh))
-
+        # Snapshot に保持されているレイアウトを使用
         for i, btn in enumerate(data.buttons):
             is_selected = (i == data.selected_index)
-            rect = layouts[i]
+            rect = data.button_rects[i]
 
             if not btn.enabled:
                 bg = COLORS['BUTTON_DISABLED_BG']
@@ -104,5 +101,3 @@ class UIPanelRenderer:
 
         # BaseRenderer に移設したメソッドを使用。強調のため large/center を指定
         self.master.draw_text_with_outline(f"{data.winner} の勝利！", mid_x, mid_y, color, 'notice', 'center')
-
-        notice_off_y = int(sh * 0.08)

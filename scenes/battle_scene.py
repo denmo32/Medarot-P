@@ -76,17 +76,16 @@ class BattleScene:
         screen_size = (sw, sh)
 
         # Snapshot 全体ではなく、メニュー情報のみを軽量に取得
-        menu_data = self.view_model.get_action_menu_data()
+        menu_data = self.view_model.get_action_menu_data(screen_size)
         buttons = menu_data.buttons
-        if not buttons:
+        if not buttons or not menu_data.button_rects:
             return
 
-        # 1. マウスによるボタン選択（動的にレイアウトを計算して判定）
-        layouts = UIHitTester.calculate_action_menu_layout(len(buttons), screen_size)
+        # 1. マウスによるボタン選択（Snapshot に保持されているレイアウトを使用して判定）
         mouse_idx = UIHitTester.hit_test_action_menu(
             self.event_manager.mouse_x,
             self.event_manager.mouse_y,
-            layouts
+            menu_data.button_rects
         )
         if mouse_idx is not None:
             input_comp.selected_menu_index = mouse_idx

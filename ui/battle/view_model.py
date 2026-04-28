@@ -35,7 +35,7 @@ class BattleViewModel:
         snapshot.target_line = self.field_builder.build_target_line(snapshot.characters, flow)
 
         snapshot.log_window = self.ui_builder.build_log_window(context, flow)
-        snapshot.action_menu = self.ui_builder.build_action_menu(context, flow)
+        snapshot.action_menu = self.ui_builder.build_action_menu(context, flow, screen_size)
         snapshot.game_over = self.ui_builder.build_game_over(flow)
 
         if flow.current_phase == BattlePhase.OPENING_POPUP:
@@ -46,9 +46,9 @@ class BattleViewModel:
 
         return snapshot
 
-    def get_action_menu_data(self) -> ActionMenuData:
+    def get_action_menu_data(self, screen_size: Tuple[int, int]) -> ActionMenuData:
         """アクションメニューの情報のみを軽量に取得する"""
         context, flow = get_battle_state(self.world)
         if not context or not flow:
             return ActionMenuData(is_active=False)
-        return self.ui_builder.build_action_menu(context, flow)
+        return self.ui_builder.build_action_menu(context, flow, screen_size)
