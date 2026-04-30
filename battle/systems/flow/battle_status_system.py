@@ -1,8 +1,9 @@
 """バトル状態管理システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import BattlePhase, TeamType
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.constants import TeamType
+from battle.constants import BattlePhase
+from domain.flow_logic import PhaseTransition
 
 
 class BattleStatusSystem(BattleSystemBase):
@@ -27,7 +28,23 @@ class BattleStatusSystem(BattleSystemBase):
 
         if not player_leader_alive:
             flow.winner = "エネミー"
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.GAME_OVER))
+            self._apply_transition(PhaseTransition(next_phase=BattlePhase.GAME_OVER))
         elif not enemy_leader_alive:
             flow.winner = "プレイヤー"
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.GAME_OVER))
+            self._apply_transition(PhaseTransition(next_phase=BattlePhase.GAME_OVER))
+
+    # --- Local Helpers ---
+
+    def _apply_transition(self, transition: PhaseTransition):
+        flow = self.flow
+        ctx = self.context
+        if not flow: return
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None: flow.processing_event_id = transition.event_id
+        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+

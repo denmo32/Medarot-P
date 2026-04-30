@@ -2,10 +2,9 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
-from battle.mechanics.flow import PhaseTransition, FlowMechanics
-from battle.mechanics.action import ActionMechanics
-from battle.mechanics.action_behavior import ActionBehaviorRegistry, ResolveContext
-from battle.mechanics.targeting import TargetingMechanics
+from domain.flow_logic import PhaseTransition
+from domain.action_logic import get_action_behavior, ResolveContext
+from components.battle_component import DamageEventComponent
 
 
 class ActionResolutionSystem(BattleSystemBase):
@@ -21,17 +20,17 @@ class ActionResolutionSystem(BattleSystemBase):
         event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
 
         if not event_comps or 'actionevent' not in event_comps:
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+            self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         event = event_comps['actionevent']
         attacker_comps = self.world.try_get_entity(event.attacker_id)
 
         if attacker_comps and 'gauge' in attacker_comps:
-            behavior = ActionBehaviorRegistry.get(event.action_type)
+            behavior = get_action_behavior(event.action_type)
 
             attacker_name = attacker_comps['medal'].nickname if attacker_comps and 'medal' in attacker_comps else "Unknown"
-            is_actor_part_alive = TargetingMechanics.is_part_alive(self.world, event.attacker_id, event.part_type)
+            is_actor_part_alive = self.is_part_alive(event.attacker_id, event.part_type)
 
             context = ResolveContext(
                 attacker_name=attacker_name,
@@ -60,20 +59,29 @@ class ActionResolutionSystem(BattleSystemBase):
             event_comps = self.world.try_get_entity(event_id)
             if event_comps and 'actionevent' in event_comps:
                 event = event_comps['actionevent']
-                target_id = event.current_target_id
+                target_id = event.target_id
+                
                 # CombatResult から DamageEventComponent を生成
-                self.world.add_component(target_id, result.calculation_result.to_component(
-                    event.attacker_id, event.part_type
-                ))
+                c_res = result.calculation_result
+                damage_event = DamageEventComponent(
+                    attacker_id=event.attacker_id,
+                    attacker_part=event.part_type,
+                    damage=c_res.damage,
+                    target_part=c_res.hit_part if c_res.hit_part else "",
+                    is_critical=c_res.is_critical,
+                    added_effects=c_res.added_effects
+                )
+                self.world.add_component(target_id, damage_event)
 
         if result.gauge_reset:
             comps = self.world.try_get_entity(entity_id)
             if comps and 'gauge' in comps:
-                ActionMechanics.apply_gauge_reset(comps['gauge'], result.gauge_reset)
+                self.apply_gauge_reset(comps['gauge'], result.gauge_reset)
 
         if result.should_remove_from_queue:
-            FlowMechanics.manage_queue(context, entity_id, False)
+            self.remove_from_queue(entity_id)
 
-        FlowMechanics.apply_transition(self.world, PhaseTransition(
+        self.apply_transition(PhaseTransition(
             next_phase=result.next_phase, timer=result.phase_timer
         ))
+

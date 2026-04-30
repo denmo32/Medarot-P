@@ -13,7 +13,7 @@ from components.input_component import InputComponent
 from data.game_data_manager import GameDataManager
 from data.save_data_manager import SaveDataManager
 from domain.models import PartData, MedalData
-from domain.combat import CombatDomain
+from domain.combat import create_battle_stats
 from ui.config import TEAM_SETTINGS
 from battle.constants import PartType, TeamType, GaugeStatus
 
@@ -39,7 +39,7 @@ class BattleEntityFactory:
                 continue
 
             # ドメイン層にステータス計算を委譲
-            battle_stats = CombatDomain.create_battle_stats(part_data, medal_data, p_type)
+            battle_stats = create_battle_stats(part_data, medal_data, p_type)
 
             # ECS への登録に専念する
             parts[p_type] = BattleEntityFactory._create_part_entity(

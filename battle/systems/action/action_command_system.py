@@ -4,7 +4,7 @@ from battle.systems.battle_system_base import BattleSystemBase
 from domain.constants import ActionType, GaugeStatus
 from battle.constants import BattlePhase
 from domain.gauge_logic import calculate_action_times
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.flow_logic import PhaseTransition
 
 
 class ActionCommandSystem(BattleSystemBase):
@@ -26,10 +26,8 @@ class ActionCommandSystem(BattleSystemBase):
             gauge.selected_part = cmd.part_type
 
             if cmd.action_type == ActionType.ATTACK and cmd.part_type:
-                part_id = part_list.parts.get(cmd.part_type)
-                p_comps = self.world.try_get_entity(part_id)
-                if p_comps and 'attack' in p_comps:
-                    atk_comp = p_comps['attack']
+                atk_comp = self.get_part_component(eid, cmd.part_type, 'attack')
+                if atk_comp:
                     c_t, cd_t = calculate_action_times(atk_comp.base_attack)
                     mod = atk_comp.time_modifier
                     gauge.charging_time = c_t * mod
@@ -40,10 +38,11 @@ class ActionCommandSystem(BattleSystemBase):
 
             context.current_turn_entity_id = None
 
-            # フェーズを IDLE に戻す（キュー操作含む）
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+            # フェーズを IDLE に戻す
+            self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
 
             if context.waiting_queue and context.waiting_queue[0] == eid:
-                context.waiting_queue.pop(0)
+                self.remove_from_queue(eid)
 
             self.world.remove_component(eid, 'actioncommand')
+

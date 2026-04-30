@@ -1,8 +1,9 @@
 """ターン開始管理システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import TeamType, GaugeStatus, BattlePhase
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.constants import TeamType, GaugeStatus
+from battle.constants import BattlePhase
+from domain.flow_logic import PhaseTransition
 
 
 class TurnSystem(BattleSystemBase):
@@ -22,7 +23,7 @@ class TurnSystem(BattleSystemBase):
         # エンティティが存在しない、または機能停止している場合はキューから削除
         defeated = comps.get('defeated') if comps else None
         if not comps or (defeated and defeated.is_defeated):
-            context.waiting_queue.pop(0)
+            self.remove_from_queue(eid)
             return
 
         gauge = comps['gauge']
@@ -31,6 +32,7 @@ class TurnSystem(BattleSystemBase):
         if gauge.status == GaugeStatus.ACTION_CHOICE:
             context.current_turn_entity_id = eid
             if team.team_type == TeamType.PLAYER:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.INPUT))
+                self.apply_transition(PhaseTransition(next_phase=BattlePhase.INPUT))
             else:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.ENEMY_TURN))
+                self.apply_transition(PhaseTransition(next_phase=BattlePhase.ENEMY_TURN))
+

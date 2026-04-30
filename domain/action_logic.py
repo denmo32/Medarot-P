@@ -1,13 +1,19 @@
-"""アクション種別ごとの実行振る舞いロジック"""
+"""アクション種別ごとの実行振る舞い・状態遷移ロジック"""
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, List, Tuple
 from dataclasses import dataclass, field
-from domain.constants import ActionType
+from domain.constants import ActionType, GaugeStatus
 from battle.constants import BattlePhase
-from battle.mechanics.action import ActionMechanics, GaugeResetData
-from battle.mechanics.log import LogBuilder
-from battle.mechanics.damage_calculator import CombatResult
+from domain.models import CombatResult
+from domain.log_logic import get_part_broken_attack, get_skip_action
+
+@dataclass(frozen=True)
+class GaugeResetData:
+    """ゲージをリセットする際の計算済みパラメータ"""
+    status: str
+    progress: float
+    clear_selection: bool = True
 
 @dataclass
 class ResolutionResult:
@@ -60,7 +66,6 @@ class ActionBehavior(ABC):
 
 class AttackAction(ActionBehavior):
     def initiate(self, params: InitiateParams) -> Tuple[Optional[int], Optional[str]]:
-        # TargetResolver によって解決済みのターゲットを使用
         if not params.is_actor_part_alive:
             return None, None
         return params.resolved_target_id, params.resolved_target_part
@@ -69,23 +74,21 @@ class AttackAction(ActionBehavior):
         return BattlePhase.TARGET_INDICATION
 
     def resolve(self, context: ResolveContext) -> ResolutionResult:
-        # 実行直前の生存チェック
         if not context.is_actor_part_alive:
             return ResolutionResult(
                 next_phase=BattlePhase.LOG_WAIT,
-                logs=[LogBuilder.get_part_broken_attack(context.attacker_name)],
-                gauge_reset=ActionMechanics.get_cooldown_reset_data(0.0)
+                logs=[get_part_broken_attack(context.attacker_name)],
+                gauge_reset=get_cooldown_reset_data(0.0)
             )
 
         return ResolutionResult(
             next_phase=BattlePhase.CUTIN_RESULT,
             calculation_result=context.calculation_result,
-            gauge_reset=ActionMechanics.get_cooldown_reset_data(100.0)  # 実行完了なので 100% から放熱
+            gauge_reset=get_cooldown_reset_data(100.0)
         )
 
 class SkipAction(ActionBehavior):
     def initiate(self, params: InitiateParams) -> Tuple[Optional[int], Optional[str]]:
-        # スキップは常に成功（ターゲットは自分自身）
         return 0, None
 
     def get_initial_phase(self) -> str:
@@ -94,17 +97,39 @@ class SkipAction(ActionBehavior):
     def resolve(self, context: ResolveContext) -> ResolutionResult:
         return ResolutionResult(
             next_phase=BattlePhase.LOG_WAIT,
-            logs=[LogBuilder.get_skip_action(context.attacker_name)],
-            gauge_reset=ActionMechanics.get_cooldown_reset_data(0.0)
+            logs=[get_skip_action(context.attacker_name)],
+            gauge_reset=get_cooldown_reset_data(0.0)
         )
 
-class ActionBehaviorRegistry:
-    """ActionBehavior のカタログ"""
-    _behaviors = {
-        ActionType.ATTACK: AttackAction(),
-        ActionType.SKIP: SkipAction()
-    }
+_behaviors = {
+    ActionType.ATTACK: AttackAction(),
+    ActionType.SKIP: SkipAction()
+}
 
-    @classmethod
-    def get(cls, action_type: str) -> ActionBehavior:
-        return cls._behaviors.get(action_type, SkipAction())
+def get_action_behavior(action_type: str) -> ActionBehavior:
+    """指定されたアクション種別の振る舞いを取得する。"""
+    return _behaviors.get(action_type, SkipAction())
+
+
+# --- Action Mechanics (from action.py) ---
+
+def get_cooldown_reset_data(current_progress: float, use_penalty: bool = True) -> GaugeResetData:
+    """放熱状態へリセットするためのデータを計算する。"""
+    if use_penalty:
+        new_progress = max(0.0, 100.0 - current_progress)
+    else:
+        new_progress = 0.0
+
+    return GaugeResetData(
+        status=GaugeStatus.COOLDOWN,
+        progress=new_progress,
+        clear_selection=False
+    )
+
+def get_choice_reset_data() -> GaugeResetData:
+    """行動選択状態へリセットするためのデータを計算する。"""
+    return GaugeResetData(
+        status=GaugeStatus.ACTION_CHOICE,
+        progress=0.0,
+        clear_selection=True
+    )

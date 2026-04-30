@@ -1,17 +1,14 @@
 """行動開始起案システム"""
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
-from battle.mechanics.flow import PhaseTransition, FlowMechanics
 from domain.constants import GaugeStatus, ActionType, PartType
 from battle.constants import BattlePhase, BattleTiming
-from battle.mechanics.combat import CombatMechanics, CombatParamsBuilder
-from battle.mechanics.action import ActionMechanics
-from battle.mechanics.action_behavior import ActionBehaviorRegistry, InitiateParams
-from battle.mechanics.log import LogBuilder
-from battle.mechanics.targeting_resolvers import TargetResolverFactory
-from battle.mechanics.targeting import TargetingMechanics
+from domain.action_logic import get_action_behavior, get_cooldown_reset_data, InitiateParams
+from domain.log_logic import get_target_lost
+from domain.flow_logic import PhaseTransition
+from battle.systems.utils.targeting_helpers import TargetResolverFactory
 
 
 class ActionInitiationSystem(BattleSystemBase):
@@ -31,12 +28,12 @@ class ActionInitiationSystem(BattleSystemBase):
         # エンティティが存在しない、または機能停止している場合はキューから削除
         defeated = actor_comps.get('defeated') if actor_comps else None
         if not actor_comps or (defeated and defeated.is_defeated):
-            FlowMechanics.manage_queue(context, actor_eid, False)
+            self.remove_from_queue(actor_eid)
             return
 
         required = ['gauge', 'team', 'partlist', 'medal']
         if not all(k in actor_comps for k in required):
-            FlowMechanics.manage_queue(context, actor_eid, False)
+            self.remove_from_queue(actor_eid)
             return
 
         gauge = actor_comps['gauge']
@@ -47,17 +44,15 @@ class ActionInitiationSystem(BattleSystemBase):
     def _initiate_action(self, actor_eid: int, actor_comps: dict, gauge):
         """行動開始の具体処理"""
         # 行動種別に応じた振る舞いを取得
-        behavior = ActionBehaviorRegistry.get(gauge.selected_action)
+        behavior = get_action_behavior(gauge.selected_action)
 
-        # System 側で必要なデータを抽出して純粋関数に渡す
         # 1. 実行パーツの生存チェック
         is_actor_part_alive = True
         attack_trait = ""
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            is_actor_part_alive = TargetingMechanics.is_part_alive(self.world, actor_eid, gauge.selected_part)
+            is_actor_part_alive = self.is_part_alive(actor_eid, gauge.selected_part)
             # 攻撃パーツの特性情報を取得
-            actor_comps = self.world.try_get_entity(actor_eid)
-            if actor_comps and 'partlist' in actor_comps:
+            if 'partlist' in actor_comps:
                 part_id = actor_comps['partlist'].parts.get(gauge.selected_part)
                 if part_id:
                     p_comps = self.world.try_get_entity(part_id)
@@ -65,7 +60,6 @@ class ActionInitiationSystem(BattleSystemBase):
                         attack_trait = p_comps['attack'].trait
 
         # 2. TargetResolver によるターゲット解決
-        #    System は「どの Resolver を使うか」だけを知り、「どう解決するか」は知らない
         resolver = TargetResolverFactory.get(attack_trait)
         resolved_target_id, resolved_target_part = resolver.resolve(
             actor_eid=actor_eid,
@@ -73,7 +67,7 @@ class ActionInitiationSystem(BattleSystemBase):
             world=self.world
         )
 
-        # 3. パラメータ構築（InitiateParams はシンプルに）
+        # 3. パラメータ構築
         params = InitiateParams(
             selected_action=gauge.selected_action,
             selected_part=gauge.selected_part,
@@ -87,14 +81,14 @@ class ActionInitiationSystem(BattleSystemBase):
 
         # ターゲットロスト時の中断処理
         if not target_id:
-            msg = LogBuilder.get_target_lost(actor_comps['medal'].nickname)
-            reset = ActionMechanics.get_cooldown_reset_data(gauge.progress, use_penalty=True)
+            msg = get_target_lost(actor_comps['medal'].nickname)
+            reset = get_cooldown_reset_data(gauge.progress, use_penalty=True)
 
-            comps = self.world.try_get_entity(actor_eid)
-            if comps and 'gauge' in comps:
-                ActionMechanics.apply_gauge_reset(comps['gauge'], reset)
-            FlowMechanics.manage_queue(self.context, actor_eid, False)
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
+            if 'gauge' in actor_comps:
+                self.apply_gauge_reset(actor_comps['gauge'], reset)
+            
+            self.remove_from_queue(actor_eid)
+            self.apply_transition(PhaseTransition(next_phase=BattlePhase.LOG_WAIT, logs=[msg]))
             return
 
         # 2. ActionEvent の生成
@@ -106,63 +100,18 @@ class ActionInitiationSystem(BattleSystemBase):
             target_id=target_id,
             target_part=target_part
         )
-
-        # 攻撃の場合は事前に計算を実行
-        if gauge.selected_action == ActionType.ATTACK:
-            # 戦闘計算用のパラメータを収集
-            combat_result = self._calculate_combat(actor_eid, gauge.selected_part, target_id, target_part)
-            event.calculation_result = combat_result
-
         self.world.add_component(event_eid, event)
 
-        # 3. フェーズ遷移（Behavior に依存）
+        # 3. フェーズ遷移
         next_p = behavior.get_initial_phase()
         timer = BattleTiming.TARGET_INDICATION if next_p == BattlePhase.TARGET_INDICATION else 0.0
 
-        FlowMechanics.apply_transition(self.world, PhaseTransition(
+        self.apply_transition(PhaseTransition(
             next_phase=next_p,
             timer=timer,
             actor_id=actor_eid,
             event_id=event_eid
         ))
 
-        FlowMechanics.manage_queue(self.context, actor_eid, False)
+        self.remove_from_queue(actor_eid)
 
-    def _calculate_combat(
-        self,
-        actor_eid: int,
-        attacker_part_type: str,
-        target_id: int,
-        target_desired_part: Optional[str]
-    ):
-        """戦闘計算を実行する"""
-        # 1. パラメータ収集（CombatParamsBuilder に委譲）
-        attacker_medal = CombatParamsBuilder.build_attacker_medal(self.world, actor_eid)
-        attacker_part = CombatParamsBuilder.build_attacker_part(self.world, actor_eid, attacker_part_type)
-        attacker_legs = CombatParamsBuilder.build_legs_stats(self.world, actor_eid)
-
-        target_medal = CombatParamsBuilder.build_target_medal(self.world, target_id)
-        target_legs = CombatParamsBuilder.build_legs_stats(self.world, target_id)
-        
-        target_gauge_status, target_selected_part, target_part_skill_type = \
-            CombatParamsBuilder.get_target_gauge_data(self.world, target_id)
-
-        if not all([attacker_medal, attacker_part, target_medal]):
-            return None
-
-        # 対象の生存パーツ HP
-        target_part_hps = TargetingMechanics.get_alive_parts_hp(self.world, target_id)
-
-        # 2. 戦闘計算実行（CombatMechanics へ委譲）
-        return CombatMechanics.calculate_combat_result(
-            attacker_medal=attacker_medal,
-            attacker_part=attacker_part,
-            attacker_legs=attacker_legs,
-            target_medal=target_medal,
-            target_legs=target_legs,
-            target_gauge_status=target_gauge_status,
-            target_selected_part=target_selected_part,
-            target_part_skill_type=target_part_skill_type,
-            target_part_hps=target_part_hps,
-            target_desired_part=target_desired_part
-        )

@@ -8,7 +8,7 @@ from ui.config import UI_PARAMS, COLORS, PART_LABELS, MENU_PART_ORDER
 from battle.constants import BattlePhase, BattleTiming
 from domain.constants import GaugeStatus, TeamType, PartType
 from domain.gauge_logic import calculate_gauge_ratio
-from battle.mechanics.skill import SkillRegistry
+from domain.skill_logic import get_skill_behavior
 from .animation_logic import CutinAnimationLogic
 from .ui_hit_tester import UIHitTester
 from .snapshot import (
@@ -156,11 +156,11 @@ class UISnapshotBuilder:
             p_id = comps['partlist'].parts.get(p_type)
             p_data = self.world.try_get_entity(p_id)
             if p_data:
-                # SkillRegistry からスキル名を取得
+                # get_skill_behavior からスキル名を取得
                 skill_name = ""
                 if 'attack' in p_data:
                     skill_type = p_data['attack'].skill_type
-                    skill_name = SkillRegistry.get(skill_type).name
+                    skill_name = get_skill_behavior(skill_type).name
 
                 buttons.append(ActionButtonData(
                     label=p_data['name'].name,

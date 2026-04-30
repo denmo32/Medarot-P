@@ -1,8 +1,9 @@
 """バトルフロー管理システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import BattlePhase, TeamType, GaugeStatus
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.constants import TeamType, GaugeStatus
+from battle.constants import BattlePhase
+from domain.flow_logic import PhaseTransition
 
 
 class BattleFlowSystem(BattleSystemBase):
@@ -29,7 +30,7 @@ class BattleFlowSystem(BattleSystemBase):
                         break
             
             if player_exists and player_done:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(
+                self.apply_transition(PhaseTransition(
                     next_phase=BattlePhase.OPENING_LOG,
                     logs=["合意と見てよろしいですね！？"]
                 ))
@@ -40,9 +41,10 @@ class BattleFlowSystem(BattleSystemBase):
             flow.phase_timer -= dt
             if flow.phase_timer <= 0:
                 flow.is_opening_done = True
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+                self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         if flow.current_phase == BattlePhase.LOG_WAIT:
             if not context.battle_log:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+                self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
+

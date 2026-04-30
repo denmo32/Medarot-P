@@ -59,15 +59,14 @@ class RecklessSkill(SkillBehavior):
         return False, False, False
 
 
-class SkillRegistry:
-    _behaviors = {
-        SkillType.SHOOT: ShootSkill(),
-        SkillType.STRIKE: StrikeSkill(),
-        SkillType.AIMED_SHOT: AimedShotSkill(),
-        SkillType.RECKLESS: RecklessSkill(),
-    }
-    _default = ShootSkill()
+_behaviors = {
+    SkillType.SHOOT: ShootSkill(),
+    SkillType.STRIKE: StrikeSkill(),
+    SkillType.AIMED_SHOT: AimedShotSkill(),
+    SkillType.RECKLESS: RecklessSkill(),
+}
+_default = ShootSkill()
 
-    @classmethod
-    def get(cls, skill_type: str) -> SkillBehavior:
-        return cls._behaviors.get(skill_type, cls._default)
+def get_skill_behavior(skill_type: str) -> SkillBehavior:
+    """指定されたスキル種別の振る舞いを取得する。"""
+    return _behaviors.get(skill_type, _default)

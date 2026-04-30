@@ -22,6 +22,7 @@ from battle.systems.flow.cutin_flow_system import CutinFlowSystem
 # Action
 from battle.systems.action.action_command_system import ActionCommandSystem
 from battle.systems.action.action_initiation_system import ActionInitiationSystem
+from battle.systems.action.combat_calculation_system import CombatCalculationSystem
 from battle.systems.action.action_resolution_system import ActionResolutionSystem
 # Impact
 from battle.systems.impact.damage_system import DamageSystem
@@ -66,6 +67,7 @@ class BattleEngine:
             AISystem(self.world),
             ActionCommandSystem(self.world),
             ActionInitiationSystem(self.world),
+            CombatCalculationSystem(self.world),
             TargetIndicatorSystem(self.world),
             CutinFlowSystem(self.world),
             ActionResolutionSystem(self.world),

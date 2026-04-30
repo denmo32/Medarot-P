@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 from domain.constants import TraitType
-from components.battle_component import StatusEffect
+from domain.models import StatusEffect
 
 class TraitBehavior(ABC):
     """特性の振る舞いを定義する基底クラス"""
@@ -35,19 +35,17 @@ class HammerTrait(TraitBehavior):
     def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
         return []
 
-class TraitRegistry:
-    """TraitBehavior のカタログ"""
 
-    _behaviors = {
-        TraitType.RIFLE: NormalTrait(),
-        TraitType.GATLING: NormalTrait(),
-        TraitType.SWORD: SwordTrait(),
-        TraitType.HAMMER: HammerTrait(),
-        TraitType.THUNDER: ThunderTrait(),
-    }
+_behaviors = {
+    TraitType.RIFLE: NormalTrait(),
+    TraitType.GATLING: NormalTrait(),
+    TraitType.SWORD: SwordTrait(),
+    TraitType.HAMMER: HammerTrait(),
+    TraitType.THUNDER: ThunderTrait(),
+}
 
-    _default = NormalTrait()
+_default = NormalTrait()
 
-    @classmethod
-    def get(cls, trait_name: str) -> TraitBehavior:
-        return cls._behaviors.get(trait_name, cls._default)
+def get_trait_behavior(trait_name: str) -> TraitBehavior:
+    """指定された特性名の振る舞いを取得する。"""
+    return _behaviors.get(trait_name, _default)

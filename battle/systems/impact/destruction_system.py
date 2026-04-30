@@ -3,19 +3,20 @@
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import PartType
 
+
 class DestructionSystem(BattleSystemBase):
-    """各パーツの HP を監視し、部位破壊や機体の機能停止を判定する"""
+    """部位破壊イベントを監視し、機体の機能停止を判定する"""
 
     def update(self, dt: float):
-        # 敗北判定が必要なエンティティ（メダロット本体）を走査
-        for eid, comps in self.world.get_entities_with_components('partlist', 'defeated'):
-            if comps['defeated'].is_defeated:
-                continue
+        # 部位破壊イベントを走査
+        for event_eid, comps in self.world.get_entities_with_components('partdestroyedevent'):
+            event = comps['partdestroyedevent']
+            
+            if event.part_type == PartType.HEAD:
+                # 頭部が破壊されたら機能停止
+                owner_comps = self.world.try_get_entity(event.owner_id)
+                if owner_comps and 'defeated' in owner_comps:
+                    owner_comps['defeated'].is_defeated = True
 
-            # 頭部パーツのエンティティを取得
-            head_id = comps['partlist'].parts.get(PartType.HEAD)
-            head_comps = self.world.try_get_entity(head_id) if head_id is not None else None
-
-            if head_comps and 'health' in head_comps:
-                if head_comps['health'].hp <= 0:
-                    comps['defeated'].is_defeated = True
+            # イベントエンティティの削除
+            self.world.delete_entity(event_eid)
