@@ -20,7 +20,7 @@ class ActionResolutionSystem(BattleSystemBase):
         event_comps = self.world.try_get_entity(event_eid) if event_eid is not None else None
 
         if not event_comps or 'actionevent' not in event_comps:
-            self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
+            self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         event = event_comps['actionevent']
@@ -30,7 +30,7 @@ class ActionResolutionSystem(BattleSystemBase):
             behavior = get_action_behavior(event.action_type)
 
             attacker_name = attacker_comps['medal'].nickname if attacker_comps and 'medal' in attacker_comps else "Unknown"
-            is_actor_part_alive = self._is_part_alive(event.attacker_id, event.part_type)
+            is_actor_part_alive = self.is_part_alive(event.attacker_id, event.part_type)
 
             context = ResolveContext(
                 attacker_name=attacker_name,
@@ -76,47 +76,12 @@ class ActionResolutionSystem(BattleSystemBase):
         if result.gauge_reset:
             comps = self.world.try_get_entity(entity_id)
             if comps and 'gauge' in comps:
-                self._apply_gauge_reset(comps['gauge'], result.gauge_reset)
+                self.apply_gauge_reset(comps['gauge'], result.gauge_reset)
 
         if result.should_remove_from_queue:
-            self._remove_from_queue(entity_id)
+            self.remove_from_queue(entity_id)
 
-        self._apply_transition(PhaseTransition(
+        self.apply_transition(PhaseTransition(
             next_phase=result.next_phase, timer=result.phase_timer
         ))
-
-    # --- Local Helpers ---
-
-    def _apply_transition(self, transition: PhaseTransition):
-        flow = self.flow
-        ctx = self.context
-        if not flow: return
-        flow.current_phase = transition.next_phase
-        flow.phase_timer = transition.timer
-        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
-        if transition.event_id is not None: flow.processing_event_id = transition.event_id
-        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
-        if transition.next_phase == BattlePhase.IDLE:
-            flow.processing_event_id = None
-            flow.active_actor_id = None
-
-    def _remove_from_queue(self, eid: int):
-        if self.context and eid in self.context.waiting_queue:
-            self.context.waiting_queue.remove(eid)
-
-    def _is_part_alive(self, eid: int, part_type: str) -> bool:
-        comps = self.world.try_get_entity(eid)
-        if not comps or (comps.get('defeated') and comps['defeated'].is_defeated): return False
-        pid = comps['partlist'].parts.get(part_type)
-        if pid is None: return False
-        p_comps = self.world.try_get_entity(pid)
-        return bool(p_comps and 'health' in p_comps and p_comps['health'].hp > 0)
-
-    def _apply_gauge_reset(self, gauge, reset_data):
-        gauge.status = reset_data.status
-        gauge.progress = reset_data.progress
-        if reset_data.clear_selection:
-            gauge.selected_action = None
-            gauge.selected_part = None
-            gauge.part_targets = {}
 

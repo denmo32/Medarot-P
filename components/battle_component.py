@@ -118,3 +118,9 @@ class DamageEventComponent(Component):
     is_critical: bool = False
     # 追加効果のリスト
     added_effects: List[StatusEffect] = field(default_factory=list)
+
+@dataclass
+class PartDestroyedEventComponent(Component):
+    """部位破壊を伝える一時的なコンポーネント"""
+    owner_id: int
+    part_type: str
