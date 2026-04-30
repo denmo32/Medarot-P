@@ -4,16 +4,11 @@ from battle.systems.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from ui.config import MENU_PART_ORDER
 from battle.constants import BattlePhase, ActionType, BattleTiming
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.flow_logic import PhaseTransition
 
 class InputSystem(BattleSystemBase):
     """
     ユーザー入力を現在のフェーズに応じた処理に振り分ける。
-    
-    リファクタリング後：
-    - 座標判定は Scene 側で行われ、InputComponent.action_commands にキューイングされる
-    - この System は「コマンドを消費して ActionCommandComponent を生成する」のみを担当
-    - 画面座標の概念は一切持たない（ECS と UI の完全分離）
     """
     def __init__(self, world):
         super().__init__(world)
@@ -44,7 +39,7 @@ class InputSystem(BattleSystemBase):
     def _handle_opening_log(self, input_comp, context, flow):
         if input_comp.btn_ok:
             context.battle_log.clear()
-            FlowMechanics.apply_transition(self.world, PhaseTransition(
+            self._apply_transition(PhaseTransition(
                 next_phase=BattlePhase.OPENING_POPUP,
                 timer=1.5
             ))
@@ -60,7 +55,7 @@ class InputSystem(BattleSystemBase):
     def _handle_attack_declaration_wait(self, input_comp, context, flow):
         if input_comp.btn_ok:
             context.battle_log.clear()
-            FlowMechanics.apply_transition(self.world, PhaseTransition(
+            self._apply_transition(PhaseTransition(
                 next_phase=BattlePhase.CUTIN,
                 timer=BattleTiming.CUTIN_ANIMATION
             ))
@@ -83,20 +78,15 @@ class InputSystem(BattleSystemBase):
             flow.processing_event_id = None
             self.world.delete_entity(event_id)
 
-        FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+        self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
 
     def _handle_action_selection(self, input_comp, context, flow):
         """
         INPUT フェーズでの入力処理。
-        
-        リファクタリング後：
-        - キーボード/マウスによる選択変更は input_comp.selected_menu_index に設定される
-        - 決定入力は input_comp.action_commands にキューイングされている
-        - このメソッドは action_commands を消費して ActionCommandComponent を生成するだけ
         """
         eid = context.current_turn_entity_id
         if eid is None or eid not in self.world.entities:
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+            self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         # 選択インデックスの更新（Scene から渡されたコマンドを反映）
@@ -112,11 +102,6 @@ class InputSystem(BattleSystemBase):
     def _execute_command(self, eid: int, action_type: str, part_type: str | None):
         """
         キューイングされたコマンドを実行する。
-        
-        引数：
-            eid: 行動主体エンティティ ID
-            action_type: "attack", "skip" など
-            part_type: 対象パーツ（"head", "right_arm" など、skip の場合は None）
         """
         if action_type == ActionType.ATTACK and part_type:
             # 攻撃コマンド：対象パーツが有効か確認
@@ -134,3 +119,19 @@ class InputSystem(BattleSystemBase):
 
         # スキップコマンド、または無効な攻撃コマンド
         self.world.add_component(eid, ActionCommandComponent(ActionType.SKIP))
+
+    # --- Local Helpers ---
+
+    def _apply_transition(self, transition: PhaseTransition):
+        flow = self.flow
+        ctx = self.context
+        if not flow: return
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None: flow.processing_event_id = transition.event_id
+        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+

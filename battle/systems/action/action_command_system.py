@@ -4,7 +4,7 @@ from battle.systems.battle_system_base import BattleSystemBase
 from domain.constants import ActionType, GaugeStatus
 from battle.constants import BattlePhase
 from domain.gauge_logic import calculate_action_times
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.flow_logic import PhaseTransition
 
 
 class ActionCommandSystem(BattleSystemBase):
@@ -40,10 +40,26 @@ class ActionCommandSystem(BattleSystemBase):
 
             context.current_turn_entity_id = None
 
-            # フェーズを IDLE に戻す（キュー操作含む）
-            FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+            # フェーズを IDLE に戻す
+            self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
 
             if context.waiting_queue and context.waiting_queue[0] == eid:
                 context.waiting_queue.pop(0)
 
             self.world.remove_component(eid, 'actioncommand')
+
+    # --- Local Helpers ---
+
+    def _apply_transition(self, transition: PhaseTransition):
+        flow = self.flow
+        ctx = self.context
+        if not flow: return
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None: flow.processing_event_id = transition.event_id
+        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+

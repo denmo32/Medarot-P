@@ -2,7 +2,7 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.flow_logic import resolve_indicator_transition, PhaseTransition
 
 
 class TargetIndicatorSystem(BattleSystemBase):
@@ -21,7 +21,7 @@ class TargetIndicatorSystem(BattleSystemBase):
             # イベントコンポーネントを取得
             event_comps = self.world.try_get_entity(flow.processing_event_id)
             if not event_comps or 'actionevent' not in event_comps:
-                FlowMechanics.apply_transition(self.world, FlowMechanics.resolve_indicator_transition("", "", "", ""))
+                self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
                 return
 
             event = event_comps['actionevent']
@@ -41,12 +41,28 @@ class TargetIndicatorSystem(BattleSystemBase):
                         attack_trait = p_comps['attack'].trait
                         attack_skill_type = p_comps['attack'].skill_type
 
-            # 次の遷移情報を Mechanics から取得（純粋関数にデータを渡す）
-            transition = FlowMechanics.resolve_indicator_transition(
+            # 次の遷移情報を Domain から取得
+            transition = resolve_indicator_transition(
                 event_action_type=event.action_type,
                 attacker_name=attacker_name,
                 attack_trait=attack_trait,
                 attack_skill_type=attack_skill_type
             )
             # 副作用を適用
-            FlowMechanics.apply_transition(self.world, transition)
+            self._apply_transition(transition)
+
+    # --- Local Helpers ---
+
+    def _apply_transition(self, transition: PhaseTransition):
+        flow = self.flow
+        ctx = self.context
+        if not flow: return
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None: flow.processing_event_id = transition.event_id
+        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+

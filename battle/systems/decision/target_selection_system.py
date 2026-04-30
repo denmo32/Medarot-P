@@ -2,9 +2,9 @@
 
 from typing import Dict, Tuple, Optional
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.mechanics.personality import PersonalityRegistry
-from battle.constants import BattlePhase, GaugeStatus, PartType, TraitType
-from battle.mechanics.targeting import TargetingMechanics
+from domain.ai_logic import get_personality
+from domain.constants import GaugeStatus, PartType, TraitType
+from battle.constants import BattlePhase
 
 
 class TargetSelectionSystem(BattleSystemBase):
@@ -23,7 +23,7 @@ class TargetSelectionSystem(BattleSystemBase):
             gauge = comps['gauge']
             if gauge.status == GaugeStatus.ACTION_CHOICE and not gauge.part_targets:
                 # System 側で必要なデータを抽出して純粋関数に渡す
-                personality = PersonalityRegistry.get(comps['medal'].personality_id)
+                personality = get_personality(comps['medal'].personality_id)
 
                 # 1. 生存している敵 ID リスト
                 valid_enemy_ids = self._get_valid_enemy_ids(eid)
@@ -77,5 +77,17 @@ class TargetSelectionSystem(BattleSystemBase):
         """敵の生存パーツ HP 情報を取得"""
         result = {}
         for eid in enemy_ids:
-            result[eid] = TargetingMechanics.get_alive_parts_hp(self.world, eid)
+            result[eid] = self._get_alive_parts_hp(eid)
         return result
+
+    def _get_alive_parts_hp(self, eid: int) -> Dict[str, int]:
+        comps = self.world.try_get_entity(eid)
+        if not comps or 'partlist' not in comps: return {}
+        res = {}
+        for pt, pid in comps['partlist'].parts.items():
+            p_comps = self.world.try_get_entity(pid)
+            if p_comps and 'health' in p_comps:
+                hp = p_comps['health'].hp
+                if hp > 0: res[pt] = hp
+        return res
+

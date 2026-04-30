@@ -9,12 +9,7 @@ from battle.constants import GaugeStatus
 # {部位名: (ターゲットID, ターゲット部位名)}
 PartTargets = Dict[str, Optional[Tuple[int, Optional[str]]]]
 
-@dataclass
-class StatusEffect:
-    """汎用的な状態異常データ"""
-    type_id: str             # "stop", "burn", "virus" 等
-    duration: float          # 残り時間
-    params: Dict[str, Any] = field(default_factory=dict) # 任意のパラメータ
+from domain.models import StatusEffect
 
 @dataclass
 class GaugeComponent(Component):

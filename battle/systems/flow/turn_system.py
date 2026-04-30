@@ -1,8 +1,9 @@
 """ターン開始管理システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import TeamType, GaugeStatus, BattlePhase
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.constants import TeamType, GaugeStatus
+from battle.constants import BattlePhase
+from domain.flow_logic import PhaseTransition
 
 
 class TurnSystem(BattleSystemBase):
@@ -31,6 +32,22 @@ class TurnSystem(BattleSystemBase):
         if gauge.status == GaugeStatus.ACTION_CHOICE:
             context.current_turn_entity_id = eid
             if team.team_type == TeamType.PLAYER:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.INPUT))
+                self._apply_transition(PhaseTransition(next_phase=BattlePhase.INPUT))
             else:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.ENEMY_TURN))
+                self._apply_transition(PhaseTransition(next_phase=BattlePhase.ENEMY_TURN))
+
+    # --- Local Helpers ---
+
+    def _apply_transition(self, transition: PhaseTransition):
+        flow = self.flow
+        ctx = self.context
+        if not flow: return
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None: flow.processing_event_id = transition.event_id
+        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+

@@ -1,8 +1,9 @@
 """バトルフロー管理システム"""
 
 from battle.systems.battle_system_base import BattleSystemBase
-from battle.constants import BattlePhase, TeamType, GaugeStatus
-from battle.mechanics.flow import FlowMechanics, PhaseTransition
+from domain.constants import TeamType, GaugeStatus
+from battle.constants import BattlePhase
+from domain.flow_logic import PhaseTransition
 
 
 class BattleFlowSystem(BattleSystemBase):
@@ -29,7 +30,7 @@ class BattleFlowSystem(BattleSystemBase):
                         break
             
             if player_exists and player_done:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(
+                self._apply_transition(PhaseTransition(
                     next_phase=BattlePhase.OPENING_LOG,
                     logs=["合意と見てよろしいですね！？"]
                 ))
@@ -40,9 +41,26 @@ class BattleFlowSystem(BattleSystemBase):
             flow.phase_timer -= dt
             if flow.phase_timer <= 0:
                 flow.is_opening_done = True
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+                self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         if flow.current_phase == BattlePhase.LOG_WAIT:
             if not context.battle_log:
-                FlowMechanics.apply_transition(self.world, PhaseTransition(next_phase=BattlePhase.IDLE))
+                self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
+
+    # --- Local Helpers ---
+
+    def _apply_transition(self, transition: PhaseTransition):
+        flow = self.flow
+        ctx = self.context
+        if not flow: return
+        flow.current_phase = transition.next_phase
+        flow.phase_timer = transition.timer
+        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
+        if transition.event_id is not None: flow.processing_event_id = transition.event_id
+        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
+        if transition.next_phase == BattlePhase.IDLE:
+            flow.processing_event_id = None
+            flow.active_actor_id = None
+            flow.cutin_progress = 0.0
+

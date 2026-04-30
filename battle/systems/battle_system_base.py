@@ -6,7 +6,7 @@ ECS の World を直接操作することを基本とし、
 
 from typing import Optional, Dict, Any
 from core.ecs import System
-from battle.mechanics.flow import get_battle_state
+from battle.systems.utils.flow_handler import get_battle_state
 
 
 class BattleSystemBase(System):
