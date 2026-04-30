@@ -5,7 +5,6 @@ from typing import List
 from domain.constants import TraitType
 from components.battle_component import StatusEffect
 
-
 class TraitBehavior(ABC):
     """特性の振る舞いを定義する基底クラス"""
 
@@ -14,12 +13,10 @@ class TraitBehavior(ABC):
         """攻撃命中時の追加効果リストを生成して返す。"""
         return []
 
-
 class NormalTrait(TraitBehavior):
     """特別な効果を持たない標準的な特性"""
     def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
         return []
-
 
 class ThunderTrait(TraitBehavior):
     """サンダー：命中時に相手を停止させる。"""
@@ -28,18 +25,15 @@ class ThunderTrait(TraitBehavior):
         duration = max(0.5, (success - mobility) * 0.05)
         return [StatusEffect(type_id="stop", duration=duration)]
 
-
 class SwordTrait(TraitBehavior):
     """ソード"""
     def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
         return []
 
-
 class HammerTrait(TraitBehavior):
     """ハンマー"""
     def get_added_effects(self, success: int, mobility: int) -> List[StatusEffect]:
         return []
-
 
 class TraitRegistry:
     """TraitBehavior のカタログ"""

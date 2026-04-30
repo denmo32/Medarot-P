@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 from domain.constants import SkillType, GaugeStatus
 
-
 class SkillBehavior(ABC):
     """スキルの振る舞いを定義する基底クラス"""
 
@@ -31,7 +30,6 @@ class ShootSkill(SkillBehavior):
     def name(self) -> str: return "撃つ"
     def get_time_modifier(self) -> float: return 0.8
 
-
 class StrikeSkill(SkillBehavior):
     @property
     def name(self) -> str: return "殴る"
@@ -41,7 +39,6 @@ class StrikeSkill(SkillBehavior):
         if gauge_status == GaugeStatus.CHARGING: return True, False, False
         return False, False, False
 
-
 class AimedShotSkill(SkillBehavior):
     @property
     def name(self) -> str: return "狙い撃ち"
@@ -50,7 +47,6 @@ class AimedShotSkill(SkillBehavior):
     def get_defensive_penalty(self, gauge_status: str) -> Tuple[bool, bool, bool]:
         if gauge_status == GaugeStatus.CHARGING: return False, True, False
         return False, False, False
-
 
 class RecklessSkill(SkillBehavior):
     @property

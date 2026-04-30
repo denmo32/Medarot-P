@@ -3,15 +3,16 @@
 from typing import Optional
 from battle.systems.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
-from battle.mechanics.flow import PhaseTransition, FlowMechanics
+from domain.flow import PhaseTransition, FlowMechanics
 from domain.constants import GaugeStatus, ActionType, PartType
 from battle.constants import BattlePhase, BattleTiming
-from battle.mechanics.combat import CombatMechanics, CombatParamsBuilder
-from battle.mechanics.action import ActionMechanics
-from battle.mechanics.action_behavior import ActionBehaviorRegistry, InitiateParams
-from battle.mechanics.log import LogBuilder
-from battle.mechanics.targeting_resolvers import TargetResolverFactory
-from battle.mechanics.targeting import TargetingMechanics
+from domain.combat_stats import CombatStats, MedalParams, AttackParams, LegsStats
+from domain.damage import CombatResult, calculate_damage_result
+from domain.action import ActionMechanics, GaugeResetData, ActionInterruptionResult
+from domain.skill import SkillRegistry
+from domain.trait import TraitRegistry
+from domain.log import LogBuilder
+from systems.utils.targeting_utils import TargetingUtils
 
 
 class ActionInitiationSystem(BattleSystemBase):
@@ -46,15 +47,17 @@ class ActionInitiationSystem(BattleSystemBase):
 
     def _initiate_action(self, actor_eid: int, actor_comps: dict, gauge):
         """行動開始の具体処理"""
+        from domain.personality import PersonalityRegistry
+        
         # 行動種別に応じた振る舞いを取得
-        behavior = ActionBehaviorRegistry.get(gauge.selected_action)
-
+        # TODO: ActionBehaviorRegistry は domain/action_behavior.py へ移動予定
+        
         # System 側で必要なデータを抽出して純粋関数に渡す
         # 1. 実行パーツの生存チェック
         is_actor_part_alive = True
         attack_trait = ""
         if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-            is_actor_part_alive = TargetingMechanics.is_part_alive(self.world, actor_eid, gauge.selected_part)
+            is_actor_part_alive = TargetingUtils.is_part_alive(self.world, actor_eid, gauge.selected_part)
             # 攻撃パーツの特性情報を取得
             actor_comps = self.world.try_get_entity(actor_eid)
             if actor_comps and 'partlist' in actor_comps:
@@ -66,6 +69,8 @@ class ActionInitiationSystem(BattleSystemBase):
 
         # 2. TargetResolver によるターゲット解決
         #    System は「どの Resolver を使うか」だけを知り、「どう解決するか」は知らない
+        # TODO: TargetResolverFactory も整理が必要
+        from battle.mechanics.targeting_resolvers import TargetResolverFactory
         resolver = TargetResolverFactory.get(attack_trait)
         resolved_target_id, resolved_target_part = resolver.resolve(
             actor_eid=actor_eid,
@@ -74,6 +79,19 @@ class ActionInitiationSystem(BattleSystemBase):
         )
 
         # 3. パラメータ構築（InitiateParams はシンプルに）
+        # TODO: InitiateParams もデータクラスとして定義し直す
+        from dataclasses import dataclass
+        from typing import Optional
+        
+        @dataclass
+        class InitiateParams:
+            selected_action: str
+            selected_part: Optional[str]
+            is_actor_part_alive: bool
+            attack_trait: str
+            resolved_target_id: Optional[int]
+            resolved_target_part: Optional[str]
+        
         params = InitiateParams(
             selected_action=gauge.selected_action,
             selected_part=gauge.selected_part,
@@ -83,6 +101,9 @@ class ActionInitiationSystem(BattleSystemBase):
             resolved_target_part=resolved_target_part
         )
 
+        # TODO: behavior.initiate() の呼び出しも整理
+        from battle.mechanics.action_behavior import ActionBehaviorRegistry
+        behavior = ActionBehaviorRegistry.get(gauge.selected_action)
         target_id, target_part = behavior.initiate(params)
 
         # ターゲットロスト時の中断処理
@@ -136,33 +157,114 @@ class ActionInitiationSystem(BattleSystemBase):
         target_desired_part: Optional[str]
     ):
         """戦闘計算を実行する"""
-        # 1. パラメータ収集（CombatParamsBuilder に委譲）
-        attacker_medal = CombatParamsBuilder.build_attacker_medal(self.world, actor_eid)
-        attacker_part = CombatParamsBuilder.build_attacker_part(self.world, actor_eid, attacker_part_type)
-        attacker_legs = CombatParamsBuilder.build_legs_stats(self.world, actor_eid)
-
-        target_medal = CombatParamsBuilder.build_target_medal(self.world, target_id)
-        target_legs = CombatParamsBuilder.build_legs_stats(self.world, target_id)
+        # 1. パラメータ収集（System で直接抽出）
+        attacker_comps = self.world.try_get_entity(actor_eid)
+        if not attacker_comps or 'medal' not in attacker_comps:
+            return None
+            
+        attacker_medal = MedalParams(attribute=attacker_comps['medal'].attribute)
         
-        target_gauge_status, target_selected_part, target_part_skill_type = \
-            CombatParamsBuilder.get_target_gauge_data(self.world, target_id)
+        # 攻撃パーツのパラメータ
+        if 'partlist' not in attacker_comps:
+            return None
+        part_id = attacker_comps['partlist'].parts.get(attacker_part_type)
+        if not part_id:
+            return None
+        p_comps = self.world.try_get_entity(part_id)
+        if not p_comps or 'attack' not in p_comps or 'part' not in p_comps:
+            return None
+        
+        attack_comp = p_comps['attack']
+        part_comp = p_comps['part']
+        attacker_part = AttackParams(
+            success=attack_comp.success,
+            attack=attack_comp.attack,
+            part_attribute=part_comp.attribute,
+            skill_type=attack_comp.skill_type,
+            trait=attack_comp.trait
+        )
+        
+        # 脚部ステータス
+        legs_id = attacker_comps['partlist'].parts.get(PartType.LEGS)
+        if legs_id:
+            legs_comps = self.world.try_get_entity(legs_id)
+            if legs_comps and 'mobility' in legs_comps:
+                attacker_legs = LegsStats(
+                    mobility=legs_comps['mobility'].mobility,
+                    defense=legs_comps['mobility'].defense
+                )
+            else:
+                attacker_legs = LegsStats(mobility=0, defense=0)
+        else:
+            attacker_legs = LegsStats(mobility=0, defense=0)
+
+        # ターゲットのパラメータ
+        target_comps = self.world.try_get_entity(target_id)
+        if not target_comps or 'medal' not in target_comps:
+            return None
+        target_medal = MedalParams(attribute=target_comps['medal'].attribute)
+        
+        # ターゲット脚部
+        target_legs_id = target_comps.get('partlist', {}).parts.get(PartType.LEGS) if 'partlist' in target_comps else None
+        if target_legs_id:
+            target_legs_comps = self.world.try_get_entity(target_legs_id)
+            if target_legs_comps and 'mobility' in target_legs_comps:
+                target_legs = LegsStats(
+                    mobility=target_legs_comps['mobility'].mobility,
+                    defense=target_legs_comps['mobility'].defense
+                )
+            else:
+                target_legs = LegsStats(mobility=0, defense=0)
+        else:
+            target_legs = LegsStats(mobility=0, defense=0)
+        
+        # ターゲットゲージデータ
+        target_gauge = target_comps.get('gauge')
+        target_gauge_status = target_gauge.status if target_gauge else ""
+        target_selected_part = target_gauge.selected_part if target_gauge else None
+        
+        target_part_skill_type = None
+        if target_selected_part and 'partlist' in target_comps:
+            t_part_id = target_comps['partlist'].parts.get(target_selected_part)
+            if t_part_id:
+                t_p_comps = self.world.try_get_entity(t_part_id)
+                if t_p_comps and 'attack' in t_p_comps:
+                    target_part_skill_type = t_p_comps['attack'].skill_type
 
         if not all([attacker_medal, attacker_part, target_medal]):
             return None
 
         # 対象の生存パーツ HP
-        target_part_hps = TargetingMechanics.get_alive_parts_hp(self.world, target_id)
+        target_part_hps = TargetingUtils.get_alive_parts_hp(self.world, target_id)
 
-        # 2. 戦闘計算実行（CombatMechanics へ委譲）
-        return CombatMechanics.calculate_combat_result(
+        # 2. ステータス補正計算
+        from domain.combat_stats import calculate_adjusted_stats, get_defensive_penalty, calculate_hit_probability_with_penalty
+        
+        stats = calculate_adjusted_stats(
             attacker_medal=attacker_medal,
             attacker_part=attacker_part,
             attacker_legs=attacker_legs,
             target_medal=target_medal,
-            target_legs=target_legs,
+            target_legs=target_legs
+        )
+
+        penalty = get_defensive_penalty(
             target_gauge_status=target_gauge_status,
             target_selected_part=target_selected_part,
-            target_part_skill_type=target_part_skill_type,
+            target_part_skill_type=target_part_skill_type
+        )
+
+        # 3. 命中判定
+        hit_prob, is_hit = calculate_hit_probability_with_penalty(stats, penalty)
+        if not is_hit:
+            return CombatResult.miss()
+
+        # 4. ダメージ計算
+        return calculate_damage_result(
+            attack_trait=attacker_part.trait,
+            stats=stats,
+            hit_prob=hit_prob,
             target_part_hps=target_part_hps,
-            target_desired_part=target_desired_part
+            target_desired_part=target_desired_part,
+            prevent_defense=penalty.prevent_defense
         )

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 from components.battle_component import StatusEffect, GaugeComponent
 
-
 class StatusBehavior(ABC):
     """状態異常の振る舞いを定義する基底クラス"""
 
@@ -33,7 +32,7 @@ class StopStatus(StatusBehavior):
 
 
 class StatusRegistry:
-    """StatusBehavior のカタログ"""
+    """StatusBehaviorのカタログ"""
     
     _behaviors = {
         "stop": StopStatus(),

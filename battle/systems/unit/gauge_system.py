@@ -2,10 +2,10 @@
 
 from battle.systems.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, ActionType
-from battle.mechanics.gauge_mechanics import GaugeMechanics
-from battle.mechanics.action import ActionMechanics
-from battle.mechanics.flow import PhaseTransition, FlowMechanics
-from battle.mechanics.targeting import TargetingMechanics
+from domain.gauge_mechanics import GaugeMechanics, TickResult
+from domain.action import ActionMechanics, GaugeResetData
+from domain.flow import PhaseTransition, FlowMechanics
+from systems.utils.targeting_utils import TargetingUtils
 
 
 class GaugeSystem(BattleSystemBase):
@@ -49,14 +49,14 @@ class GaugeSystem(BattleSystemBase):
             # 実行予定パーツの生存チェック
             is_actor_part_alive = True
             if gauge.selected_action == ActionType.ATTACK and gauge.selected_part:
-                is_actor_part_alive = TargetingMechanics.is_part_alive(self.world, eid, gauge.selected_part)
+                is_actor_part_alive = TargetingUtils.is_part_alive(self.world, eid, gauge.selected_part)
 
             # ターゲット部位の生存チェック
             is_target_part_alive = True
             target_data = gauge.part_targets.get(gauge.selected_part)
             if target_data:
                 target_id, target_part = target_data
-                is_target_part_alive = TargetingMechanics.is_part_alive(self.world, target_id, target_part)
+                is_target_part_alive = TargetingUtils.is_part_alive(self.world, target_id, target_part)
 
             interruption = ActionMechanics.validate_action_continuity(
                 gauge_status=gauge.status,
