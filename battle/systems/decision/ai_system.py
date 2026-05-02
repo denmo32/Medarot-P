@@ -1,6 +1,6 @@
 """エネミー思考（AI）システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
 from domain.ai_logic import get_strategy
 from components.action_command_component import ActionCommandComponent

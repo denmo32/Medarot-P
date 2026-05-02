@@ -2,7 +2,7 @@
 
 from typing import Tuple
 from battle.constants import BattlePhase
-from battle.systems.utils.flow_handler import get_battle_state
+from battle.systems.base.world_accessor import get_battle_state
 from .snapshot import BattleStateSnapshot, ActionMenuData
 from .builders import FieldSnapshotBuilder, UISnapshotBuilder, CutinSnapshotBuilder
 

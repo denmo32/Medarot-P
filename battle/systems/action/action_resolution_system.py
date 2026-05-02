@@ -1,6 +1,6 @@
 """行動解決システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase
 from domain.flow_logic import PhaseTransition
 from domain.action_logic import get_action_behavior, ResolveContext

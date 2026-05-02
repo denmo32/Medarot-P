@@ -4,9 +4,9 @@ ECS の World を直接操作することを基本とし、
 頻繁にアクセスする Context と Flow へのショートカットのみを提供する。
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from core.ecs import System
-from battle.systems.utils.flow_handler import get_battle_state
+from battle.systems.base.world_accessor import get_battle_state
 from battle.constants import BattlePhase
 from domain.flow_logic import PhaseTransition
 from domain.combat_logic import LegsStats

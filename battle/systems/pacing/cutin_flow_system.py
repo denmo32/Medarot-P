@@ -1,6 +1,6 @@
 """カットイン演出のフロー制御システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, BattleTiming
 from domain.flow_logic import PhaseTransition
 

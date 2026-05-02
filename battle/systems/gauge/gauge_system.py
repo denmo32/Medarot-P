@@ -1,7 +1,7 @@
 """ATB ゲージ更新システム"""
 
 from typing import Dict, Any
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from battle.constants import BattlePhase, ActionType
 from domain.constants import GaugeStatus
 from domain.gauge_logic import calculate_tick, get_updated_effects

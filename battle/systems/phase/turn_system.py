@@ -1,6 +1,6 @@
 """ターン開始管理システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from domain.constants import TeamType, GaugeStatus
 from battle.constants import BattlePhase
 from domain.flow_logic import PhaseTransition

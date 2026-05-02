@@ -1,14 +1,14 @@
 """行動開始起案システム"""
 
 from typing import Optional, Dict, Any
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from components.action_event_component import ActionEventComponent
 from domain.constants import GaugeStatus, ActionType, PartType
 from battle.constants import BattlePhase, BattleTiming
 from domain.action_logic import get_action_behavior, get_cooldown_reset_data, InitiateParams
 from domain.log_logic import get_target_lost
 from domain.flow_logic import PhaseTransition
-from battle.systems.utils.targeting_helpers import TargetResolverFactory
+from battle.systems.decision.target_resolver import TargetResolverFactory
 
 
 class ActionInitiationSystem(BattleSystemBase):

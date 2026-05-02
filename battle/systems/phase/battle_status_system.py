@@ -1,6 +1,6 @@
 """バトル状態管理システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from domain.constants import TeamType
 from battle.constants import BattlePhase
 from domain.flow_logic import PhaseTransition

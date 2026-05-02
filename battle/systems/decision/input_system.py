@@ -1,6 +1,6 @@
 """入力処理システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from components.action_command_component import ActionCommandComponent
 from ui.config import MENU_PART_ORDER
 from battle.constants import BattlePhase, ActionType, BattleTiming

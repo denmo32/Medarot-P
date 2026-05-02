@@ -1,6 +1,6 @@
 """行動コマンド適用システム"""
 
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from domain.constants import ActionType, GaugeStatus
 from battle.constants import BattlePhase
 from domain.gauge_logic import calculate_action_times

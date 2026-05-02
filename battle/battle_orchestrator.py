@@ -11,14 +11,15 @@ from data.save_data_manager import SaveDataManager
 from battle.systems.decision.input_system import InputSystem
 from battle.systems.decision.ai_system import AISystem
 from battle.systems.decision.target_selection_system import TargetSelectionSystem
-# Unit
-from battle.systems.unit.gauge_system import GaugeSystem
-# Flow
-from battle.systems.flow.turn_system import TurnSystem
-from battle.systems.flow.battle_flow_system import BattleFlowSystem
-from battle.systems.flow.battle_status_system import BattleStatusSystem
-from battle.systems.flow.target_indicator_system import TargetIndicatorSystem
-from battle.systems.flow.cutin_flow_system import CutinFlowSystem
+# Gauge
+from battle.systems.gauge.gauge_system import GaugeSystem
+# Phase
+from battle.systems.phase.turn_system import TurnSystem
+from battle.systems.phase.battle_flow_system import BattleFlowSystem
+from battle.systems.phase.battle_status_system import BattleStatusSystem
+# Pacing
+from battle.systems.pacing.target_indicator_system import TargetIndicatorSystem
+from battle.systems.pacing.cutin_flow_system import CutinFlowSystem
 # Action
 from battle.systems.action.action_command_system import ActionCommandSystem
 from battle.systems.action.action_initiation_system import ActionInitiationSystem
@@ -59,21 +60,32 @@ class BattleEngine:
         self.view_model = BattleViewModel(self.world)
         
         self.systems = [
-            InputSystem(self.world),
-            BattleFlowSystem(self.world),
-            BattleStatusSystem(self.world),
-            GaugeSystem(self.world),
-            ActionCommandSystem(self.world),
-            TargetSelectionSystem(self.world),
-            TurnSystem(self.world),
-            AISystem(self.world),
-            ActionInitiationSystem(self.world),
-            CombatCalculationSystem(self.world),
-            TargetIndicatorSystem(self.world),
-            CutinFlowSystem(self.world),
-            ActionResolutionSystem(self.world),
-            DamageSystem(self.world),
-            DestructionSystem(self.world)
+            # === 1. 意思決定・事前準備 ===
+            InputSystem(self.world),              # 物理入力→論理コマンド変換
+            AISystem(self.world),                 # エネミー行動決定
+            TargetSelectionSystem(self.world),    # 射撃特性のターゲット事前選定（IDLE時）
+
+            # === 2. コマンド受理・ゲージ進行 ===
+            ActionCommandSystem(self.world),      # ActionCommand消費→ゲージをCHARGING化
+            GaugeSystem(self.world),              # ゲージ進行・充填完了判定・待機キュー管理
+
+            # === 3. ターン制御・フェーズ遷移 ===
+            TurnSystem(self.world),               # キュー先頭取得→INPUT/ENEMY_TURNへ遷移
+            BattleFlowSystem(self.world),         # 開始演出・LOG_WAIT制御・IDLE復復
+            BattleStatusSystem(self.world),       # 勝敗判定（IDLE時のみ実行）
+
+            # === 4. 行動実行パイプライン ===
+            ActionInitiationSystem(self.world),   # 充填完了検知→ActionEvent生成
+            CombatCalculationSystem(self.world),  # 命中・ダメージ・特性計算（ActionEventへ追記）
+
+            # === 5. 演出同期・フェーズ進行 ===
+            TargetIndicatorSystem(self.world),    # ターゲット指示タイマー→EXECUTING等へ遷移
+            CutinFlowSystem(self.world),          # カットインタイマー→EXECUTINGへ遷移
+
+            # === 6. 結果解決・物理適用 ===
+            ActionResolutionSystem(self.world),   # EXECUTINGフェーズで結果取りまとめ→DamageEvent生成
+            DamageSystem(self.world),             # HP減算・状態異常付与・PartDestroyedEvent生成
+            DestructionSystem(self.world)        # 部位破壊検知→機能停止フラグ付与
         ]
 
     def update(self, dt: float = 0.016) -> None:

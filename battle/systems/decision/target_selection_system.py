@@ -1,7 +1,7 @@
 """ターゲット選定システム"""
 
 from typing import Dict, Tuple, Optional
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from domain.ai_logic import get_personality
 from domain.constants import GaugeStatus, PartType, TraitType
 from battle.constants import BattlePhase

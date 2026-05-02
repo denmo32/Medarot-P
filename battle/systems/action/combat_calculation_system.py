@@ -1,7 +1,7 @@
 """戦闘計算システム"""
 
 from typing import Optional, Dict
-from battle.systems.battle_system_base import BattleSystemBase
+from battle.systems.base.battle_system_base import BattleSystemBase
 from domain.constants import ActionType
 from domain.combat_logic import (
     calculate_adjusted_stats, get_defensive_penalty, calculate_combat_result,
