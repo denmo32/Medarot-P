@@ -37,6 +37,11 @@ class FieldSnapshotBuilder:
 
             v_info = self.get_visual_info(comps)
 
+            # 停止状態（サンダー等）の判定
+            # 頭部が健在（機能停止していない）かつ、stop状態がある場合のみ表示対象とする
+            is_head_alive = v_info['is_alive_map'].get(PartType.HEAD, True)
+            is_stopped = is_head_alive and any(e.type_id == "stop" for e in g.active_effects)
+
             chars[eid] = CharacterViewData(
                 entity_id=eid,
                 x_ratio=pos.x,
@@ -47,7 +52,8 @@ class FieldSnapshotBuilder:
                 team_color=team.team_color,
                 name=comps['medal'].nickname,
                 border_color=self._get_border_color(eid, g, flow, context),
-                part_status=v_info['is_alive_map']
+                part_status=v_info['is_alive_map'],
+                is_stopped=is_stopped
             )
         return chars
 

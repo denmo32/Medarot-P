@@ -19,6 +19,7 @@ class CharacterViewData:
     name: str
     border_color: Optional[Tuple[int, int, int]]
     part_status: Dict[str, bool]
+    is_stopped: bool = False
 
 @dataclass
 class ActionButtonData:

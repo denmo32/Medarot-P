@@ -136,5 +136,20 @@ class BaseRenderer:
         angle3 = angle - math.radians(140)
         p2 = (cx + math.cos(angle2) * size, cy + math.sin(angle2) * size)
         p3 = (cx + math.cos(angle3) * size, cy + math.sin(angle3) * size)
-        
+
         pygame.draw.polygon(self.screen, color, [p1, p2, p3])
+
+    def draw_lightning(self, pos, size, color):
+        """稲妻記号を描画"""
+        cx, cy = pos
+        s = size / 20.0
+        # 稲妻のポリゴン頂点
+        pts = [
+            (cx + 4*s,  cy - 12*s),
+            (cx - 6*s,  cy + 2*s),
+            (cx - 1*s,  cy + 2*s),
+            (cx - 4*s,  cy + 12*s),
+            (cx + 6*s,  cy - 2*s),
+            (cx + 1*s,  cy - 2*s),
+        ]
+        pygame.draw.polygon(self.screen, color, pts)

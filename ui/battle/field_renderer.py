@@ -53,6 +53,10 @@ class FieldRenderer:
             # 足元がリングの中央に来るように微調整
             self.m.widgets.draw_robot_icon(cx, cy - int(4 * base_scale), char.team_color, char.part_status, scale=0.4)
             
+            # 停止状態（サンダー）の表示
+            if char.is_stopped:
+                self.m.draw_lightning((cx, cy - int(35 * base_scale)), 20 * base_scale, (255, 255, 0))
+
             if char.border_color:
                 # 3. リングの手前半分を描画
                 pygame.draw.arc(self.m.screen, char.border_color, ring_rect, math.pi, 2 * math.pi, 3)
