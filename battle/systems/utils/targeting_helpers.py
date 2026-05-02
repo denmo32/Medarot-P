@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple, List, Dict
 from domain.constants import PartType, TraitType
 from core.ecs import World
-from domain.targeting_logic import get_closest_target_by_gauge
-from domain.ai_logic import get_personality
+from domain.targeting_logic import resolve_melee_target, resolve_ranged_target
+
 
 class TargetResolver(ABC):
     """ターゲット解決のための戦略インターフェース"""
@@ -17,6 +17,7 @@ class TargetResolver(ABC):
         world: World
     ) -> Tuple[Optional[int], Optional[str]]:
         pass
+
 
 class MeleeTargetResolver(TargetResolver):
     """格闘特性用ターゲット解決"""
@@ -31,20 +32,21 @@ class MeleeTargetResolver(TargetResolver):
 
         target_team = "enemy" if actor_comps['team'].team_type == "player" else "player"
 
+        # 敵のゲージデータを収集
         enemy_gauge_data: List[Tuple[int, str, float]] = []
+        enemy_alive_parts_hp: Dict[int, Dict[str, int]] = {}
+
         for eid, ecomps in world.get_entities_with_components('team', 'defeated', 'gauge'):
             if ecomps['team'].team_type == target_team and not ecomps['defeated'].is_defeated:
                 enemy_gauge_data.append((eid, ecomps['gauge'].status, ecomps['gauge'].progress))
+                enemy_alive_parts_hp[eid] = self._get_alive_parts_hp(world, eid)
 
-        closest_enemy_id = get_closest_target_by_gauge(enemy_gauge_data)
-        if not closest_enemy_id: return None, None
-
-        personality = get_personality(actor_comps['medal'].personality_id)
-        alive_parts_hp = self._get_alive_parts_hp(world, closest_enemy_id)
-        if not alive_parts_hp: return None, None
-
-        target_part = personality.select_target_part(alive_parts_hp)
-        return closest_enemy_id, target_part
+        # ドメイン関数に委譲
+        return resolve_melee_target(
+            actor_personality_id=actor_comps['medal'].personality_id,
+            enemy_gauge_data=enemy_gauge_data,
+            enemy_alive_parts_hp=enemy_alive_parts_hp
+        )
 
     def _get_alive_parts_hp(self, world: World, eid: int) -> Dict[str, int]:
         comps = world.try_get_entity(eid)
@@ -56,6 +58,7 @@ class MeleeTargetResolver(TargetResolver):
                 hp = p_comps['health'].hp
                 if hp > 0: res[pt] = hp
         return res
+
 
 class RangedTargetResolver(TargetResolver):
     """射撃特性用ターゲット解決"""
@@ -71,11 +74,17 @@ class RangedTargetResolver(TargetResolver):
         gauge = actor_comps['gauge']
         target_data = gauge.part_targets.get(selected_part)
 
+        is_target_part_alive = False
         if target_data:
             target_id, target_part = target_data
-            if self._is_part_alive(world, target_id, target_part):
-                return target_id, target_part
-        return None, None
+            is_target_part_alive = self._is_part_alive(world, target_id, target_part)
+
+        # ドメイン関数に委譲
+        return resolve_ranged_target(
+            selected_part=selected_part,
+            part_targets=gauge.part_targets,
+            is_target_part_alive=is_target_part_alive
+        )
 
     def _is_part_alive(self, world: World, eid: int, part_type: str) -> bool:
         comps = world.try_get_entity(eid)
@@ -85,9 +94,11 @@ class RangedTargetResolver(TargetResolver):
         p_comps = world.try_get_entity(pid)
         return bool(p_comps and 'health' in p_comps and p_comps['health'].hp > 0)
 
+
 class DefaultTargetResolver(TargetResolver):
     def resolve(self, actor_eid: int, selected_part: Optional[str], world: World) -> Tuple[Optional[int], Optional[str]]:
         return None, None
+
 
 class TargetResolverFactory:
     """特性に応じた TargetResolver を取得するファクトリ"""

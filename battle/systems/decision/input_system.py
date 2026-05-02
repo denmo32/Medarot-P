@@ -39,7 +39,7 @@ class InputSystem(BattleSystemBase):
     def _handle_opening_log(self, input_comp, context, flow):
         if input_comp.btn_ok:
             context.battle_log.clear()
-            self._apply_transition(PhaseTransition(
+            self.apply_transition(PhaseTransition(
                 next_phase=BattlePhase.OPENING_POPUP,
                 timer=1.5
             ))
@@ -55,7 +55,7 @@ class InputSystem(BattleSystemBase):
     def _handle_attack_declaration_wait(self, input_comp, context, flow):
         if input_comp.btn_ok:
             context.battle_log.clear()
-            self._apply_transition(PhaseTransition(
+            self.apply_transition(PhaseTransition(
                 next_phase=BattlePhase.CUTIN,
                 timer=BattleTiming.CUTIN_ANIMATION
             ))
@@ -78,7 +78,7 @@ class InputSystem(BattleSystemBase):
             flow.processing_event_id = None
             self.world.delete_entity(event_id)
 
-        self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
+        self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
 
     def _handle_action_selection(self, input_comp, context, flow):
         """
@@ -86,7 +86,7 @@ class InputSystem(BattleSystemBase):
         """
         eid = context.current_turn_entity_id
         if eid is None or eid not in self.world.entities:
-            self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
+            self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
             return
 
         # 選択インデックスの更新（Scene から渡されたコマンドを反映）
@@ -119,19 +119,3 @@ class InputSystem(BattleSystemBase):
 
         # スキップコマンド、または無効な攻撃コマンド
         self.world.add_component(eid, ActionCommandComponent(ActionType.SKIP))
-
-    # --- Local Helpers ---
-
-    def _apply_transition(self, transition: PhaseTransition):
-        flow = self.flow
-        ctx = self.context
-        if not flow: return
-        flow.current_phase = transition.next_phase
-        flow.phase_timer = transition.timer
-        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
-        if transition.event_id is not None: flow.processing_event_id = transition.event_id
-        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
-        if transition.next_phase == BattlePhase.IDLE:
-            flow.processing_event_id = None
-            flow.active_actor_id = None
-

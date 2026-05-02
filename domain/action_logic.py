@@ -9,11 +9,38 @@ from domain.models import CombatResult
 from domain.log_logic import get_part_broken_attack, get_skip_action
 
 @dataclass(frozen=True)
+class InterruptionResult:
+    """中断判定の結果"""
+    is_interrupted: bool
+    message: Optional[str] = None
+
+@dataclass(frozen=True)
 class GaugeResetData:
     """ゲージをリセットする際の計算済みパラメータ"""
     status: str
     progress: float
     clear_selection: bool = True
+
+def check_action_interruption(
+    status: str,
+    selected_action: str,
+    selected_part: Optional[str],
+    is_actor_part_alive: bool,
+    target_data: Optional[Tuple[int, str]],
+    is_target_part_alive: bool,
+    actor_name: str
+) -> InterruptionResult:
+    """行動の継続妥当性を検証し、必要なら中断メッセージを返す。"""
+    if status not in (GaugeStatus.CHARGING, GaugeStatus.ACTION_CHOICE):
+        return InterruptionResult(is_interrupted=False)
+
+    if selected_action == ActionType.ATTACK and selected_part and not is_actor_part_alive:
+        return InterruptionResult(is_interrupted=True, message=f"{actor_name}の予約パーツは破壊された！")
+
+    if target_data and not is_target_part_alive:
+        return InterruptionResult(is_interrupted=True, message=f"{actor_name}はターゲットロストした！")
+
+    return InterruptionResult(is_interrupted=False)
 
 @dataclass
 class ResolutionResult:

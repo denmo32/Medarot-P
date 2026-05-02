@@ -2,7 +2,7 @@
 
 import math
 from typing import List, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from domain.constants import GaugeStatus
 from domain.models import StatusEffect
 from domain.status_logic import get_status_behavior
@@ -19,11 +19,11 @@ def calculate_action_times(attack_power: int) -> tuple:
     """攻撃力に基づいて充填時間と放熱時間を計算（対数スケール）"""
     base_time = 1
     log_modifier = math.log10(attack_power) if attack_power > 0 else 0
-    
+
     # 攻撃力が高いほど時間がかかる
     charging_time = base_time + log_modifier
     cooldown_time = base_time + log_modifier
-    
+
     return charging_time, cooldown_time
 
 def calculate_gauge_ratio(status: str, progress: float) -> float:
@@ -46,14 +46,14 @@ def calculate_tick(
 ) -> TickResult:
     """経過時間に応じた新しい状態を計算する。"""
     can_advance = True
-    
+
     # 状態異常による進行制限チェック
     for effect in active_effects:
         behavior = get_status_behavior(effect.type_id)
         if not behavior.can_charge(effect):
             can_advance = False
             break
-    
+
     # ゲージ進行の計算
     new_progress = progress
     if can_advance:
@@ -61,7 +61,7 @@ def calculate_tick(
             new_progress = min(100.0, progress + (dt / charging_time * 100.0))
         elif status == GaugeStatus.COOLDOWN:
             new_progress += (dt / cooldown_time * 100.0)
-        
+
     # 判定
     is_cooldown_finished = (status == GaugeStatus.COOLDOWN and new_progress >= 100.0)
     should_be_in_queue = (
@@ -82,8 +82,5 @@ def get_updated_effects(effects: List[StatusEffect], dt: float) -> List[StatusEf
     for effect in effects:
         new_duration = effect.duration - dt
         if new_duration > 0:
-            # Note: We are mutating the effect object here, but returning a new list.
-            # In a strictly pure function we might want to copy the effect.
-            effect.duration = new_duration
-            new_effects.append(effect)
+            new_effects.append(replace(effect, duration=new_duration))
     return new_effects

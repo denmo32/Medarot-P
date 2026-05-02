@@ -19,21 +19,5 @@ class CutinFlowSystem(BattleSystemBase):
         flow.cutin_progress = min(1.0, elapsed / max_time)
 
         if flow.phase_timer <= 0:
-            self._apply_transition(PhaseTransition(next_phase=BattlePhase.EXECUTING))
+            self.apply_transition(PhaseTransition(next_phase=BattlePhase.EXECUTING))
             flow.cutin_progress = 1.0
-
-    # --- Local Helpers ---
-
-    def _apply_transition(self, transition: PhaseTransition):
-        flow = self.flow
-        ctx = self.context
-        if not flow: return
-        flow.current_phase = transition.next_phase
-        flow.phase_timer = transition.timer
-        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
-        if transition.event_id is not None: flow.processing_event_id = transition.event_id
-        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
-        if transition.next_phase == BattlePhase.IDLE:
-            flow.processing_event_id = None
-            flow.active_actor_id = None
-

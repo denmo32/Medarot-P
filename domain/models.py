@@ -51,7 +51,7 @@ class MedalData:
             attribute=data.get("attribute", "undefined"),
         )
 
-@dataclass
+@dataclass(frozen=True)
 class StatusEffect:
     """汎用的な状態異常データ"""
     type_id: str             # "stop", "burn", "virus" 等
@@ -93,7 +93,7 @@ class LegsStats:
     mobility: int
     defense: int
 
-@dataclass
+@dataclass(frozen=True)
 class CombatResult:
     """戦闘計算の結果"""
     is_hit: bool

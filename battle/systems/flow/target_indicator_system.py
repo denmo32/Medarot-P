@@ -21,7 +21,7 @@ class TargetIndicatorSystem(BattleSystemBase):
             # イベントコンポーネントを取得
             event_comps = self.world.try_get_entity(flow.processing_event_id)
             if not event_comps or 'actionevent' not in event_comps:
-                self._apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
+                self.apply_transition(PhaseTransition(next_phase=BattlePhase.IDLE))
                 return
 
             event = event_comps['actionevent']
@@ -49,20 +49,4 @@ class TargetIndicatorSystem(BattleSystemBase):
                 attack_skill_type=attack_skill_type
             )
             # 副作用を適用
-            self._apply_transition(transition)
-
-    # --- Local Helpers ---
-
-    def _apply_transition(self, transition: PhaseTransition):
-        flow = self.flow
-        ctx = self.context
-        if not flow: return
-        flow.current_phase = transition.next_phase
-        flow.phase_timer = transition.timer
-        if transition.actor_id is not None: flow.active_actor_id = transition.actor_id
-        if transition.event_id is not None: flow.processing_event_id = transition.event_id
-        if transition.logs and ctx: ctx.battle_log.extend(transition.logs)
-        if transition.next_phase == BattlePhase.IDLE:
-            flow.processing_event_id = None
-            flow.active_actor_id = None
-
+            self.apply_transition(transition)
