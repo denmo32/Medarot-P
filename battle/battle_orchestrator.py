@@ -61,6 +61,7 @@ class BattleEngine:
         self.systems = [
             InputSystem(self.world),
             BattleFlowSystem(self.world),
+            BattleStatusSystem(self.world),
             GaugeSystem(self.world),
             TargetSelectionSystem(self.world),
             TurnSystem(self.world),
@@ -72,8 +73,7 @@ class BattleEngine:
             CutinFlowSystem(self.world),
             ActionResolutionSystem(self.world),
             DamageSystem(self.world),
-            DestructionSystem(self.world),
-            BattleStatusSystem(self.world)
+            DestructionSystem(self.world)
         ]
 
     def update(self, dt: float = 0.016) -> None:

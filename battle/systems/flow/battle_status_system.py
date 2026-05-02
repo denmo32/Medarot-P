@@ -14,6 +14,12 @@ class BattleStatusSystem(BattleSystemBase):
         if not flow or flow.current_phase == BattlePhase.GAME_OVER:
             return
 
+        # 勝敗判定はバトルフローが落ち着いた IDLE フェーズでのみ行う
+        # これにより、カットイン演出・結果ログ・HPゲージアニメーションが
+        # 全て完了してからゲームオーバー遷移がトリガーされる
+        if flow.current_phase != BattlePhase.IDLE:
+            return
+
         player_leader_alive = False
         enemy_leader_alive = False
 
