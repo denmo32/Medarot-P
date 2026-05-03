@@ -5,7 +5,6 @@ UI・演出専用の計算ロジック
 from typing import Any, Tuple
 from domain.constants import TraitType
 from .snapshot import CutinStateData, AttackerData, DefenderData, BulletData, EffectData, PopupData
-from ui.config import SCREEN_HEIGHT
 
 class CutinAnimationLogic:
     """カットイン演出のシーケンス計算"""
@@ -22,15 +21,14 @@ class CutinAnimationLogic:
     T_SHOOT_IMPACT = 0.8
 
     @classmethod
-    def calculate_frame(cls, progress: float, trait: str, is_enemy: bool, hit_result: Any, screen_size: Tuple[int, int]) -> CutinStateData:
+    def calculate_frame(cls, progress: float, trait: str, is_enemy: bool, hit_result: Any, screen_size: Tuple[int, int], scale: float) -> CutinStateData:
         """
         指定された進行度におけるカットインの状態を計算する。
         座標はピクセルで計算して返す（レンダリング時に再変換する必要がないように）。
         """
         sw, sh = screen_size
-        s = sh / SCREEN_HEIGHT
         
-        cy = sh // 2 - int(20 * s) # 基準高さからの補正
+        cy = sh // 2 - int(20 * scale) # 基準高さからの補正
         
         fade_ratio = min(1.0, progress / cls.T_ENTER)
         state = CutinStateData(

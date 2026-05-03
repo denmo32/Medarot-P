@@ -5,6 +5,7 @@ ECSの状態を一切知らず、受け取った値の描画のみを行う低�
 
 import pygame
 from ui.config import COLORS, FONT_NAMES, ACTION_BUTTON_FONT_NAME, SCREEN_HEIGHT
+from ui.base.fonts import FontProvider
 from core.utils import resource_path
 
 class BaseRenderer:
@@ -27,24 +28,25 @@ class BaseRenderer:
 
     def scaled(self, value: float) -> int:
         """基準解像度(高さ)に基づく値を現在の解像度にスケーリングして整数で返す"""
+        self._ensure_fonts() # フォントの新鮮さを保証
         return int(value * self.ui_scale)
 
     def _init_fonts(self):
         """フォントの初期化。画面サイズに応じたスケーリングはここで行う"""
-        font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
-        button_font_path = resource_path(ACTION_BUTTON_FONT_NAME)
+        font_path = FONT_NAMES[0] if FONT_NAMES else 'freesansbold.ttf'
+        button_font_path = ACTION_BUTTON_FONT_NAME
         
         # フォントサイズ設定 (現在のスケールで生成)
         scale = self.ui_scale
 
         self.fonts = {
-            'small': pygame.font.Font(font_path, int(14 * scale)),
-            'normal': pygame.font.Font(font_path, int(20 * scale)),
-            'medium': pygame.font.Font(font_path, int(24 * scale)),
-            'large': pygame.font.Font(font_path, int(32 * scale)),
-            'notice': pygame.font.Font(font_path, int(36 * scale)),
-            'action_button': pygame.font.Font(button_font_path, int(24 * scale)),
-            'action_button_focus': pygame.font.Font(button_font_path, int(28 * scale))
+            'small': FontProvider.get(font_path, 14, scale),
+            'normal': FontProvider.get(font_path, 20, scale),
+            'medium': FontProvider.get(font_path, 24, scale),
+            'large': FontProvider.get(font_path, 32, scale),
+            'notice': FontProvider.get(font_path, 36, scale),
+            'action_button': FontProvider.get(button_font_path, 24, scale),
+            'action_button_focus': FontProvider.get(button_font_path, 28, scale)
         }
 
     def clear(self):
@@ -74,18 +76,22 @@ class BaseRenderer:
 
     def draw_box(self, rect, bg_color, border_color=None, border_width=2):
         """背景と枠線を持つ矩形を描画"""
+        self._ensure_fonts()
         pygame.draw.rect(self.screen, bg_color, rect)
         if border_color:
             pygame.draw.rect(self.screen, border_color, rect, border_width)
 
     def draw_pipe_box(self, rect, bg_color, pipe_color, joint_color):
         """パイプ装飾付きのボックスを描画"""
+        self._ensure_fonts()
         x, y, w, h = rect
         pygame.draw.rect(self.screen, bg_color, rect)
         
         thick = self.scaled(6)
+        # パイプ枠を先に描画
         pygame.draw.rect(self.screen, pipe_color, rect, thick)
         
+        # ジョイントをパイプの上に重ねて描画
         js = self.scaled(12) # ジョイントのサイズ
         # 四隅だけにジョイントを配置
         joints = [
@@ -93,10 +99,12 @@ class BaseRenderer:
         ]
         for jx, jy in joints:
             pygame.draw.rect(self.screen, joint_color, (jx, jy, js, js))
+            # 最後に黒い縁取り
             pygame.draw.rect(self.screen, (0, 0, 0), (jx, jy, js, js), 1)
 
     def draw_text(self, text, pos, color=COLORS['TEXT'], font_type='normal', align='left'):
         """テキストを描画"""
+        self._ensure_fonts()
         surf = self.fonts[font_type].render(str(text), True, color)
         rect = surf.get_rect()
         if align == 'left':
@@ -115,6 +123,7 @@ class BaseRenderer:
 
     def draw_bar(self, rect, ratio, bg_color, fg_color, border_color=(150, 150, 150)):
         """プログレスバーを描画"""
+        self._ensure_fonts()
         # 背景
         pygame.draw.rect(self.screen, bg_color, rect)
         # 中身
@@ -127,6 +136,7 @@ class BaseRenderer:
 
     def draw_triangle(self, pos, angle, size, color):
         """指定した角度の三角形を描画"""
+        self._ensure_fonts()
         import math
         cx, cy = pos
         # 先端
@@ -141,6 +151,7 @@ class BaseRenderer:
 
     def draw_lightning(self, pos, size, color):
         """稲妻記号を描画"""
+        self._ensure_fonts()
         cx, cy = pos
         s = size / 20.0
         # 稲妻のポリゴン頂点

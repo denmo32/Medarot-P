@@ -5,6 +5,7 @@
 import pygame
 from typing import List, Optional, Dict, Tuple, Any, TypedDict
 from dataclasses import dataclass, field
+from domain.constants import PartType
 
 @dataclass
 class CharacterViewData:
@@ -18,7 +19,7 @@ class CharacterViewData:
     team_color: Tuple[int, int, int]
     name: str
     border_color: Optional[Tuple[int, int, int]]
-    part_status: Dict[str, bool]
+    part_status: Dict[PartType, bool]
     is_stopped: bool = False
 
 @dataclass
