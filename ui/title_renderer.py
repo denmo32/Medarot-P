@@ -3,6 +3,7 @@
 import pygame
 from ui.config import COLORS, FONT_NAMES
 from ui.base.renderer import BaseRenderer
+from ui.base.fonts import FontProvider
 from core.utils import resource_path
 
 class TitleRenderer(BaseRenderer):
@@ -14,21 +15,32 @@ class TitleRenderer(BaseRenderer):
         # フォント読み込み（サイズは描画時に調整するため、ここでは大きめでロードするか、scale対応が必要）
         # BaseRendererのinit_fontsで標準フォントは作られるが、タイトル専用は別途管理
         self._init_custom_fonts()
+        self._last_custom_scale = self.ui_scale
+
+    def _ensure_fonts(self):
+        """スケールが変更された場合、フォントとロゴも再生成する"""
+        current_scale = self.ui_scale
+        if current_scale != getattr(self, '_last_custom_scale', 0):
+            self._init_custom_fonts()
+            self._last_custom_scale = current_scale
+        super()._ensure_fonts()
 
     def _init_custom_fonts(self):
         # 画面サイズに応じたスケーリング
         scale = self.ui_scale
         
+        custom_font_path = 'ui/assets/fonts/851Gkktt_005.ttf'
+        fallback_font_path = FONT_NAMES[0] if FONT_NAMES else 'freesansbold.ttf'
+        
         try:
-            self.title_font = pygame.font.Font(resource_path('ui/assets/fonts/851Gkktt_005.ttf'), int(80 * scale))
-            self.p_font = pygame.font.Font(resource_path('ui/assets/fonts/851Gkktt_005.ttf'), int(128 * scale))
+            # 存在確認を兼ねて FontProvider.get を呼ぶ
+            self.title_font = FontProvider.get(custom_font_path, 80, scale)
+            self.p_font = FontProvider.get(custom_font_path, 128, scale)
         except OSError:
-            font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
-            self.title_font = pygame.font.Font(font_path, int(48 * scale))
-            self.p_font = pygame.font.Font(font_path, int(72 * scale))
+            self.title_font = FontProvider.get(fallback_font_path, 48, scale)
+            self.p_font = FontProvider.get(fallback_font_path, 72, scale)
 
-        font_path = resource_path(FONT_NAMES[0]) if FONT_NAMES else resource_path('freesansbold.ttf')
-        self.button_font = pygame.font.Font(font_path, int(32 * scale))
+        self.button_font = FontProvider.get(fallback_font_path, 32, scale)
         
         # タイトルロゴ再生成
         self.title_surface = self._create_title_surface()
@@ -36,8 +48,7 @@ class TitleRenderer(BaseRenderer):
     def render(self, ui_data):
         self.clear()
         
-        # リサイズ検知が必要な場合、ここでフォント再生成などが要るが、
-        # 簡易的にロゴ位置とボタン位置のみ動的計算する
+        # リサイズ検知は clear -> _ensure_fonts で行われる
         
         sw, sh = self.get_screen_size()
 

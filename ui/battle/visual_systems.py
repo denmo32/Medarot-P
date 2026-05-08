@@ -18,12 +18,13 @@ class HealthAnimationSystem(System):
                 # 差分を取得
                 diff = h.hp - h.display_hp
                 
-                # 変化の速さ（1秒間に最大どれだけHPを動かすか、または割合で動かす）
-                lerp_speed = 5.0
-                change = diff * lerp_speed * dt
+                # 1秒間で目標値に近づく速さ（時定数の逆数）
+                # 指数移動（Exponential Decay）による滑らかな追従
+                approach_rate = 5.0
+                change = diff * approach_rate * dt
                 
-                # 変化が非常に小さい場合は直接代入して終了させる
-                if abs(change) < 0.1:
+                # 誤差が十分に小さければ一気に目標値へ確定させる（微小な振動を避ける）
+                if abs(diff) < 0.2:
                     h.display_hp = float(h.hp)
                 else:
                     h.display_hp += change

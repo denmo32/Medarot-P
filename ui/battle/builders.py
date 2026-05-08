@@ -212,11 +212,13 @@ class CutinSnapshotBuilder:
             trait = atk_part_comps['attack'].trait
 
         progress = flow.cutin_progress if flow.current_phase == BattlePhase.CUTIN else 1.0
+        from ui.config import SCREEN_HEIGHT
+        scale = screen_size[1] / SCREEN_HEIGHT
 
-        # ロジック呼び出し（画面サイズ渡し）
+        # ロジック呼び出し（画面サイズ・スケール渡し）
         state = CutinAnimationLogic.calculate_frame(
             progress, trait, atk_comps['team'].team_type == TeamType.ENEMY,
-            event.calculation_result, screen_size
+            event.calculation_result, screen_size, scale
         )
 
         # 表示情報の合成

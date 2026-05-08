@@ -101,5 +101,7 @@ class UIHitTester:
         if btn_right:
             # 2 (左腕) の時は 3 (スキップ) へ、それ以外は 2 へ
             return 3 if current_idx == 2 else 2
-        # Medarot-P では下入力は未定義（またはスキップへ？）だが、現状のロジックに合わせる
+        if btn_down:
+            # 下入力時は「スキップ（3）」へ移動（利便性向上のための拡張）
+            return 3
         return current_idx

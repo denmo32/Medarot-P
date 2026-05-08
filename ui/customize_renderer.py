@@ -4,6 +4,22 @@ import pygame
 from ui.config import COLORS, UI_PARAMS
 from ui.base.renderer import BaseRenderer
 
+# レイアウト定数
+PANEL_TITLE_OFFSET_X = 10
+PANEL_TITLE_OFFSET_Y = 10
+COLUMN_1_TEXT_OFFSET_X = 15
+COLUMN_1_ITEM_PADDING = 10
+COLUMN_2_TEXT_OFFSET_X = 10
+COLUMN_2_PART_NAME_OFFSET_X = 80
+COLUMN_2_LIST_TITLE_OFFSET_Y = 10
+COLUMN_2_LIST_ITEM_OFFSET_X = 25
+COLUMN_2_LIST_HIGHLIGHT_WIDTH = 5
+COLUMN_3_TITLE_OFFSET_X = 15
+COLUMN_3_INFO_START_OFFSET_Y = 40
+COLUMN_3_ROW_LABEL_OFFSET_X = 15
+COLUMN_3_ROW_VALUE_OFFSET_X = 20
+COLUMN_3_ROW_LINE_OFFSET_Y = 5
+
 class CustomizeRenderer(BaseRenderer):
     """カスタマイズ画面の3カラムレイアウトを描画（相対座標対応）"""
 
@@ -39,9 +55,9 @@ class CustomizeRenderer(BaseRenderer):
         col = self.cols[col_idx]
         rect = (col['x'], self.y, col['w'], self.height)
         self.draw_box(rect, COLORS['PANEL_BG'], COLORS['PANEL_BORDER'])
-        self.draw_text(title, (col['x'] + 10, self.y + 10), (150, 160, 180), 'normal')
+        self.draw_text(title, (col['x'] + self.scaled(PANEL_TITLE_OFFSET_X), self.y + self.scaled(PANEL_TITLE_OFFSET_Y)), (150, 160, 180), 'normal')
         line_y = self.y + self.scale_y(0.06)
-        pygame.draw.line(self.screen, COLORS['PANEL_BORDER'], (col['x'] + 10, line_y), (col['x'] + col['w'] - 10, line_y))
+        pygame.draw.line(self.screen, COLORS['PANEL_BORDER'], (col['x'] + self.scaled(PANEL_TITLE_OFFSET_X), line_y), (col['x'] + col['w'] - self.scaled(PANEL_TITLE_OFFSET_X), line_y))
         return line_y # コンテンツ開始Y座標として返す
 
     def _draw_column_1(self, data):
@@ -51,11 +67,11 @@ class CustomizeRenderer(BaseRenderer):
         gap = self.scale_y(0.02)
 
         for i in range(3):
-            bx, by = col['x'] + 10, start_y + gap + i * (item_h + gap)
-            bw, bh = col['w'] - 20, item_h
+            bx, by = col['x'] + self.scaled(COLUMN_1_ITEM_PADDING), start_y + gap + i * (item_h + gap)
+            bw, bh = col['w'] - self.scaled(COLUMN_1_ITEM_PADDING * 2), item_h
             if data['machine_idx'] == i and data['state'] == "machine_select":
                 pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (bx, by, bw, bh))
-            self.draw_text(f"機体{i+1}", (bx + 15, by + bh//4), COLORS['TEXT'], 'medium')
+            self.draw_text(f"機体{i+1}", (bx + self.scaled(COLUMN_1_TEXT_OFFSET_X), by + bh//4), COLORS['TEXT'], 'medium')
 
     def _draw_column_2(self, data):
         start_y = self._draw_panel_base(1, data['machine_name'])
@@ -65,20 +81,20 @@ class CustomizeRenderer(BaseRenderer):
         
         # スロット情報
         for i, slot in enumerate(data['slots_info']):
-            bx, by = col['x'] + 10, start_y + gap + i * (item_h + gap)
-            bw, bh = col['w'] - 20, item_h
+            bx, by = col['x'] + self.scaled(COLUMN_2_TEXT_OFFSET_X), start_y + gap + i * (item_h + gap)
+            bw, bh = col['w'] - self.scaled(COLUMN_2_TEXT_OFFSET_X * 2), item_h
             if data['slot_idx'] == i and data['state'] != "machine_select":
                 pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (bx, by, bw, bh))
-            self.draw_text(slot['label'], (bx + 10, by + bh//4), (180, 190, 200))
-            self.draw_text(slot['part_name'], (bx + 80, by + bh//4))
+            self.draw_text(slot['label'], (bx + self.scaled(COLUMN_2_TEXT_OFFSET_X), by + bh//4), (180, 190, 200))
+            self.draw_text(slot['part_name'], (bx + self.scaled(COLUMN_2_PART_NAME_OFFSET_X), by + bh//4))
 
         # リスト区切り
         list_start_y = start_y + gap + len(data['slots_info']) * (item_h + gap) + gap * 2
-        pygame.draw.line(self.screen, COLORS['PANEL_BORDER'], (col['x'] + 10, list_start_y), (col['x'] + col['w'] - 10, list_start_y))
-        self.draw_text(f"パーツ一覧", (col['x'] + 10, list_start_y + 10), (150, 160, 180))
+        pygame.draw.line(self.screen, COLORS['PANEL_BORDER'], (col['x'] + self.scaled(COLUMN_2_TEXT_OFFSET_X), list_start_y), (col['x'] + col['w'] - self.scaled(COLUMN_2_TEXT_OFFSET_X), list_start_y))
+        self.draw_text(f"パーツ一覧", (col['x'] + self.scaled(COLUMN_2_TEXT_OFFSET_X), list_start_y + self.scaled(COLUMN_2_LIST_TITLE_OFFSET_Y)), (150, 160, 180))
 
         # リストアイテム
-        list_item_start_y = list_start_y + 40
+        list_item_start_y = list_start_y + self.scaled(40) # 40もマジックナンバーだが一旦scaledで
         list_item_h = self.scale_y(0.05)
         
         for i, item in enumerate(data['available_list']):
@@ -86,11 +102,11 @@ class CustomizeRenderer(BaseRenderer):
             if by > self.y + self.height - list_item_h: break
             
             if data['state'] == "part_list_select" and data['part_list_idx'] == i:
-                pygame.draw.rect(self.screen, (60, 80, 100), (col['x'] + 10, by, col['w'] - 30, list_item_h - 2))
-                pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (col['x'] + 10, by, 5, list_item_h - 2))
+                pygame.draw.rect(self.screen, (60, 80, 100), (col['x'] + self.scaled(COLUMN_2_TEXT_OFFSET_X), by, col['w'] - self.scaled(30), list_item_h - self.scaled(2)))
+                pygame.draw.rect(self.screen, COLORS['SELECT_HIGHLIGHT'], (col['x'] + self.scaled(COLUMN_2_TEXT_OFFSET_X), by, self.scaled(COLUMN_2_LIST_HIGHLIGHT_WIDTH), list_item_h - self.scaled(2)))
             
             color = COLORS['TEXT'] if (data['state'] == "part_list_select" and data['part_list_idx'] == i) else (180, 180, 180)
-            self.draw_text(item['name'], (col['x'] + 25, by + 2), color)
+            self.draw_text(item['name'], (col['x'] + self.scaled(COLUMN_2_LIST_ITEM_OFFSET_X), by + self.scaled(2)), color)
 
     def _draw_column_3(self, data):
         title = "メダル詳細" if data['slot_idx'] == 0 else "パーツ詳細"
@@ -101,7 +117,7 @@ class CustomizeRenderer(BaseRenderer):
 
         gap = self.scale_y(0.03)
         # dataclass のプロパティアクセスを使用
-        self.draw_text(fd.name, (col['x'] + 15, start_y + gap), COLORS['SELECT_HIGHLIGHT'], 'medium')
+        self.draw_text(fd.name, (col['x'] + self.scaled(COLUMN_3_TITLE_OFFSET_X), start_y + gap), COLORS['SELECT_HIGHLIGHT'], 'medium')
 
         attr_label = data['focused_attr_label']
         stats = []
@@ -118,12 +134,12 @@ class CustomizeRenderer(BaseRenderer):
                      ("機動", fd.mobility),
                      ("耐久", fd.defense)]
         
-        info_start_y = start_y + gap + 40
+        info_start_y = start_y + gap + self.scaled(COLUMN_3_INFO_START_OFFSET_Y)
         row_h = self.scale_y(0.07)
         
         for i, (label, val) in enumerate(stats):
             by = info_start_y + i * row_h
-            line_y = by + row_h - 5
-            pygame.draw.line(self.screen, (50, 60, 75), (col['x'] + 15, line_y), (col['x'] + col['w'] - 15, line_y))
-            self.draw_text(label, (col['x'] + 15, by + 5), (150, 160, 180))
-            self.draw_text(str(val), (col['x'] + col['w'] - 20, by + 5), COLORS['TEXT'], 'medium', 'right')
+            line_y = by + row_h - self.scaled(COLUMN_3_ROW_LINE_OFFSET_Y)
+            pygame.draw.line(self.screen, (50, 60, 75), (col['x'] + self.scaled(COLUMN_3_ROW_LABEL_OFFSET_X), line_y), (col['x'] + col['w'] - self.scaled(COLUMN_3_ROW_LABEL_OFFSET_X), line_y))
+            self.draw_text(label, (col['x'] + self.scaled(COLUMN_3_ROW_LABEL_OFFSET_X), by + self.scaled(5)), (150, 160, 180))
+            self.draw_text(str(val), (col['x'] + col['w'] - self.scaled(COLUMN_3_ROW_VALUE_OFFSET_X), by + self.scaled(5)), COLORS['TEXT'], 'medium', 'right')

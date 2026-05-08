@@ -33,7 +33,8 @@ class UIPanelRenderer:
         wh = self.master.scale_y(UI_PARAMS['MESSAGE_WINDOW_HEIGHT_RATIO'])
         pad = self.master.scale_x(UI_PARAMS['MESSAGE_WINDOW_PADDING_RATIO'])
 
-        line_h = int(sh * 0.04)
+        font = self.master.fonts['medium']
+        line_h = font.get_linesize()
 
         # パイプ装飾付きボックスの描画
         self.master.draw_pipe_box((0, wy, sw, wh), COLORS['MSG_BG'], COLORS['MSG_PIPE'], COLORS['MSG_JOINT'])
