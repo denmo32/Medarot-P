@@ -92,16 +92,20 @@ class CutinRenderer(BaseRenderer):
         panel_rect = cutin_layout['panel_rect']
         self.screen.blit(self._get_panel_surface(panel_rect.size), panel_rect.topleft)
 
-        actor_x, target_x = layout.calculate_cutin_actor_positions(model.actor.team, screen_size)
+        actor_x = layout.calculate_cutin_actor_x(model.actor, screen_size)
+        _, target_x = layout.calculate_cutin_actor_positions(model.actor.team, screen_size)
         center_y = cutin_layout['center_y']
 
-        self._draw_actor(actor_x, center_y, model.actor)
+        # 攻撃機体の描画（画面外退出後は非表示）
+        if model.actor.is_visible:
+            self._draw_actor(actor_x, center_y, model.actor)
 
         # ミス時の飛翔体はターゲット機体の背後（奥）を通り抜けさせる
         for proj in model.projectiles:
             if not proj.is_hit:
                 self._draw_projectile(actor_x, target_x, center_y, proj)
 
+        # ターゲット機体の描画（攻撃機体が通り抜ける際はターゲットの背面を通る）
         self._draw_actor(target_x, center_y, model.target)
 
         # 命中時の飛翔体はターゲット機体の前面に着弾させる

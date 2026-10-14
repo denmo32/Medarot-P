@@ -1,4 +1,5 @@
 """カットイン演出の時間軸・ステップ進行・表示モデル生成を一元管理するディレクター。"""
+import dataclasses
 from enum import Enum, auto
 from typing import List, Optional, TYPE_CHECKING
 
@@ -115,6 +116,8 @@ class CutinDirector:
     ) -> CutinModel:
         """現在の演出状態に基づく CutinModel を構築する（副作用のない純粋クエリ）"""
         if self._step == CutinStep.PIERCE or self._is_result_shown:
+            if self._profile.actor_movement is not None:
+                actor_model = dataclasses.replace(actor_model, is_visible=False, motion=None)
             return CutinModel(
                 actor=actor_model,
                 target=target_model,
@@ -125,6 +128,10 @@ class CutinDirector:
 
         is_hit = self._result.success
         elapsed = self._elapsed
+
+        if self._profile.actor_movement is not None:
+            is_visible, motion = self._profile.actor_movement.evaluate(elapsed)
+            actor_model = dataclasses.replace(actor_model, is_visible=is_visible, motion=motion)
 
         projectiles = [
             p for track in self._profile.projectiles

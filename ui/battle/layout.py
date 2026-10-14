@@ -17,7 +17,7 @@ from domain.constants import (
 from ui.config import SCREEN_HEIGHT, UI_PARAMS
 
 if TYPE_CHECKING:
-    from features.battle.view_models import RobotViewModel
+    from features.battle.view_models import RobotViewModel, CutinActorModel
 
 
 # === スケーリング補助（BaseRenderer と同一の丸め規則） ===
@@ -268,3 +268,31 @@ def calculate_cutin_actor_positions(
         return cutin_layout['left_x'], cutin_layout['right_x']
     return cutin_layout['right_x'], cutin_layout['left_x']
 
+
+def calculate_cutin_actor_x(
+    actor_model: 'CutinActorModel',
+    screen_size: Tuple[int, int],
+) -> int:
+    """カットイン演出中のアクター（攻撃側）の現在 X 座標を計算する"""
+    actor_x, target_x = calculate_cutin_actor_positions(actor_model.team, screen_size)
+    motion = actor_model.motion
+    if motion is None:
+        return actor_x
+
+    sw, _ = screen_size
+    contact_offset = _scaled(UI_PARAMS.get('CUTIN_MELEE_CONTACT_OFFSET', 50), screen_size)
+    exit_margin = _scaled(UI_PARAMS.get('CUTIN_MELEE_EXIT_MARGIN', 80), screen_size)
+
+    if _is_player(actor_model.team):
+        contact_x = target_x - contact_offset
+        exit_x = sw + exit_margin
+    else:
+        contact_x = target_x + contact_offset
+        exit_x = -exit_margin
+
+    if motion.phase == "approach":
+        return int(actor_x + (contact_x - actor_x) * motion.progress)
+    elif motion.phase == "pass_through":
+        return int(contact_x + (exit_x - contact_x) * motion.progress)
+
+    return actor_x

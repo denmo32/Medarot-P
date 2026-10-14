@@ -53,10 +53,19 @@ class CommandMenuModel:
 
 
 @dataclass(frozen=True)
+class ActorMotionModel:
+    """攻撃機体の移動演出モデル（接近・すり抜け）"""
+    phase: str  # "approach" (接近中) または "pass_through" (通り抜け中)
+    progress: float  # フェーズ内進行度 (0.0 ~ 1.0)
+
+
+@dataclass(frozen=True)
 class CutinActorModel:
     team: TeamType
     part_status: Dict[PartType, float]
     accent_state: AccentState
+    is_visible: bool = True
+    motion: Optional[ActorMotionModel] = None
 
 
 @dataclass(frozen=True)

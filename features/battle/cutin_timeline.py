@@ -11,6 +11,7 @@ from domain.constants import ActionCategory, SkillType
 from domain.models import ActionResult
 from features.battle.constants import CutinStep
 from features.battle.view_models import (
+    ActorMotionModel,
     CutinPopupModel,
     ImpactEffectModel,
     ProjectileEffectModel,
@@ -79,11 +80,49 @@ class PopupTrack:
 
 
 @dataclass(frozen=True)
+class ActorMovementTrack:
+    """攻撃機体の移動演出トラック（格闘突進・すり抜け退出など）"""
+    start: float = 0.0
+    contact_time: float = 0.30
+    pass_start: float = 0.35
+    exit_time: float = 0.65
+
+    @property
+    def max_time(self) -> float:
+        return self.exit_time
+
+    def evaluate(self, elapsed: float) -> Tuple[bool, Optional[ActorMotionModel]]:
+        if elapsed < self.start:
+            return True, None
+
+        if elapsed < self.contact_time:
+            dur = max(0.001, self.contact_time - self.start)
+            raw_p = (elapsed - self.start) / dur
+            # Ease-in: 加速しながら接近
+            p = raw_p * raw_p
+            return True, ActorMotionModel(phase="approach", progress=min(1.0, max(0.0, p)))
+
+        if elapsed < self.pass_start:
+            # 接触・インパクト維持
+            return True, ActorMotionModel(phase="approach", progress=1.0)
+
+        if elapsed < self.exit_time:
+            # 相手の背面を突き抜けて画面外へ駆け抜ける
+            dur = max(0.001, self.exit_time - self.pass_start)
+            raw_p = (elapsed - self.pass_start) / dur
+            return True, ActorMotionModel(phase="pass_through", progress=min(1.0, max(0.0, raw_p)))
+
+        # 画面外退出後
+        return False, None
+
+
+@dataclass(frozen=True)
 class CutinProfile:
     """1つの演出シーケンスを定義するプロファイル"""
     projectiles: Tuple[ProjectileTrack, ...] = ()
     impacts: Tuple[ImpactTrack, ...] = ()
     popup: PopupTrack = PopupTrack(start=1.0)
+    actor_movement: Optional[ActorMovementTrack] = None
     extra_duration: float = 0.1  # エフェクト終了後の余白バッファ
 
     @property
@@ -94,6 +133,8 @@ class CutinProfile:
             times.append(p.max_time)
         for i in self.impacts:
             times.append(i.max_time)
+        if self.actor_movement is not None:
+            times.append(self.actor_movement.max_time)
         return max(times) + self.extra_duration
 
 
@@ -122,10 +163,18 @@ GATLING_PROFILE = CutinProfile(
     popup=PopupTrack(start=0.75, miss_start=0.4),
 )
 
-# 格闘（殴る・ソード・ハンマー）: ヒット衝撃(0.25~0.6s) -> ポップアップ(0.6s~)
+# 格闘（殴る・ソード・ハンマー）:
+# 突進接近(0.0~0.30s) -> ヒット衝撃(0.30~0.58s) -> 背面すり抜け画面外(0.35~0.65s) -> ポップアップ(0.65s~)
 MELEE_DEFAULT_PROFILE = CutinProfile(
-    impacts=(ImpactTrack(start=0.25, end=0.6, kind="hit"),),
-    popup=PopupTrack(start=0.6, miss_start=0.25),
+    actor_movement=ActorMovementTrack(
+        start=0.0,
+        contact_time=0.30,
+        pass_start=0.35,
+        exit_time=0.65,
+    ),
+    impacts=(ImpactTrack(start=0.30, end=0.58, kind="hit"),),
+    popup=PopupTrack(start=0.65, miss_start=0.35),
+    extra_duration=0.15,
 )
 
 # フォールバック
