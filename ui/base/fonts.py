@@ -1,5 +1,5 @@
 import pygame
-from core.utils import resource_path
+from core.paths import resource_path
 
 
 class FontProvider:

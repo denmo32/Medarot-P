@@ -12,8 +12,8 @@ from features.customize.view_models import (
 )
 
 if TYPE_CHECKING:
-    from core.data.game_data_manager import GameDataManager
-    from core.data.save_data_manager import SaveDataManager
+    from data.game_data_manager import GameDataManager
+    from data.save_data_manager import SaveDataManager
 
 DetailData = Union[PartData, MedalData]
 

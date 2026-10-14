@@ -10,8 +10,8 @@ from domain.config import FPS
 from scenes.title_scene import TitleScene
 from scenes.battle_scene import BattleScene
 from scenes.customize_scene import CustomizeScene
-from core.data.game_data_manager import GameDataManager
-from core.data.save_data_manager import SaveDataManager
+from data.game_data_manager import GameDataManager
+from data.save_data_manager import SaveDataManager
 from core.scene_manager import SceneManager, SceneContext
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: [%(name)s] %(message)s")

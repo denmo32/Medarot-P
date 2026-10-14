@@ -6,9 +6,9 @@ import logging
 import pygame
 
 from domain.constants import SceneId
-from core.input.event_manager import EventManager, InputState
+from core.event_manager import EventManager, InputState
 from domain.models import GameDataProtocol
-from core.data.save_data_manager import SaveDataManager
+from data.save_data_manager import SaveDataManager
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@
 import json
 import logging
 from typing import Dict, List, Optional, Union
-from core.utils import resource_path
+from core.paths import resource_path
 from domain.models import PartData, MedalData
 from domain.constants import CustomizeSlot, PartType
 
@@ -14,8 +14,8 @@ class GameDataManager:
     """parts_data.jsonおよびmedals_data.jsonからデータを管理するクラス"""
 
     def __init__(self, parts_json_path: Optional[str] = None, medals_json_path: Optional[str] = None):
-        self.parts_json_path = parts_json_path or resource_path('core/data/parts_data.json')
-        self.medals_json_path = medals_json_path or resource_path('core/data/medals_data.json')
+        self.parts_json_path = parts_json_path or resource_path('data/parts_data.json')
+        self.medals_json_path = medals_json_path or resource_path('data/medals_data.json')
 
         raw_data = self._load_all_data()
         # 読み込み時点で部位を PartType に正規化して保持
