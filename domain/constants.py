@@ -87,6 +87,14 @@ class CommandSlot(KeyedEnum):
         return PartType.from_key(self.value) if not self.is_skip else None
 
 
+# コマンドメニューのスロットインデックス（features の入力規則と ui のレイアウトが共有する契約）
+# 順序は ACTIONABLE_PART_TYPES + SKIP と一致させること
+COMMAND_MENU_HEAD_INDEX = 0
+COMMAND_MENU_RIGHT_ARM_INDEX = 1
+COMMAND_MENU_LEFT_ARM_INDEX = 2
+COMMAND_MENU_SKIP_INDEX = 3
+
+
 class AccentState(str, Enum):
     """機体およびパーツの視覚的状態アクセント"""
     CHARGING = "charging"

@@ -7,8 +7,7 @@ import pygame
 
 from domain.constants import SceneId
 from core.event_manager import EventManager, InputState
-from domain.models import GameDataProtocol
-from data.save_data_manager import SaveDataManager
+from domain.models import GameDataProtocol, SaveDataProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class SceneContext:
     """シーン間で共有される依存関係"""
     screen: pygame.Surface
     data_manager: GameDataProtocol
-    save_manager: SaveDataManager
+    save_manager: SaveDataProtocol
 
 
 class Scene:

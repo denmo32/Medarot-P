@@ -1,12 +1,13 @@
 """カスタマイズ画面の状態管理と操作ロジック（UI/入力非依存の純粋ステートマシン）"""
 from domain.config import PLAYER_COUNT
 from domain.constants import CUSTOMIZE_SLOTS, CustomizeSlot, CustomizeState
+from domain.models import GameDataProtocol, SaveDataProtocol
 
 
 class CustomizeManager:
     SLOTS = CUSTOMIZE_SLOTS
 
-    def __init__(self, data_manager, save_manager):
+    def __init__(self, data_manager: GameDataProtocol, save_manager: SaveDataProtocol):
         self.data_manager = data_manager
         self.save_data = save_manager
         self.state = CustomizeState.ROBOT_SELECT

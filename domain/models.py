@@ -20,6 +20,13 @@ class GameDataProtocol(Protocol):
     def get_part_ids_for_type(self, slot_type: Union[CustomizeSlot, PartType, str]) -> List[str]: ...
 
 
+class SaveDataProtocol(Protocol):
+    """SaveDataManager の公開インターフェースプロトコル"""
+    def get_robot_setup(self, robot_idx: int) -> Optional["RobotSetup"]: ...
+    def get_part_id(self, robot_idx: int, slot_type: CustomizeSlot) -> str: ...
+    def update_part(self, robot_idx: int, slot_type: CustomizeSlot, part_id: str) -> None: ...
+
+
 @dataclass(frozen=True)
 class RobotSetup:
     """機体の編成情報（不変データモデル）"""

@@ -4,18 +4,16 @@
 座標を算出する。計算式は従来の `BattleRenderer` / `UIHitTester` から
 `int()` のタイミングを含めてそのまま移設した（1px のずれを避けるため）。
 """
-from features.battle.input.command_menu_navigation import (
-    MENU_HEAD_INDEX,
-    MENU_RIGHT_ARM_INDEX,
-    MENU_LEFT_ARM_INDEX,
-    MENU_SKIP_INDEX,
-)
-
 from typing import TYPE_CHECKING, List, Tuple
 
 import pygame
 
-from domain.constants import TeamType
+from domain.constants import (
+    COMMAND_MENU_HEAD_INDEX,
+    COMMAND_MENU_LEFT_ARM_INDEX,
+    COMMAND_MENU_RIGHT_ARM_INDEX,
+    TeamType,
+)
 from ui.config import SCREEN_HEIGHT, UI_PARAMS
 
 if TYPE_CHECKING:
@@ -220,17 +218,17 @@ def calculate_command_menu_rects(
     layout: List[pygame.Rect] = []
     for i in range(button_count):
         rect = pygame.Rect(0, 0, btn_w, btn_h)
-        if i == MENU_HEAD_INDEX:
+        if i == COMMAND_MENU_HEAD_INDEX:
             rect.centerx = center_x
             rect.top = start_y
-        elif i == MENU_RIGHT_ARM_INDEX:
+        elif i == COMMAND_MENU_RIGHT_ARM_INDEX:
             rect.right = center_x - (btn_pad // 2)
             rect.top = start_y + btn_h + btn_pad
-        elif i == MENU_LEFT_ARM_INDEX:
+        elif i == COMMAND_MENU_LEFT_ARM_INDEX:
             rect.left = center_x + (btn_pad // 2)
             rect.top = start_y + btn_h + btn_pad
         else:
-            # MENU_SKIP_INDEX 等（右端）
+            # COMMAND_MENU_SKIP_INDEX 等（右端）
             rect.left = center_x + btn_w + btn_pad * 2
             rect.centery = start_y + btn_h + (btn_pad // 2)
         layout.append(rect)

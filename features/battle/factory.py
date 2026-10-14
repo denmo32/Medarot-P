@@ -5,7 +5,7 @@ import random
 from typing import Dict, List, Optional
 from domain.config import PLAYER_COUNT, ENEMY_COUNT
 from domain.constants import ALL_PART_TYPES, CustomizeSlot, TeamType, PartType, AttributeType, PersonalityType
-from domain.models import GameDataProtocol, MedalData, RobotSetup
+from domain.models import GameDataProtocol, MedalData, RobotSetup, SaveDataProtocol
 from .models import Robot, Part
 from .debug_enemy import (
     ENABLE_CUSTOM_ENEMY,
@@ -69,7 +69,7 @@ class BattleFactory:
         return robots
 
     @classmethod
-    def get_player_setups(cls, save_manager, count: Optional[int] = None) -> List[RobotSetup]:
+    def get_player_setups(cls, save_manager: SaveDataProtocol, count: Optional[int] = None) -> List[RobotSetup]:
         target_count = count or (DEBUG_PLAYER_COUNT if DEBUG_PLAYER_COUNT is not None else PLAYER_COUNT)
         target_count = max(1, min(PLAYER_COUNT, target_count))
 

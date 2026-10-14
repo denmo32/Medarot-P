@@ -1,8 +1,8 @@
 """カスタマイズ画面の View Model 構築クラス（RobotSetup 対応）"""
-from typing import Optional, Tuple, Union, TYPE_CHECKING
+from typing import Optional, Tuple, Union
 from domain.config import PLAYER_COUNT
 from domain.constants import PART_TYPE_LABELS, CustomizeState, PartType, CustomizeSlot
-from domain.models import MedalData, PartData
+from domain.models import GameDataProtocol, MedalData, PartData, SaveDataProtocol
 from features.customize.view_models import (
     CustomizeDetailPanelModel,
     CustomizeDetailStatModel,
@@ -11,15 +11,11 @@ from features.customize.view_models import (
     CustomizeViewModel,
 )
 
-if TYPE_CHECKING:
-    from data.game_data_manager import GameDataManager
-    from data.save_data_manager import SaveDataManager
-
 DetailData = Union[PartData, MedalData]
 
 
 class CustomizeViewBuilder:
-    def __init__(self, data_manager: 'GameDataManager', save_manager: 'SaveDataManager'):
+    def __init__(self, data_manager: GameDataProtocol, save_manager: SaveDataProtocol):
         self.data_manager = data_manager
         self.save_data = save_manager
 

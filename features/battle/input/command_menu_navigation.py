@@ -5,12 +5,12 @@
 """
 from typing import Sequence
 
-
-# Medarot-P の特殊な十字レイアウト
-MENU_HEAD_INDEX = 0       # 頭部（上）
-MENU_RIGHT_ARM_INDEX = 1  # 右腕（左下）
-MENU_LEFT_ARM_INDEX = 2   # 左腕（右下）
-MENU_SKIP_INDEX = 3       # スキップ（右）
+from domain.constants import (
+    COMMAND_MENU_HEAD_INDEX,
+    COMMAND_MENU_LEFT_ARM_INDEX,
+    COMMAND_MENU_RIGHT_ARM_INDEX,
+    COMMAND_MENU_SKIP_INDEX,
+)
 
 
 def resolve_command_menu_navigation(
@@ -27,16 +27,16 @@ def resolve_command_menu_navigation(
     new_index = current_index
 
     if input_state.btn_up:
-        new_index = MENU_HEAD_INDEX
+        new_index = COMMAND_MENU_HEAD_INDEX
     elif input_state.btn_left:
         # スキップ(3)からは左腕(2)へ、それ以外は右腕(1)へ
-        new_index = MENU_LEFT_ARM_INDEX if current_index == MENU_SKIP_INDEX else MENU_RIGHT_ARM_INDEX
+        new_index = COMMAND_MENU_LEFT_ARM_INDEX if current_index == COMMAND_MENU_SKIP_INDEX else COMMAND_MENU_RIGHT_ARM_INDEX
     elif input_state.btn_right:
         # 右入力は常に左腕(2)を目指し、スキップ(3)へは遷移させない
-        new_index = MENU_LEFT_ARM_INDEX
+        new_index = COMMAND_MENU_LEFT_ARM_INDEX
     elif input_state.btn_down:
         # 下入力でのみスキップ(3)へ移動する
-        new_index = MENU_SKIP_INDEX
+        new_index = COMMAND_MENU_SKIP_INDEX
 
     if 0 <= new_index < len(selectable_mask) and selectable_mask[new_index]:
         return new_index
