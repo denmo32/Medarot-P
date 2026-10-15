@@ -115,15 +115,24 @@ class CutinDirector:
         target_model: CutinActorModel,
     ) -> CutinModel:
         """現在の演出状態に基づく CutinModel を構築する（副作用のない純粋クエリ）"""
+        camera_progress: Optional[float] = None
+        if self._profile.camera_track is not None:
+            camera_progress = self._profile.camera_track.evaluate(self._elapsed)
+
         if self._step == CutinStep.PIERCE or self._is_result_shown:
             if self._profile.actor_movement is not None:
                 actor_model = dataclasses.replace(actor_model, is_visible=False, motion=None)
+            elif self._profile.camera_track is not None:
+                camera_progress = 1.0
+                actor_model = dataclasses.replace(actor_model, is_visible=False)
+
             return CutinModel(
                 actor=actor_model,
                 target=target_model,
                 popup=resolve_cutin_popup(self._result, self._step),
                 projectiles=[],
                 impacts=[],
+                camera_progress=camera_progress,
             )
 
         is_hit = self._result.success
@@ -132,6 +141,9 @@ class CutinDirector:
         if self._profile.actor_movement is not None:
             is_visible, motion = self._profile.actor_movement.evaluate(elapsed)
             actor_model = dataclasses.replace(actor_model, is_visible=is_visible, motion=motion)
+        elif camera_progress is not None:
+            is_visible = camera_progress < 1.0
+            actor_model = dataclasses.replace(actor_model, is_visible=is_visible)
 
         projectiles = [
             p for track in self._profile.projectiles
@@ -151,4 +163,5 @@ class CutinDirector:
             popup=popup,
             projectiles=projectiles,
             impacts=impacts,
+            camera_progress=camera_progress,
         )

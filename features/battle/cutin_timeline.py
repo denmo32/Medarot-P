@@ -119,12 +119,34 @@ class ActorMovementTrack:
 
 
 @dataclass(frozen=True)
+class CameraTrack:
+    """カメラ追従演出のトラック（射撃時のスクロール）"""
+    start: float  # 追従開始時刻（弾丸が画面中央に達する時刻）
+    end: float    # 追従完了時刻（標的が定位置に達する時刻）
+
+    @property
+    def max_time(self) -> float:
+        return self.end
+
+    def evaluate(self, elapsed: float) -> float:
+        """経過時間からカメラ進行度 (0.0: 攻撃側注視 〜 1.0: 防御側注視) を算出"""
+        if elapsed <= self.start:
+            return 0.0
+        if elapsed >= self.end:
+            return 1.0
+        dur = max(0.001, self.end - self.start)
+        t = (elapsed - self.start) / dur
+        return t * t * (3.0 - 2.0 * t)  # Smoothstep による滑らかな加減速
+
+
+@dataclass(frozen=True)
 class CutinProfile:
     """1つの演出シーケンスを定義するプロファイル"""
     projectiles: Tuple[ProjectileTrack, ...] = ()
     impacts: Tuple[ImpactTrack, ...] = ()
     popup: PopupTrack = PopupTrack(start=1.0)
     actor_movement: Optional[ActorMovementTrack] = None
+    camera_track: Optional[CameraTrack] = None
     extra_duration: float = 0.1
 
     @property
@@ -136,6 +158,8 @@ class CutinProfile:
             times.append(i.max_time)
         if self.actor_movement is not None:
             times.append(self.actor_movement.max_time)
+        if self.camera_track is not None:
+            times.append(self.camera_track.max_time)
         return max(times) + self.extra_duration
 
 
@@ -145,18 +169,29 @@ class CutinProfile:
 
 def build_shooting_profile(projectile_kind: str = "bullet", impact_kind: Optional[str] = None) -> CutinProfile:
     """射撃系統の共通演出プロファイルを生成する。
-    弾丸の種類のみが可変で、タイムライン構造は共通。
+    弾丸が画面中央に到達するとカメラが弾を追いかけ、攻撃側退場・防御側登場を行う。
     """
     resolved_impact = impact_kind or ("explosion" if projectile_kind == "missile" else "hit")
+    proj_start = 0.15
+    proj_end = 0.85
+    impact_start = 0.85
+    impact_end = 1.10
+    popup_start = 1.10
+
+    flight_dur = proj_end - proj_start
+    cam_start = proj_start + flight_dur * 0.25  # 0.325s (中央到達時刻)
+    cam_end = proj_start + flight_dur * 0.75    # 0.675s (防御側定位置到達時刻)
+
     return CutinProfile(
         projectiles=(
-            ProjectileTrack(start=0.0, end=0.6, kind=projectile_kind),
+            ProjectileTrack(start=proj_start, end=proj_end, kind=projectile_kind),
         ),
         impacts=(
-            ImpactTrack(start=0.6, end=0.85, kind=resolved_impact),
+            ImpactTrack(start=impact_start, end=impact_end, kind=resolved_impact),
         ),
-        popup=PopupTrack(start=0.85, miss_start=0.6),
-        extra_duration=0.1,
+        popup=PopupTrack(start=popup_start, miss_start=impact_start),
+        camera_track=CameraTrack(start=cam_start, end=cam_end),
+        extra_duration=0.15,
     )
 
 

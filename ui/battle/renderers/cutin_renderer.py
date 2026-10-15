@@ -2,6 +2,7 @@
 from typing import Callable, Dict, Optional, Tuple
 import pygame
 
+from domain.constants import TeamType
 from ui.base.renderer import BaseRenderer
 from ui.base.widgets import MedabotWidgets
 from ui.battle import layout
@@ -14,25 +15,26 @@ from features.battle.view_models import (
 )
 from ui.config import UI_PARAMS, resolve_accent_color
 
-ProjectileDrawFn = Callable[['CutinRenderer', int, int, int, ProjectileEffectModel], None]
+ProjectileDrawFn = Callable[['CutinRenderer', int, int, ProjectileEffectModel, bool], None]
 ImpactDrawFn = Callable[['CutinRenderer', int, int, ImpactEffectModel], None]
 
 
-def _draw_bullet_projectile(renderer: 'CutinRenderer', start_x: int, end_x: int, y: int, proj: ProjectileEffectModel):
-    progress = max(0.0, proj.progress)
-    current_x = int(start_x + (end_x - start_x) * progress)
+def _draw_bullet_projectile(
+    renderer: 'CutinRenderer', current_x: int, y: int, proj: ProjectileEffectModel, is_left_to_right: bool
+):
     r = max(3, renderer.scaled(UI_PARAMS.get('CUTIN_PROJECTILE_RADIUS', 7)))
     pygame.draw.circle(renderer.screen, renderer.theme.bullet, (current_x, y), r)
     pygame.draw.circle(renderer.screen, renderer.theme.bullet_core, (current_x, y), max(1, r // 2))
 
 
-def _draw_missile_projectile(renderer: 'CutinRenderer', start_x: int, end_x: int, y: int, proj: ProjectileEffectModel):
-    progress = max(0.0, proj.progress)
-    current_x = int(start_x + (end_x - start_x) * progress)
+def _draw_missile_projectile(
+    renderer: 'CutinRenderer', current_x: int, y: int, proj: ProjectileEffectModel, is_left_to_right: bool
+):
     r = max(4, renderer.scaled(9))
     pygame.draw.circle(renderer.screen, renderer.theme.bullet, (current_x, y), r)
     pygame.draw.circle(renderer.screen, (255, 100, 50), (current_x, y), max(2, r - 3))
-    tail_x = int(current_x - (end_x - start_x) * 0.05)
+    tail_offset = -renderer.scaled(10) if is_left_to_right else renderer.scaled(10)
+    tail_x = int(current_x + tail_offset)
     pygame.draw.circle(renderer.screen, (180, 180, 180), (tail_x, y), max(2, r // 2))
 
 
@@ -92,42 +94,66 @@ class CutinRenderer(BaseRenderer):
         panel_rect = cutin_layout['panel_rect']
         self.screen.blit(self._get_panel_surface(panel_rect.size), panel_rect.topleft)
 
-        actor_x = layout.calculate_cutin_actor_x(model.actor, screen_size)
-        _, target_x = layout.calculate_cutin_actor_positions(model.actor.team, screen_size)
+        if model.camera_progress is not None:
+            actor_x, target_x = layout.calculate_cutin_scrolled_positions(
+                model.actor.team, model.camera_progress, screen_size
+            )
+        else:
+            actor_x = layout.calculate_cutin_actor_x(model.actor, screen_size)
+            _, target_x = layout.calculate_cutin_actor_positions(model.actor.team, screen_size)
+
         center_y = cutin_layout['center_y']
 
-        # 攻撃機体の描画（画面外退出後は非表示）
-        if model.actor.is_visible:
-            self._draw_actor(actor_x, center_y, model.actor)
+        # カットインパネル内に描画をクリッピング
+        self.screen.set_clip(panel_rect)
 
-        # ミス時の飛翔体はターゲット機体の背後（奥）を通り抜けさせる
-        for proj in model.projectiles:
-            if not proj.is_hit:
-                self._draw_projectile(actor_x, target_x, center_y, proj)
+        try:
+            # 攻撃機体の描画（画面外退出後は非表示）
+            if model.actor.is_visible:
+                self._draw_actor(actor_x, center_y, model.actor)
 
-        # ターゲット機体の描画（攻撃機体が通り抜ける際はターゲットの背面を通る）
-        self._draw_actor(target_x, center_y, model.target)
+            # ミス時の飛翔体はターゲット機体の背後（奥）を通り抜けさせる
+            for proj in model.projectiles:
+                if not proj.is_hit:
+                    self._draw_projectile(proj, model.actor.team, model.camera_progress, center_y)
 
-        # 命中時の飛翔体はターゲット機体の前面に着弾させる
-        for proj in model.projectiles:
-            if proj.is_hit:
-                self._draw_projectile(actor_x, target_x, center_y, proj)
+            # ターゲット機体の描画
+            if model.target.is_visible:
+                self._draw_actor(target_x, center_y, model.target)
 
-        # 着弾・爆発エフェクトの描画
-        for impact in model.impacts:
-            self._draw_impact(target_x, center_y, impact)
+            # 命中時の飛翔体はターゲット機体の前面に着弾させる
+            for proj in model.projectiles:
+                if proj.is_hit:
+                    self._draw_projectile(proj, model.actor.team, model.camera_progress, center_y)
 
-        # ダメージポップアップ
-        if model.popup is not None:
-            self._draw_popup(target_x, center_y, model.popup)
+            # 着弾・爆発エフェクトの描画
+            for impact in model.impacts:
+                self._draw_impact(target_x, center_y, impact)
+
+            # ダメージポップアップ
+            if model.popup is not None:
+                self._draw_popup(target_x, center_y, model.popup)
+        finally:
+            self.screen.set_clip(None)
 
     def _draw_actor(self, x, y, actor: CutinActorModel):
         accent_color = resolve_accent_color(actor.accent_state, self.theme)
         self.widgets.draw_robot_icon(x, y, accent_color, actor.part_status)
 
-    def _draw_projectile(self, start_x: int, end_x: int, y: int, projectile: ProjectileEffectModel):
+    def _draw_projectile(
+        self,
+        projectile: ProjectileEffectModel,
+        actor_team: TeamType,
+        camera_progress: Optional[float],
+        y: int,
+    ):
+        screen_size = self.get_screen_size()
+        current_x = layout.calculate_cutin_projectile_x(
+            projectile.progress, actor_team, camera_progress, screen_size
+        )
+        is_left_to_right = (actor_team == TeamType.PLAYER)
         handler = PROJECTILE_RENDERERS.get(projectile.kind, _draw_bullet_projectile)
-        handler(self, start_x, end_x, y, projectile)
+        handler(self, current_x, y, projectile, is_left_to_right)
 
     def _draw_impact(self, target_x: int, y: int, impact: ImpactEffectModel):
         handler = IMPACT_RENDERERS.get(impact.kind, _draw_hit_impact)

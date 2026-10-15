@@ -4,7 +4,7 @@
 座標を算出する。計算式は従来の `BattleRenderer` / `UIHitTester` から
 `int()` のタイミングを含めてそのまま移設した（1px のずれを避けるため）。
 """
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pygame
 
@@ -296,3 +296,49 @@ def calculate_cutin_actor_x(
         return int(contact_x + (exit_x - contact_x) * motion.progress)
 
     return actor_x
+
+
+def calculate_cutin_scrolled_positions(
+    actor_team: TeamType,
+    camera_progress: float,
+    screen_size: Tuple[int, int],
+) -> Tuple[int, int]:
+    """カメラ追従演出時の (アクター現在X, ターゲット現在X) を計算する。"""
+    sw, _ = screen_size
+    base_actor_x, base_target_x = calculate_cutin_actor_positions(actor_team, screen_size)
+    scroll_distance = int(sw * 0.5)
+
+    if _is_player(actor_team):
+        actor_x = int(base_actor_x - camera_progress * scroll_distance)
+        target_x = int(base_target_x + (1.0 - camera_progress) * scroll_distance)
+    else:
+        actor_x = int(base_actor_x + camera_progress * scroll_distance)
+        target_x = int(base_target_x - (1.0 - camera_progress) * scroll_distance)
+
+    return actor_x, target_x
+
+
+def calculate_cutin_projectile_x(
+    progress: float,
+    actor_team: TeamType,
+    camera_progress: Optional[float],
+    screen_size: Tuple[int, int],
+) -> int:
+    """カットイン飛翔体の現在X座標を計算する。"""
+    sw, _ = screen_size
+    base_actor_x, base_target_x = calculate_cutin_actor_positions(actor_team, screen_size)
+
+    if camera_progress is None:
+        return int(base_actor_x + (base_target_x - base_actor_x) * progress)
+
+    scroll_distance = sw * 0.5
+    if _is_player(actor_team):
+        total_dist = (base_target_x + scroll_distance) - base_actor_x
+        world_x = base_actor_x + progress * total_dist
+        cam_offset = camera_progress * scroll_distance
+        return int(world_x - cam_offset)
+    else:
+        total_dist = base_actor_x - (base_target_x - scroll_distance)
+        world_x = base_actor_x - progress * total_dist
+        cam_offset = camera_progress * scroll_distance
+        return int(world_x + cam_offset)

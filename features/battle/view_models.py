@@ -97,6 +97,7 @@ class CutinModel:
     popup: Optional[CutinPopupModel] = None
     projectiles: List[ProjectileEffectModel] = field(default_factory=list)
     impacts: List[ImpactEffectModel] = field(default_factory=list)
+    camera_progress: Optional[float] = None  # None: 固定カメラ, 0.0~1.0: 追従スクロール
 
 
 @dataclass(frozen=True)
