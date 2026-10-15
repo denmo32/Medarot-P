@@ -1,8 +1,9 @@
 """カットイン演出のタイムライン管理・データ駆動エフェクトプロファイル。
 
-カットイン演出を「時間軸に沿ったトラックの集合」として定義・管理する。
-スキルや行動形式ごとの演出パラメータ、順序、タイミングをデータとして集約し、
-ViewBuilder や Renderer にロジックが肥大化・散乱するのを防ぐ。
+カットイン演出は大きく「射撃（SHOOTING）」と「格闘（MELEE）」の2系統に分かれ、
+それぞれの時間軸・進行テンプレートは完全に共通化されています。
+- 射撃系統: 飛翔体（弾丸/ミサイル等）の種別のみがスキルによって変化
+- 格闘系統: 衝撃波・着弾演出（打撃/斬撃等）の種別のみがスキルによって変化
 """
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
@@ -25,7 +26,7 @@ class ProjectileTrack:
     end: float
     kind: str = "bullet"
     miss_end: Optional[float] = None
-    pass_through_factor: float = 1.6  # ミス時に画面外まで通り抜ける移動倍率
+    pass_through_factor: float = 1.6  # ミス時に画面外まで通り抜ける倍率
 
     @property
     def max_time(self) -> float:
@@ -52,7 +53,7 @@ class ImpactTrack:
     start: float
     end: float
     kind: str = "hit"
-    only_on_hit: bool = True  # 命中時のみ再生（ミス時は非表示）
+    only_on_hit: bool = True  # 命中時のみ再生
 
     @property
     def max_time(self) -> float:
@@ -81,7 +82,7 @@ class PopupTrack:
 
 @dataclass(frozen=True)
 class ActorMovementTrack:
-    """攻撃機体の移動演出トラック（格闘突進・すり抜け退出など）"""
+    """攻撃機体の移動演出トラック（格闘突進・すり抜け退出）"""
     start: float = 0.0
     contact_time: float = 0.30
     pass_start: float = 0.35
@@ -103,16 +104,13 @@ class ActorMovementTrack:
             return True, ActorMotionModel(phase="approach", progress=min(1.0, max(0.0, p)))
 
         if elapsed < self.pass_start:
-            # 接触・インパクト維持
             return True, ActorMotionModel(phase="approach", progress=1.0)
 
         if elapsed < self.exit_time:
-            # 相手の背面を突き抜けて画面外へ駆け抜ける
             dur = max(0.001, self.exit_time - self.pass_start)
             raw_p = (elapsed - self.pass_start) / dur
             return True, ActorMotionModel(phase="pass_through", progress=min(1.0, max(0.0, raw_p)))
 
-        # 画面外退出後
         return False, None
 
 
@@ -123,12 +121,11 @@ class CutinProfile:
     impacts: Tuple[ImpactTrack, ...] = ()
     popup: PopupTrack = PopupTrack(start=1.0)
     actor_movement: Optional[ActorMovementTrack] = None
-    extra_duration: float = 0.1  # エフェクト終了後の余白バッファ
+    extra_duration: float = 0.1
 
     @property
     def duration(self) -> float:
-        """全トラックの終了時刻からプロファイル全体の再生時間を自動算出"""
-        times = [0.4]  # 最低保証時間
+        times = [0.4]
         for p in self.projectiles:
             times.append(p.max_time)
         for i in self.impacts:
@@ -139,74 +136,85 @@ class CutinProfile:
 
 
 # ==============================================================================
-# 演出プロファイル カタログ（データ駆動定義）
+# 共通テンプレートビルダー（射撃 / 格闘）
 # ==============================================================================
 
-# 通常射撃（ライフル等）: 弾丸(0.0~0.6s) -> 着弾火花(0.6~0.85s) -> ポップアップ(0.85s~)
-SHOOTING_BULLET_PROFILE = CutinProfile(
-    projectiles=(ProjectileTrack(start=0.0, end=0.6, kind="bullet"),),
-    impacts=(ImpactTrack(start=0.6, end=0.85, kind="hit"),),
-    popup=PopupTrack(start=0.85, miss_start=0.6),
-)
+def build_shooting_profile(projectile_kind: str = "bullet", impact_kind: Optional[str] = None) -> CutinProfile:
+    """射撃系統の共通演出プロファイルを生成する。
+    弾丸の種類のみが可変で、タイムライン構造は完全に共通。
+    """
+    resolved_impact = impact_kind or ("explosion" if projectile_kind == "missile" else "hit")
+    return CutinProfile(
+        projectiles=(
+            ProjectileTrack(start=0.0, end=0.6, kind=projectile_kind),
+        ),
+        impacts=(
+            ImpactTrack(start=0.6, end=0.85, kind=resolved_impact),
+        ),
+        popup=PopupTrack(start=0.85, miss_start=0.6),
+        extra_duration=0.1,
+    )
 
-# ミサイル: ミサイル飛翔(0.0~0.7s) -> 爆発(0.7~1.1s) -> ポップアップ(1.1s~)
-MISSILE_PROFILE = CutinProfile(
-    projectiles=(ProjectileTrack(start=0.0, end=0.7, kind="missile"),),
-    impacts=(ImpactTrack(start=0.7, end=1.1, kind="explosion"),),
-    popup=PopupTrack(start=1.1, miss_start=0.7),
-)
 
-# ガトリング: 高速連射(0.0~0.4s) -> 連射着弾(0.4~0.75s) -> ポップアップ(0.75s~)
-GATLING_PROFILE = CutinProfile(
-    projectiles=(ProjectileTrack(start=0.0, end=0.4, kind="bullet"),),
-    impacts=(ImpactTrack(start=0.4, end=0.75, kind="hit"),),
-    popup=PopupTrack(start=0.75, miss_start=0.4),
-)
+def build_melee_profile(impact_kind: str = "hit") -> CutinProfile:
+    """格闘系統の共通演出プロファイルを生成する。
+    衝撃波・打撃演出の種類のみが可変で、突進・すり抜けタイムラインは完全に共通。
+    """
+    return CutinProfile(
+        actor_movement=ActorMovementTrack(
+            start=0.0,
+            contact_time=0.30,
+            pass_start=0.35,
+            exit_time=0.65,
+        ),
+        impacts=(
+            ImpactTrack(start=0.30, end=0.58, kind=impact_kind),
+        ),
+        popup=PopupTrack(start=0.65, miss_start=0.35),
+        extra_duration=0.15,
+    )
 
-# 格闘（殴る・ソード・ハンマー）:
-# 突進接近(0.0~0.30s) -> ヒット衝撃(0.30~0.58s) -> 背面すり抜け画面外(0.35~0.65s) -> ポップアップ(0.65s~)
-MELEE_DEFAULT_PROFILE = CutinProfile(
-    actor_movement=ActorMovementTrack(
-        start=0.0,
-        contact_time=0.30,
-        pass_start=0.35,
-        exit_time=0.65,
-    ),
-    impacts=(ImpactTrack(start=0.30, end=0.58, kind="hit"),),
-    popup=PopupTrack(start=0.65, miss_start=0.35),
-    extra_duration=0.15,
-)
 
-# フォールバック
 FALLBACK_PROFILE = CutinProfile(
     popup=PopupTrack(start=0.5),
 )
 
-# 技固有のプロファイルマッピング
-SKILL_CUTIN_PROFILES: Dict[SkillType, CutinProfile] = {
-    SkillType.MISSILE: MISSILE_PROFILE,
-    SkillType.GATLING: GATLING_PROFILE,
+
+# ==============================================================================
+# スキル別の可変要素マッピング（弾丸 / 衝撃波の種別のみを定義）
+# ==============================================================================
+
+# 射撃スキル -> 弾丸の種別（未指定はデフォルト "bullet"）
+SHOOTING_PROJECTILE_KINDS: Dict[SkillType, str] = {
+    SkillType.RIFLE: "bullet",
+    SkillType.GATLING: "bullet",
+    SkillType.MISSILE: "missile",
 }
 
-# 行動カテゴリ単位のプロファイルマッピング
-ACTION_CATEGORY_CUTIN_PROFILES: Dict[ActionCategory, CutinProfile] = {
-    ActionCategory.SHOOTING: SHOOTING_BULLET_PROFILE,
-    ActionCategory.MELEE: MELEE_DEFAULT_PROFILE,
+# 格闘スキル -> 衝撃波・打撃エフェクトの種別（未指定はデフォルト "hit"）
+# 将来 "slash"（ソード用斬撃）や "heavy_hit"（ハンマー用衝撃波）等を追加可能
+MELEE_IMPACT_KINDS: Dict[SkillType, str] = {
+    SkillType.SWORD: "hit",
+    SkillType.HAMMER: "hit",
 }
 
 
 def resolve_cutin_profile(part) -> CutinProfile:
-    """パーツ情報（スキル・行動形式）から対応する演出プロファイルをテーブル引きで解決する"""
-    if not part:
+    """パーツ情報から対応する演出プロファイルを解決する。"""
+    if not part or not part.action:
         return FALLBACK_PROFILE
 
-    # 1. スキル個別定義の優先解決
-    if part.skill in SKILL_CUTIN_PROFILES:
-        return SKILL_CUTIN_PROFILES[part.skill]
+    category = part.action.category
 
-    # 2. 行動形式カテゴリ単位の解決
-    if part.action and part.action.category in ACTION_CATEGORY_CUTIN_PROFILES:
-        return ACTION_CATEGORY_CUTIN_PROFILES[part.action.category]
+    # 1. 射撃系統（弾丸のみスキル依存）
+    if category == ActionCategory.SHOOTING:
+        projectile_kind = SHOOTING_PROJECTILE_KINDS.get(part.skill, "bullet")
+        return build_shooting_profile(projectile_kind=projectile_kind)
+
+    # 2. 格闘系統（衝撃波のみスキル依存）
+    if category == ActionCategory.MELEE:
+        impact_kind = MELEE_IMPACT_KINDS.get(part.skill, "hit")
+        return build_melee_profile(impact_kind=impact_kind)
 
     return FALLBACK_PROFILE
 
