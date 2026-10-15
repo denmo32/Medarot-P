@@ -84,9 +84,9 @@ class PopupTrack:
 class ActorMovementTrack:
     """攻撃機体の移動演出トラック（格闘突進・すり抜け退出）"""
     start: float = 0.0
-    contact_time: float = 0.30
-    pass_start: float = 0.35
-    exit_time: float = 0.65
+    contact_time: float = 0.45  # 接近完了・接触時刻
+    pass_start: float = 0.85    # 静止終了・すり抜け開始時刻
+    exit_time: float = 1.25     # 画面外退出完了時刻
 
     @property
     def max_time(self) -> float:
@@ -96,21 +96,25 @@ class ActorMovementTrack:
         if elapsed < self.start:
             return True, None
 
+        # 1. 加速しながら接近 (Ease-In)
         if elapsed < self.contact_time:
             dur = max(0.001, self.contact_time - self.start)
             raw_p = (elapsed - self.start) / dur
-            # Ease-in: 加速しながら接近
-            p = raw_p * raw_p
+            p = raw_p * raw_p  # 加速して飛び込む
             return True, ActorMotionModel(phase="approach", progress=min(1.0, max(0.0, p)))
 
+        # 2. 接触地点で完全静止（衝撃波描画中）
         if elapsed < self.pass_start:
             return True, ActorMotionModel(phase="approach", progress=1.0)
 
+        # 3. 再度加速しながら画面外へ (Ease-In)
         if elapsed < self.exit_time:
             dur = max(0.001, self.exit_time - self.pass_start)
             raw_p = (elapsed - self.pass_start) / dur
-            return True, ActorMotionModel(phase="pass_through", progress=min(1.0, max(0.0, raw_p)))
+            p = raw_p * raw_p  # 停止状態からグンと加速して突き抜ける
+            return True, ActorMotionModel(phase="pass_through", progress=min(1.0, max(0.0, p)))
 
+        # 画面外へ退出後
         return False, None
 
 
@@ -141,7 +145,7 @@ class CutinProfile:
 
 def build_shooting_profile(projectile_kind: str = "bullet", impact_kind: Optional[str] = None) -> CutinProfile:
     """射撃系統の共通演出プロファイルを生成する。
-    弾丸の種類のみが可変で、タイムライン構造は完全に共通。
+    弾丸の種類のみが可変で、タイムライン構造は共通。
     """
     resolved_impact = impact_kind or ("explosion" if projectile_kind == "missile" else "hit")
     return CutinProfile(
@@ -158,20 +162,20 @@ def build_shooting_profile(projectile_kind: str = "bullet", impact_kind: Optiona
 
 def build_melee_profile(impact_kind: str = "hit") -> CutinProfile:
     """格闘系統の共通演出プロファイルを生成する。
-    衝撃波・打撃演出の種類のみが可変で、突進・すり抜けタイムラインは完全に共通。
+    衝撃波の種類のみが可変で、タイムライン構造は共通。
     """
     return CutinProfile(
         actor_movement=ActorMovementTrack(
             start=0.0,
-            contact_time=0.30,
-            pass_start=0.35,
-            exit_time=0.65,
+            contact_time=0.45,
+            pass_start=0.85,
+            exit_time=1.25,
         ),
         impacts=(
-            ImpactTrack(start=0.30, end=0.58, kind=impact_kind),
+            ImpactTrack(start=0.45, end=0.85, kind=impact_kind),
         ),
-        popup=PopupTrack(start=0.65, miss_start=0.35),
-        extra_duration=0.15,
+        popup=PopupTrack(start=0.85, miss_start=0.85),
+        extra_duration=0.2,
     )
 
 
