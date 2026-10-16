@@ -1,13 +1,15 @@
-"""ロボットの視覚的な状態（アニメーションなど）を管理するクラス"""
-from typing import Dict, List
-
+"""ロボットの視覚的な状態（HPアニメーション・破壊フェードなど）を管理するクラス"""
+from typing import Dict, List, TYPE_CHECKING
 from domain.constants import PartType
+
+if TYPE_CHECKING:
+    from features.battle.models import Robot
 
 
 class RobotVisualState:
     """ロボットの視覚的な状態（アニメーションなど）を管理するクラス"""
 
-    def __init__(self, robot):
+    def __init__(self, robot: 'Robot'):
         self.robot = robot
         parts_hp = robot.get_parts_hp()
 
@@ -54,7 +56,6 @@ class RobotVisualState:
             return False
         head_hp = self.parts_display_hp.get(PartType.HEAD, 0.0)
         head_break = self.parts_break_progress.get(PartType.HEAD, 1.0)
-        # 頭部の表示HPが0より大きい、または破壊フェードの完了前であれば視覚的に生存
         return head_hp > 0.0 or head_break < 1.0
 
     @property
@@ -71,7 +72,6 @@ class RobotVisualState:
 
     def update(self, dt: float):
         """表示用HPの遅延減少アニメーションおよび破壊部位のフェード"""
-        # キュー待機中でなければ自動追従
         if not self._pending_step_targets and not self.is_hp_animating:
             for pt, hp in self.robot.get_parts_hp().items():
                 self.parts_target_hp[pt] = float(hp)
@@ -89,9 +89,6 @@ class RobotVisualState:
                     self.parts_display_hp[pt] += diff * 5.0 * dt
                     current_display = self.parts_display_hp[pt]
 
-            # 目標HPに応じた滑らかなグレーアウト進行
-            # 【要望】HPバー0(独立) → 当該部位グレーアウト(独立)
-            # 表示用HPが 0 に到達するまでは、グレーアウト目標を 0.0（未開始）とする
             if target_hp <= 0:
                 is_hp_zero = (current_display <= 0.0 or current_display == target_hp)
                 target_progress = 1.0 if is_hp_zero else 0.0

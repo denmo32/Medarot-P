@@ -9,14 +9,14 @@ from .atb_system import ATBEvent, ATBSystem
 from .commands import BattleCommand, SkipCommand, build_command_for_part
 from .ai_controller import AIController
 from .command_executor import CommandExecutor
-from .cutin_director import CutinDirector, CutinEvent
-from .targeting_resolver import TargetingResolver
 from .constants import BattlePhase, INTERRUPTIBLE_PHASES, PHASE_CONFIGS
 from .context import BattleContext
 from .factory import BattleFactory
 from .log_builder import BattleLogBuilder
 from .models import Robot, Part
-from .presentation import BattlePresentation
+from .presentation.presentation import BattlePresentation
+from .presentation.cutin_director import CutinEvent
+from .targeting_resolver import TargetingResolver
 
 
 class BattleManager:
@@ -35,7 +35,7 @@ class BattleManager:
         self.logs = BattleLogBuilder()
         self.atb = ATBSystem(self.ctx.robots)
         self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
-        self.presentation = BattlePresentation(self.ctx)
+        self.presentation = BattlePresentation(self.ctx.robots)
 
         self.change_phase(BattlePhase.INITIAL_SETUP)
 
@@ -89,12 +89,11 @@ class BattleManager:
                 self.change_phase(config.next_phase)
 
     def _handle_cutin_advance(self):
-        director = self.ctx.cutin_director
-        if not director:
+        if not self.presentation.cutin_director:
             self.complete_execution()
             return
 
-        for event in director.advance():
+        for event in self.presentation.advance_cutin():
             if event == CutinEvent.ANIMATION_FINISHED:
                 self.apply_execution_result()
                 self.change_phase(BattlePhase.CUTIN_RESULT)
@@ -137,13 +136,13 @@ class BattleManager:
         elif phase == BattlePhase.IDLE:
             self.update_atb(dt)
         elif phase == BattlePhase.CUTIN:
-            director = self.ctx.cutin_director
-            if director:
-                for event in director.update(dt):
+            events = self.presentation.update_cutin(dt)
+            if events:
+                for event in events:
                     if event == CutinEvent.ANIMATION_FINISHED:
                         self.apply_execution_result()
                         self.change_phase(BattlePhase.CUTIN_RESULT)
-            else:
+            elif not self.presentation.cutin_director:
                 self.apply_execution_result()
                 self.change_phase(BattlePhase.CUTIN_RESULT)
         elif phase in (BattlePhase.OPENING_POPUP, BattlePhase.TARGET_INDICATION):
@@ -179,11 +178,7 @@ class BattleManager:
         if presentation == SkillPresentation.CUTIN:
             report = self.ctx.current_report
             if report and report.result:
-                self.ctx.cutin_director = CutinDirector.create(
-                    part=part,
-                    result=report.result,
-                    has_pierce=report.has_pierce,
-                )
+                self.presentation.start_cutin(part, report)
             self.change_phase(BattlePhase.CUTIN)
         elif presentation == SkillPresentation.LOG_ONLY:
             if self.apply_execution_result():
@@ -270,15 +265,15 @@ class BattleManager:
         if report:
             self.presentation.stage_damage(report)
 
-        if self.ctx.cutin_director and report and report.result:
-            self.ctx.cutin_director.update_final_result(report.result)
+        if report and report.result:
+            self.presentation.update_cutin_result(report.result)
 
         return applied
 
     def complete_execution(self):
         self.presentation.sync_all_targets()
+        self.presentation.clear_cutin()
         self.ctx.current_report = None
-        self.ctx.cutin_director = None
 
         if self._check_battle_end():
             if not self.ctx.result_announced:
@@ -292,7 +287,6 @@ class BattleManager:
             self.change_phase(BattlePhase.IDLE)
 
     def select_command_slot(self, slot: CommandSlot):
-        """型安全な CommandSlot を直接受け取って処理"""
         actor = self.ctx.current_actor
         if not actor or self.ctx.phase != BattlePhase.INPUT:
             return

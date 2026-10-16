@@ -3,7 +3,7 @@ import pygame
 
 from ui.base.renderer import BaseRenderer
 from ui.battle import layout
-from features.battle.view_models import MessageWindowModel
+from features.battle.presentation.view_models import MessageWindowModel
 from ui.config import UI_PARAMS
 
 

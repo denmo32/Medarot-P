@@ -2,7 +2,13 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from domain.constants import AccentState, BadgeKind, GaugeStatus, PartType, TeamType
+from domain.constants import (
+    AccentState,
+    BadgeKind,
+    GaugeStatus,
+    PartType,
+    TeamType,
+)
 from features.battle.constants import BattlePhase
 from features.battle.input.command_menu_model import CommandMenuItemModel
 
@@ -46,8 +52,8 @@ class CommandMenuModel:
 @dataclass(frozen=True)
 class ActorMotionModel:
     """攻撃機体の移動演出モデル（接近・すり抜け）"""
-    phase: str  # "approach" (接近中) または "pass_through" (通り抜け中)
-    progress: float  # フェーズ内進行度 (0.0 ~ 1.0)
+    phase: str
+    progress: float
 
 
 @dataclass(frozen=True)
@@ -68,7 +74,6 @@ class CutinPopupModel:
 
 @dataclass(frozen=True)
 class ProjectileEffectModel:
-    """飛翔体（弾丸、ミサイルなど）の描画モデル"""
     progress: float
     kind: str = "bullet"
     is_hit: bool = True
@@ -76,7 +81,6 @@ class ProjectileEffectModel:
 
 @dataclass(frozen=True)
 class ImpactEffectModel:
-    """着弾・爆発・打撃衝撃の描画モデル"""
     progress: float
     kind: str = "hit"
 
@@ -88,7 +92,7 @@ class CutinModel:
     popup: Optional[CutinPopupModel] = None
     projectiles: List[ProjectileEffectModel] = field(default_factory=list)
     impacts: List[ImpactEffectModel] = field(default_factory=list)
-    camera_progress: Optional[float] = None  # None: 固定カメラ, 0.0~1.0: 追従スクロール
+    camera_progress: Optional[float] = None
 
 
 @dataclass(frozen=True)

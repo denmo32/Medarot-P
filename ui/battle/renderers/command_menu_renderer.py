@@ -3,7 +3,7 @@ import pygame
 
 from ui.base.renderer import BaseRenderer
 from ui.battle import layout
-from features.battle.view_models import CommandMenuModel
+from features.battle.presentation.view_models import CommandMenuModel
 
 
 class CommandMenuRenderer(BaseRenderer):

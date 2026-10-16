@@ -8,7 +8,7 @@ from ui.battle.renderers.overlay_renderer import OverlayRenderer
 from ui.battle.renderers.robot_renderer import RobotRenderer
 from ui.battle.renderers.status_panel_renderer import StatusPanelRenderer
 from ui.battle.renderers.target_radar_renderer import TargetRadarRenderer
-from features.battle.view_models import BattleRenderModel
+from features.battle.presentation.view_models import BattleRenderModel
 
 
 class BattleRenderer(BaseRenderer):

@@ -4,7 +4,7 @@ import pygame
 
 from ui.base.renderer import BaseRenderer
 from ui.battle import layout
-from features.battle.view_models import BattleRenderModel
+from features.battle.presentation.view_models import BattleRenderModel
 from ui.config import UI_PARAMS
 
 

@@ -3,7 +3,7 @@ import pygame
 from ui.base.renderer import BaseRenderer
 from ui.base.widgets import MedabotWidgets
 from ui.battle import layout
-from features.battle.view_models import BattleRenderModel, RobotViewModel
+from features.battle.presentation.view_models import BattleRenderModel, RobotViewModel
 from ui.config import UI_PARAMS, resolve_accent_color
 
 

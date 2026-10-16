@@ -11,7 +11,7 @@ from features.battle.input.command_menu_model import (
 )
 from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 from features.battle.manager import BattleManager
-from features.battle.view_builder import BattleViewBuilder
+from features.battle.presentation.view_builder import BattleViewBuilder
 from ui.base.interaction import handle_menu_mouse
 from ui.battle.layout import calculate_command_menu_rects
 from ui.battle.renderer import BattleRenderer

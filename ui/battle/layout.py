@@ -17,7 +17,7 @@ from domain.constants import (
 from ui.config import SCREEN_HEIGHT, UI_PARAMS
 
 if TYPE_CHECKING:
-    from features.battle.view_models import RobotViewModel, CutinActorModel
+    from features.battle.presentation.view_models import RobotViewModel, CutinActorModel
 
 
 # === スケーリング補助（BaseRenderer と同一の丸め規則） ===

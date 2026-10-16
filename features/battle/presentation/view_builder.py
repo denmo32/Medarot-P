@@ -1,5 +1,5 @@
 """BattleManager の状態から表示専用モデル (BattleRenderModel) を生成する。UI色・UIパラメータへの依存を排除。"""
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, TYPE_CHECKING
 from domain.constants import (
     ALL_PART_TYPES,
     PART_TYPE_LABELS,
@@ -13,18 +13,15 @@ from features.battle.commands import PartCommand
 from features.battle.constants import (
     BattlePhase,
     BattleTiming,
-    CutinStep,
     TARGET_RADAR_PHASES,
     TARGET_RADAR_STATIC_PHASES,
 )
-from features.battle.cutin_timeline import resolve_cutin_profile
 from features.battle.input.command_menu_model import build_command_menu_items
-from features.battle.view_models import (
+from .view_models import (
     CommandMenuModel,
     BattleRenderModel,
     CutinActorModel,
     CutinModel,
-    CutinPopupModel,
     EffectBadgeModel,
     MessageWindowModel,
     OverlayModel,
@@ -35,12 +32,14 @@ from features.battle.view_models import (
     TopStatusPanelModel,
 )
 
+if TYPE_CHECKING:
+    from features.battle.manager import BattleManager
+
 
 def _resolve_accent_state(gauge_status: GaugeStatus, is_alive: bool, is_stopped: bool) -> AccentState:
     if is_stopped:
         return AccentState.STOPPED
     if not is_alive:
-        # 機能停止時でもベースカラーは通常ニュートラル色にし、各部位の破壊色はpart_status側で担う
         return AccentState.NEUTRAL
     if gauge_status == GaugeStatus.CHARGING:
         return AccentState.CHARGING
@@ -68,7 +67,7 @@ CUTIN_PHASES = (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT)
 
 
 class BattleViewBuilder:
-    def __init__(self, manager):
+    def __init__(self, manager: 'BattleManager'):
         self.manager = manager
 
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
@@ -104,6 +103,7 @@ class BattleViewBuilder:
 
     def _build_robots(self) -> List[RobotViewModel]:
         robots = self.manager.ctx.robots
+        visual_states = self.manager.presentation.visual_states
         team_counts = {}
         for robot in robots:
             team_counts[robot.team] = team_counts.get(robot.team, 0) + 1
@@ -114,7 +114,7 @@ class BattleViewBuilder:
         for index, robot in enumerate(robots):
             team_index = team_indexes.get(robot.team, 0)
             team_indexes[robot.team] = team_index + 1
-            visual_state = self.manager.ctx.visual_states[robot]
+            visual_state = visual_states[robot]
             is_stopped = robot.is_stopped
             is_alive = visual_state.is_visually_alive
 
@@ -153,7 +153,7 @@ class BattleViewBuilder:
         )
 
     def _build_robot_card(self, robot_index: int, robot, is_combat_active: bool = False) -> RobotStatusCardModel:
-        visual_state = self.manager.ctx.visual_states[robot]
+        visual_state = self.manager.presentation.visual_states[robot]
         is_alive = visual_state.is_visually_alive
         parts_hp: List[PartMiniHpModel] = []
 
@@ -286,18 +286,19 @@ class BattleViewBuilder:
 
     def _build_cutin(self) -> Optional[CutinModel]:
         ctx = self.manager.ctx
-        if ctx.phase not in CUTIN_PHASES or ctx.cutin_director is None:
+        director = self.manager.presentation.cutin_director
+        if ctx.phase not in CUTIN_PHASES or director is None:
             return None
         actor = ctx.current_actor
         report = ctx.current_report
         if not (actor and report and report.target):
             return None
 
-        actor_model = _build_cutin_actor(actor, ctx.visual_states[actor])
-        target_model = _build_cutin_actor(report.target, ctx.visual_states[report.target])
+        visual_states = self.manager.presentation.visual_states
+        actor_model = _build_cutin_actor(actor, visual_states[actor])
+        target_model = _build_cutin_actor(report.target, visual_states[report.target])
 
-        # ディレクターに描画モデルの合成を委譲
-        return ctx.cutin_director.build_cutin_model(actor_model, target_model)
+        return director.build_cutin_model(actor_model, target_model)
 
     def _build_overlay(self, phase: BattlePhase) -> Optional[OverlayModel]:
         if phase == BattlePhase.OPENING_POPUP:

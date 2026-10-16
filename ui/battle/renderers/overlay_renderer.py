@@ -3,7 +3,7 @@ import pygame
 
 from domain.constants import TeamType
 from ui.base.renderer import BaseRenderer
-from features.battle.view_models import OverlayModel
+from features.battle.presentation.view_models import OverlayModel
 
 OPENING_POPUP_TEXT = "ロボトルファイト！"
 WINNER_TEXTS = {

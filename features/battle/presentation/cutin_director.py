@@ -5,12 +5,12 @@ from typing import List, Optional, TYPE_CHECKING
 
 from domain.models import ActionResult
 from features.battle.constants import CutinStep
-from features.battle.cutin_timeline import (
+from .cutin_timeline import (
     CutinProfile,
     resolve_cutin_popup,
     resolve_cutin_profile,
 )
-from features.battle.view_models import (
+from .view_models import (
     CutinActorModel,
     CutinModel,
 )
@@ -21,17 +21,13 @@ if TYPE_CHECKING:
 
 class CutinEvent(Enum):
     """カットイン演出のライフサイクルイベント"""
-    ANIMATION_FINISHED = auto()  # 飛翔・着弾アニメーション終了（結果適用契機）
-    PIERCE_ADVANCED = auto()     # 貫通ステップへ進んだ
-    COMPLETED = auto()           # カットイン全体の終了
+    ANIMATION_FINISHED = auto()
+    PIERCE_ADVANCED = auto()
+    COMPLETED = auto()
 
 
 class CutinDirector:
-    """カットイン演出の進行と描画モデルの構築を一元管理するディレクター。
-
-    アニメーション時間の管理、飛翔体・着弾エフェクトの評価、
-    ポップアップ内容の決定、および貫通（PIERCE）ステップへの遷移を担う。
-    """
+    """カットイン演出の進行と描画モデルの構築を一元管理するディレクター。"""
 
     def __init__(
         self,
@@ -57,7 +53,6 @@ class CutinDirector:
         result: ActionResult,
         has_pierce: bool,
     ) -> 'CutinDirector':
-        """使用パーツから演出プロファイルと再生時間を自動解決してディレクターを生成する。"""
         profile = resolve_cutin_profile(part)
         return cls(profile=profile, result=result, has_pierce=has_pierce, duration=profile.duration)
 
@@ -67,11 +62,9 @@ class CutinDirector:
 
     @property
     def is_animation_finished(self) -> bool:
-        """アニメーション（飛翔〜着弾）が完了したか"""
         return self._elapsed >= self._duration
 
     def update(self, dt: float) -> List[CutinEvent]:
-        """アニメーションの経過時間を進め、完了時に ANIMATION_FINISHED イベントを返す"""
         events: List[CutinEvent] = []
         if not self._is_result_shown and not self.is_animation_finished:
             self._elapsed = min(self._duration, self._elapsed + dt)
@@ -84,29 +77,23 @@ class CutinDirector:
         return events
 
     def advance(self) -> List[CutinEvent]:
-        """進行入力（キー押下など）を受け取り、演出ステップ遷移イベントを返す"""
-        # アニメーション再生中のスキップ要求
         if not self.is_animation_finished:
             self._elapsed = self._duration
             self._anim_finished_dispatched = True
             self.show_result()
             return [CutinEvent.ANIMATION_FINISHED]
 
-        # 結果表示中：貫通ステップへの遷移
         if self._step == CutinStep.PRIMARY and self._has_pierce:
             self._step = CutinStep.PIERCE
             self._is_result_shown = True
             return [CutinEvent.PIERCE_ADVANCED]
 
-        # 演出終了
         return [CutinEvent.COMPLETED]
 
     def show_result(self):
-        """アニメーション終了後の結果表示状態に移行する"""
         self._is_result_shown = True
 
     def update_final_result(self, result: ActionResult):
-        """世界状態へ反映・確定された最終 ActionResult を同期する"""
         self._result = result
 
     def build_cutin_model(
@@ -114,7 +101,6 @@ class CutinDirector:
         actor_model: CutinActorModel,
         target_model: CutinActorModel,
     ) -> CutinModel:
-        """現在の演出状態に基づく CutinModel を構築する（副作用のない純粋クエリ）"""
         camera_progress: Optional[float] = None
         if self._profile.camera_track is not None:
             camera_progress = self._profile.camera_track.evaluate(self._elapsed)

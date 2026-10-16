@@ -5,7 +5,7 @@ from typing import List, Tuple
 from domain.constants import BadgeKind
 from ui.base.renderer import BaseRenderer
 from ui.battle import layout
-from features.battle.view_models import (
+from features.battle.presentation.view_models import (
     TopStatusPanelModel,
     RobotStatusCardModel,
     PartMiniHpModel,
