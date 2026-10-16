@@ -13,6 +13,7 @@ from scenes.customize_scene import CustomizeScene
 from data.game_data_manager import GameDataManager
 from data.save_data_manager import SaveDataManager
 from core.scene_manager import SceneManager, SceneContext
+from infra.event_reader import PygameEventReader
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: [%(name)s] %(message)s")
 pygame.init()
@@ -22,12 +23,15 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Medarot-P")
 
+    # データリポジトリおよびイベントリーダー（具象アダプター）の生成
     data_manager = GameDataManager()
     save_manager = SaveDataManager(data_manager)
+    event_reader = PygameEventReader()
 
     ctx = SceneContext(screen, data_manager, save_manager)
 
-    manager = SceneManager(ctx)
+    # Composition Root において、依存性を明示的に注入
+    manager = SceneManager(ctx, event_reader=event_reader)
     manager.register_scene(SceneId.TITLE, TitleScene)
     manager.register_scene(SceneId.BATTLE, BattleScene)
     manager.register_scene(SceneId.CUSTOMIZE, CustomizeScene)

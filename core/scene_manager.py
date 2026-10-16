@@ -6,7 +6,6 @@ import logging
 
 from domain.constants import SceneId
 from core.inputs import InputState, EventReaderProtocol
-from infra.event_reader import PygameEventReader
 from domain.models import GameDataProtocol, SaveDataProtocol
 
 logger = logging.getLogger(__name__)
@@ -76,10 +75,9 @@ class Scene:
 class SceneManager:
     """シーンのライフサイクルと遷移を一元管理する"""
 
-    def __init__(self, ctx: SceneContext, event_reader: Optional[EventReaderProtocol] = None):
+    def __init__(self, ctx: SceneContext, event_reader: EventReaderProtocol):
         self.ctx = ctx
-        # 入力リーダーを注入可能にする（未指定の場合はデフォルトの PygameEventReader を使用）
-        self.event_reader = event_reader if event_reader is not None else PygameEventReader()
+        self.event_reader = event_reader
         self.scene_classes: Dict[SceneId, Type[Scene]] = {}
         self.current_scene: Optional[Scene] = None
 
