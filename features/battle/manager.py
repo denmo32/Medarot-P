@@ -14,7 +14,7 @@ from .context import BattleContext
 from .factory import BattleFactory
 from .log_builder import BattleLogBuilder
 from .models import Robot, Part
-from .presentation.presentation import BattlePresentation
+from .presentation.visual_coordinator import VisualCoordinator
 from .presentation.cutin_director import CutinEvent
 from .targeting_resolver import TargetingResolver
 
@@ -35,7 +35,7 @@ class BattleManager:
         self.logs = BattleLogBuilder()
         self.atb = ATBSystem(self.ctx.robots)
         self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
-        self.presentation = BattlePresentation(self.ctx.robots)
+        self.visual = VisualCoordinator(self.ctx.robots)
 
         self.change_phase(BattlePhase.INITIAL_SETUP)
 
@@ -61,7 +61,7 @@ class BattleManager:
     def change_phase(self, new_phase: BattlePhase):
         self.ctx.phase = new_phase
         config = PHASE_CONFIGS.get(new_phase)
-        self.presentation.start_phase_timer(config.duration if config else 0.0)
+        self.visual.start_phase_timer(config.duration if config else 0.0)
 
         if new_phase == BattlePhase.OPENING_LOG:
             self.ctx.set_log(self.logs.opening())
@@ -69,7 +69,7 @@ class BattleManager:
             self._enter_attack_declaration()
 
     def advance_phase(self):
-        if self.presentation.is_busy():
+        if self.visual.is_busy():
             return
 
         phase = self.ctx.phase
@@ -89,11 +89,11 @@ class BattleManager:
                 self.change_phase(config.next_phase)
 
     def _handle_cutin_advance(self):
-        if not self.presentation.cutin_director:
+        if not self.visual.cutin_director:
             self.complete_execution()
             return
 
-        for event in self.presentation.advance_cutin():
+        for event in self.visual.advance_cutin():
             if event == CutinEvent.ANIMATION_FINISHED:
                 self.apply_execution_result()
                 self.change_phase(BattlePhase.CUTIN_RESULT)
@@ -101,12 +101,12 @@ class BattleManager:
                 self.ctx.set_log(["貫通ダメージ！"])
                 report = self.ctx.current_report
                 if report and report.target:
-                    self.presentation.advance_damage_step(report.target)
+                    self.visual.advance_damage_step(report.target)
             elif event == CutinEvent.COMPLETED:
                 self.complete_execution()
 
     def update(self, dt: float):
-        self.presentation.update(dt)
+        self.visual.update(dt)
 
         if self.ctx.phase in (
             BattlePhase.CUTIN,
@@ -118,7 +118,7 @@ class BattleManager:
             return
 
         if self._check_battle_end():
-            if not self.presentation.is_hp_animating():
+            if not self.visual.is_hp_animating():
                 self.complete_execution()
             return
 
@@ -136,17 +136,17 @@ class BattleManager:
         elif phase == BattlePhase.IDLE:
             self.update_atb(dt)
         elif phase == BattlePhase.CUTIN:
-            events = self.presentation.update_cutin(dt)
+            events = self.visual.update_cutin(dt)
             if events:
                 for event in events:
                     if event == CutinEvent.ANIMATION_FINISHED:
                         self.apply_execution_result()
                         self.change_phase(BattlePhase.CUTIN_RESULT)
-            elif not self.presentation.cutin_director:
+            elif not self.visual.cutin_director:
                 self.apply_execution_result()
                 self.change_phase(BattlePhase.CUTIN_RESULT)
         elif phase in (BattlePhase.OPENING_POPUP, BattlePhase.TARGET_INDICATION):
-            if self.presentation.is_timer_expired():
+            if self.visual.is_timer_expired():
                 config = PHASE_CONFIGS.get(phase)
                 next_phase = config.next_phase if config else None
                 if next_phase is None:
@@ -178,7 +178,7 @@ class BattleManager:
         if presentation == SkillPresentation.CUTIN:
             report = self.ctx.current_report
             if report and report.result:
-                self.presentation.start_cutin(part, report)
+                self.visual.start_cutin(part, report)
             self.change_phase(BattlePhase.CUTIN)
         elif presentation == SkillPresentation.LOG_ONLY:
             if self.apply_execution_result():
@@ -203,7 +203,7 @@ class BattleManager:
         return is_ended
 
     def _handle_charging_interrupts(self):
-        if self.presentation.is_hp_animating() or self.ctx.phase not in INTERRUPTIBLE_PHASES:
+        if self.visual.is_hp_animating() or self.ctx.phase not in INTERRUPTIBLE_PHASES:
             return
 
         interrupted = False
@@ -232,14 +232,14 @@ class BattleManager:
         self.change_phase(BattlePhase.INPUT)
 
     def is_hp_animating(self) -> bool:
-        return self.presentation.is_hp_animating()
+        return self.visual.is_hp_animating()
 
     def is_waiting_for_advance(self) -> bool:
-        return self.presentation.is_waiting_for_advance(self.ctx.phase)
+        return self.visual.is_waiting_for_advance(self.ctx.phase)
 
     def update_atb(self, dt: float):
         if self._check_battle_end():
-            if not self.presentation.is_hp_animating():
+            if not self.visual.is_hp_animating():
                 self.complete_execution()
             return
 
@@ -263,16 +263,16 @@ class BattleManager:
         report = self.ctx.current_report
 
         if report:
-            self.presentation.stage_damage(report)
+            self.visual.stage_damage(report)
 
         if report and report.result:
-            self.presentation.update_cutin_result(report.result)
+            self.visual.update_cutin_result(report.result)
 
         return applied
 
     def complete_execution(self):
-        self.presentation.sync_all_targets()
-        self.presentation.clear_cutin()
+        self.visual.sync_all_targets()
+        self.visual.clear_cutin()
         self.ctx.current_report = None
 
         if self._check_battle_end():

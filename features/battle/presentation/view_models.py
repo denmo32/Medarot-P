@@ -5,12 +5,23 @@ from typing import Dict, List, Optional
 from domain.constants import (
     AccentState,
     BadgeKind,
+    CommandSlot,
     GaugeStatus,
     PartType,
     TeamType,
 )
 from features.battle.constants import BattlePhase
-from features.battle.input.command_menu_model import CommandMenuItemModel
+
+
+@dataclass(frozen=True)
+class CommandMenuItemModel:
+    """コマンドメニュー項目の表示用モデル"""
+    slot_type: CommandSlot
+    label: str
+    action_label: str
+    visual_enabled: bool
+    selectable: bool
+    preview_target_robot_index: Optional[int] = None
 
 
 @dataclass(frozen=True)

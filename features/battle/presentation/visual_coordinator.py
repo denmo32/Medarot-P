@@ -1,9 +1,9 @@
-"""バトルの演出進行（HPアニメーション、タイマー、カットイン）を一元管理するプレゼンテーション層。"""
+"""バトルの演出進行（HPアニメーション、タイマー、カットイン）を一元管理するコーディネーター。"""
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
+from domain.constants import PartType
 from features.battle.constants import ADVANCEABLE_PHASES, BattlePhase
 from .cutin_director import CutinDirector, CutinEvent
-from .visual_damage import build_damage_visual_steps
 from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
@@ -12,7 +12,24 @@ if TYPE_CHECKING:
     from features.battle.models import Part, Robot
 
 
-class BattlePresentation:
+def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType, float]]:
+    """ExecutionReport から視覚演出（多段階HP変動など）のステップリストを生成する純粋関数"""
+    if not report.target or not report.result or not report.result.success:
+        return []
+
+    steps: List[Dict[PartType, float]] = []
+    hit_part = report.result.hit_part
+    if hit_part:
+        steps.append({hit_part: float(report.target.get_part_hp(hit_part))})
+
+    pierce = report.pierce_effect
+    if pierce:
+        steps.append({pierce.part_type: float(report.target.get_part_hp(pierce.part_type))})
+
+    return steps
+
+
+class VisualCoordinator:
     """戦闘の視覚演出（HP変動アニメーション・演出待機タイマー・カットイン）を一元管理する。
 
     BattleManager や BattleContext から表示・演出の低レベルな関心事を完全に切り離し、
@@ -63,7 +80,7 @@ class BattlePresentation:
 
     def stage_damage(self, report: 'ExecutionReport'):
         if report and report.target:
-            steps = build_damage_visual_steps(report)
+            steps = _build_damage_visual_steps(report)
             if steps:
                 self.visual_states[report.target].stage_damage_steps(steps)
 

@@ -5,15 +5,13 @@ from core.scene_manager import Scene, SceneTransition
 from domain.constants import SceneId
 from features.battle.constants import BattlePhase
 from features.battle.factory import BattleFactory
-from features.battle.input.command_menu_model import (
+from features.battle.presentation.command_menu_builder import (
     build_command_menu_items,
     to_selectable_mask,
 )
 from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 from features.battle.manager import BattleManager
 from features.battle.presentation.view_builder import BattleViewBuilder
-from ui.base.interaction import handle_menu_mouse
-from ui.battle.layout import calculate_command_menu_rects
 from ui.battle.renderer import BattleRenderer
 
 
@@ -27,7 +25,8 @@ class BattleScene(Scene):
         enemy_setups = BattleFactory.get_enemy_setups(ctx.data_manager, rng=battle_rng)
 
         self.manager = BattleManager(player_setups, enemy_setups, ctx.data_manager, seed=self.seed)
-        self.view_builder = BattleViewBuilder(self.manager)
+        # manager の内部ではなく、必要なコンテキストと演出コーディネーターを明示的に注入
+        self.view_builder = BattleViewBuilder(self.manager.ctx, self.manager.visual)
         # screen が渡されている場合のみ Renderer を生成（ヘッドレステスト環境に対応）
         self.renderer = BattleRenderer(self.screen) if self.screen is not None else None
         self.selected_button_index = 0
@@ -68,12 +67,15 @@ class BattleScene(Scene):
             self._confirm_selection(items)
 
     def _handle_mouse_input(self, items, selectable_mask, input_state):
-        if self.screen is None:
+        if self.renderer is None:
             return
-        sw, sh = self.screen.get_size()
-        layouts = calculate_command_menu_rects(len(items), (sw, sh))
-        new_index, confirmed = handle_menu_mouse(
-            (input_state.mouse_x, input_state.mouse_y), True, layouts, self.selected_button_index
+
+        # UIのレイアウト・当たり判定は Renderer へ完全に委譲
+        new_index, confirmed = self.renderer.hit_test_command_menu(
+            (input_state.mouse_x, input_state.mouse_y),
+            True,
+            len(items),
+            self.selected_button_index,
         )
         if 0 <= new_index < len(selectable_mask) and selectable_mask[new_index]:
             self.selected_button_index = new_index

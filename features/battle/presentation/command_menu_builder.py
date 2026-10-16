@@ -1,9 +1,9 @@
-"""コマンドメニューの項目情報と入力可否を組み立てるロジック。"""
-from dataclasses import dataclass
+"""コマンドメニューの項目情報（CommandMenuItemModel）を組み立てるビルダーロジック。"""
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType
 from domain.action_logic import get_action_definition
+from .view_models import CommandMenuItemModel
 
 if TYPE_CHECKING:
     from features.battle.models import Robot
@@ -13,21 +13,12 @@ SKIP_ACTION_LABEL = "なし"
 EMPTY_LABEL = "---"
 
 
-@dataclass(frozen=True)
-class CommandMenuItemModel:
-    slot_type: CommandSlot
-    label: str
-    action_label: str
-    visual_enabled: bool
-    selectable: bool
-    preview_target_robot_index: Optional[int] = None
-
-
 def build_command_menu_items(
     actor: Optional['Robot'],
     preview_targets: Mapping[PartType, Optional[Tuple['Robot', Optional[PartType]]]],
     robots: Sequence['Robot'],
 ) -> List[CommandMenuItemModel]:
+    """現在のアクター機体とターゲット情報からメニュー項目モデルの一覧を生成する"""
     items: List[CommandMenuItemModel] = []
 
     for part_type in ACTIONABLE_PART_TYPES:
@@ -72,6 +63,7 @@ def build_command_menu_items(
 
 
 def to_selectable_mask(items: Sequence[CommandMenuItemModel]) -> List[bool]:
+    """項目一覧から選択可能フラグのリストを抽出する"""
     return [item.selectable for item in items]
 
 
