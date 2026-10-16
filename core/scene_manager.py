@@ -1,9 +1,8 @@
-"""シーン管理を統括するクラス（型付き遷移・イベント一元集約）"""
+"""シーン管理を統括するクラス（型付き遷移・イベント一元集約・描画抽象化）"""
 
-from typing import Dict, Optional, Type, Any
+from typing import Dict, Optional, Tuple, Type, Any, Protocol, runtime_checkable
 from dataclasses import dataclass, field
 import logging
-import pygame
 
 from domain.constants import SceneId
 from core.inputs import InputState, EventReaderProtocol
@@ -11,6 +10,18 @@ from infra.event_reader import PygameEventReader
 from domain.models import GameDataProtocol, SaveDataProtocol
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class RenderSurfaceProtocol(Protocol):
+    """描画対象サーフェスの抽象プロトコル。
+    
+    pygame.Surface への具象依存を排除し、ヘッドレステストや別グラフィック基盤への
+    差し替えを可能にします。
+    """
+    def get_size(self) -> Tuple[int, int]: ...
+    def get_width(self) -> int: ...
+    def get_height(self) -> int: ...
 
 
 @dataclass(frozen=True)
@@ -35,8 +46,8 @@ class SceneTransition:
 
 @dataclass
 class SceneContext:
-    """シーン間で共有される依存関係"""
-    screen: pygame.Surface
+    """シーン間で共有される依存関係（すべて Protocol または抽象型で統一）"""
+    screen: Optional[RenderSurfaceProtocol]
     data_manager: GameDataProtocol
     save_manager: SaveDataProtocol
 

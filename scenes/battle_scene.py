@@ -1,4 +1,4 @@
-"""バトル画面のシーン（型付き遷移・集約入力駆動・決定論的RNG）"""
+"""バトル画面のシーン（型付き遷移・集約入力駆動・決定論的RNG・ヘッドレス両対応）"""
 import random
 from typing import Optional
 from core.scene_manager import Scene, SceneTransition
@@ -28,7 +28,8 @@ class BattleScene(Scene):
 
         self.manager = BattleManager(player_setups, enemy_setups, ctx.data_manager, seed=self.seed)
         self.view_builder = BattleViewBuilder(self.manager)
-        self.renderer = BattleRenderer(self.screen)
+        # screen が渡されている場合のみ Renderer を生成（ヘッドレステスト環境に対応）
+        self.renderer = BattleRenderer(self.screen) if self.screen is not None else None
         self.selected_button_index = 0
 
     def handle_input(self, input_state) -> SceneTransition:
@@ -67,6 +68,8 @@ class BattleScene(Scene):
             self._confirm_selection(items)
 
     def _handle_mouse_input(self, items, selectable_mask, input_state):
+        if self.screen is None:
+            return
         sw, sh = self.screen.get_size()
         layouts = calculate_command_menu_rects(len(items), (sw, sh))
         new_index, confirmed = handle_menu_mouse(
@@ -94,4 +97,5 @@ class BattleScene(Scene):
         self.manager.update(dt)
 
     def render(self):
-        self.renderer.render(self.view_builder.build(self.selected_button_index))
+        if self.renderer is not None:
+            self.renderer.render(self.view_builder.build(self.selected_button_index))
