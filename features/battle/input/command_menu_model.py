@@ -1,9 +1,9 @@
 """コマンドメニューの項目情報と入力可否を組み立てるロジック。"""
+from dataclasses import dataclass
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType
 from domain.action_logic import get_action_definition
-from features.battle.view_models import CommandMenuItemModel
 
 if TYPE_CHECKING:
     from features.battle.models import Robot
@@ -11,6 +11,16 @@ if TYPE_CHECKING:
 SKIP_LABEL = "スキップ"
 SKIP_ACTION_LABEL = "なし"
 EMPTY_LABEL = "---"
+
+
+@dataclass(frozen=True)
+class CommandMenuItemModel:
+    slot_type: CommandSlot
+    label: str
+    action_label: str
+    visual_enabled: bool
+    selectable: bool
+    preview_target_robot_index: Optional[int] = None
 
 
 def build_command_menu_items(

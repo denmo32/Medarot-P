@@ -2,18 +2,9 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from domain.constants import AccentState, BadgeKind, CommandSlot, GaugeStatus, PartType, TeamType
+from domain.constants import AccentState, BadgeKind, GaugeStatus, PartType, TeamType
 from features.battle.constants import BattlePhase
-
-
-@dataclass(frozen=True)
-class CommandMenuItemModel:
-    slot_type: CommandSlot
-    label: str
-    action_label: str
-    visual_enabled: bool
-    selectable: bool
-    preview_target_robot_index: Optional[int] = None
+from features.battle.input.command_menu_model import CommandMenuItemModel
 
 
 @dataclass(frozen=True)
