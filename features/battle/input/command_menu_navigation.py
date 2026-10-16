@@ -5,6 +5,7 @@
 """
 from typing import Sequence
 
+from core.inputs import InputState
 from domain.constants import (
     COMMAND_MENU_HEAD_INDEX,
     COMMAND_MENU_LEFT_ARM_INDEX,
@@ -15,13 +16,11 @@ from domain.constants import (
 
 def resolve_command_menu_navigation(
     current_index: int,
-    input_state,
+    input_state: InputState,
     selectable_mask: Sequence[bool],
 ) -> int:
     """入力に基づく次の選択インデックスを計算して返す（純粋関数）。
 
-    `input_state` は btn_up/btn_down/btn_left/btn_right を持つ任意オブジェクト
-    （core 側の InputState、ダックタイピング）を受け付ける。
     移動先が選択不可（selectable が False）の場合は現在位置を維持する。
     """
     new_index = current_index
