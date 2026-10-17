@@ -11,7 +11,6 @@ from domain.constants import (
     TeamType,
 )
 from domain.models import ActionResult
-from features.battle.commands import PartCommand
 from features.battle.constants import (
     BattlePhase,
     BattleTiming,
@@ -297,8 +296,8 @@ class BattleViewBuilder:
     def _build_target_text(self, robot) -> Optional[str]:
         if not robot.is_charging:
             return None
-        command = robot.current_command
-        if not isinstance(command, PartCommand):
+        command = robot.current_part_command
+        if command is None:
             return None
         part = robot.current_part
         if not part:
