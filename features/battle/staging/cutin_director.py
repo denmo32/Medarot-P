@@ -3,11 +3,11 @@ from enum import Enum, auto
 from typing import List, Optional, TYPE_CHECKING
 
 from domain.models import ActionResult
-from .constants import CutinStep
+from ..constants import CutinStep
 from .cutin_timeline import CutinProfile, resolve_cutin_profile
 
 if TYPE_CHECKING:
-    from .models import Part
+    from ..models import Part
 
 
 class CutinEvent(Enum):

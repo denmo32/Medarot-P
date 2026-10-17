@@ -19,6 +19,8 @@ from features.battle.constants import (
     TARGET_RADAR_PHASES,
     TARGET_RADAR_STATIC_PHASES,
 )
+from features.battle.staging.cutin_director import CutinDirector
+from features.battle.staging.visual_coordinator import VisualCoordinator
 from .command_menu_builder import build_command_menu_items
 from .view_models import (
     CommandMenuModel,
@@ -38,8 +40,6 @@ from .view_models import (
 
 if TYPE_CHECKING:
     from features.battle.context import BattleContext
-    from features.battle.cutin_director import CutinDirector
-    from features.battle.visual_coordinator import VisualCoordinator
 
 CUTIN_POPUP_LABELS = {
     "critical": "CRITICAL!!",
@@ -82,7 +82,7 @@ def _resolve_cutin_popup(result: ActionResult, step: CutinStep) -> CutinPopupMod
 
 
 def _build_cutin_model(
-    director: 'CutinDirector',
+    director: CutinDirector,
     actor_model: CutinActorModel,
     target_model: CutinActorModel,
 ) -> CutinModel:
@@ -175,7 +175,7 @@ CUTIN_PHASES = (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT)
 class BattleViewBuilder:
     """戦闘状態（Context）と演出状態（Visual）から描画用モデルを一括生成するプロジェクター"""
 
-    def __init__(self, ctx: 'BattleContext', visual: 'VisualCoordinator'):
+    def __init__(self, ctx: 'BattleContext', visual: VisualCoordinator):
         self.ctx = ctx
         self.visual = visual
 

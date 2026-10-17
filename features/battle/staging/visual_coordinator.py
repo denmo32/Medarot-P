@@ -2,14 +2,14 @@
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from domain.constants import PartType
-from .constants import ADVANCEABLE_PHASES, BattlePhase
+from ..constants import ADVANCEABLE_PHASES, BattlePhase
 from .cutin_director import CutinDirector, CutinEvent
 from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
     from domain.models import ActionResult
-    from .commands import ExecutionReport
-    from .models import Part, Robot
+    from ..commands import ExecutionReport
+    from ..models import Part, Robot
 
 
 def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType, float]]:

@@ -11,7 +11,7 @@ from domain.constants import (
     TeamType,
 )
 from features.battle.constants import BattlePhase
-from features.battle.cutin_timeline import (
+from features.battle.staging.cutin_timeline import (
     ActorMotion as ActorMotionModel,
     ImpactMotion as ImpactEffectModel,
     ProjectileMotion as ProjectileEffectModel,

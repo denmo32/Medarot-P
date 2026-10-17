@@ -11,12 +11,12 @@ from .ai_controller import AIController
 from .command_executor import CommandExecutor
 from .constants import BattlePhase, INTERRUPTIBLE_PHASES, PHASE_CONFIGS
 from .context import BattleContext
-from .cutin_director import CutinEvent
 from .factory import BattleFactory
 from .log_builder import BattleLogBuilder
 from .models import Robot, Part
+from .staging.cutin_director import CutinEvent
+from .staging.visual_coordinator import VisualCoordinator
 from .targeting_resolver import TargetingResolver
-from .visual_coordinator import VisualCoordinator
 
 
 class BattleManager:
