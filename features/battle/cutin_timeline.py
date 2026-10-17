@@ -1,16 +1,33 @@
-"""カットイン演出のタイムライン管理・データ駆動エフェクトプロファイル。"""
+"""カットイン演出のタイムライン管理・データ駆動エフェクトプロファイル。
+
+UI や表示モデル（View Model）には依存せず、時間軸上の進行率・位置の計算のみを担います。
+"""
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
 from domain.constants import ActionCategory, SkillType
-from domain.models import ActionResult
-from features.battle.constants import CutinStep
-from .view_models import (
-    ActorMotionModel,
-    CutinPopupModel,
-    ImpactEffectModel,
-    ProjectileEffectModel,
-)
+
+
+@dataclass(frozen=True)
+class ProjectileMotion:
+    """飛翔体の時間軸進行データ"""
+    progress: float
+    kind: str = "bullet"
+    is_hit: bool = True
+
+
+@dataclass(frozen=True)
+class ImpactMotion:
+    """衝撃エフェクトの時間軸進行データ"""
+    progress: float
+    kind: str = "hit"
+
+
+@dataclass(frozen=True)
+class ActorMotion:
+    """攻撃機体の移動演出データ（接近・すり抜け）"""
+    phase: str
+    progress: float
 
 
 @dataclass(frozen=True)
@@ -28,7 +45,7 @@ class ProjectileTrack:
             return max(self.end, self.miss_end)
         return max(self.end, self.start + (self.end - self.start) * self.pass_through_factor)
 
-    def evaluate(self, elapsed: float, is_hit: bool = True) -> Optional[ProjectileEffectModel]:
+    def evaluate(self, elapsed: float, is_hit: bool = True) -> Optional[ProjectileMotion]:
         effective_end = self.end if is_hit else (
             self.miss_end if self.miss_end is not None else self.start + (self.end - self.start) * self.pass_through_factor
         )
@@ -37,7 +54,7 @@ class ProjectileTrack:
             progress = max(0.0, (elapsed - self.start) / dur)
             if is_hit:
                 progress = min(1.0, progress)
-            return ProjectileEffectModel(progress=progress, kind=self.kind, is_hit=is_hit)
+            return ProjectileMotion(progress=progress, kind=self.kind, is_hit=is_hit)
         return None
 
 
@@ -53,13 +70,13 @@ class ImpactTrack:
     def max_time(self) -> float:
         return self.end
 
-    def evaluate(self, elapsed: float, is_hit: bool) -> Optional[ImpactEffectModel]:
+    def evaluate(self, elapsed: float, is_hit: bool) -> Optional[ImpactMotion]:
         if self.only_on_hit and not is_hit:
             return None
         if self.start <= elapsed < self.end:
             dur = max(0.001, self.end - self.start)
             progress = max(0.0, min(1.0, (elapsed - self.start) / dur))
-            return ImpactEffectModel(progress=progress, kind=self.kind)
+            return ImpactMotion(progress=progress, kind=self.kind)
         return None
 
 
@@ -86,7 +103,7 @@ class ActorMovementTrack:
     def max_time(self) -> float:
         return self.exit_time
 
-    def evaluate(self, elapsed: float) -> Tuple[bool, Optional[ActorMotionModel]]:
+    def evaluate(self, elapsed: float) -> Tuple[bool, Optional[ActorMotion]]:
         if elapsed < self.start:
             return True, None
 
@@ -94,16 +111,16 @@ class ActorMovementTrack:
             dur = max(0.001, self.contact_time - self.start)
             raw_p = (elapsed - self.start) / dur
             p = raw_p * raw_p
-            return True, ActorMotionModel(phase="approach", progress=min(1.0, max(0.0, p)))
+            return True, ActorMotion(phase="approach", progress=min(1.0, max(0.0, p)))
 
         if elapsed < self.pass_start:
-            return True, ActorMotionModel(phase="approach", progress=1.0)
+            return True, ActorMotion(phase="approach", progress=1.0)
 
         if elapsed < self.exit_time:
             dur = max(0.001, self.exit_time - self.pass_start)
             raw_p = (elapsed - self.pass_start) / dur
             p = raw_p * raw_p
-            return True, ActorMotionModel(phase="pass_through", progress=min(1.0, max(0.0, p)))
+            return True, ActorMotion(phase="pass_through", progress=min(1.0, max(0.0, p)))
 
         return False, None
 
@@ -224,43 +241,3 @@ def resolve_cutin_profile(part) -> CutinProfile:
         return build_melee_profile(impact_kind=impact_kind)
 
     return FALLBACK_PROFILE
-
-
-CUTIN_POPUP_LABELS = {
-    "critical": "CRITICAL!!",
-    "guard": "GUARD",
-    "hit": "HIT!",
-    "miss": "MISS!",
-    "pierce": "PENETRATION",
-}
-
-
-def resolve_cutin_popup(result: ActionResult, step: CutinStep) -> CutinPopupModel:
-    if step == CutinStep.PIERCE:
-        pierce = result.pierce_effect
-        dmg = pierce.effective_damage if pierce else 0
-        return CutinPopupModel(
-            primary_label=CUTIN_POPUP_LABELS["pierce"],
-            damage_label=f"-{dmg}",
-            is_miss=False,
-        )
-
-    if not result.success:
-        return CutinPopupModel(
-            primary_label="",
-            damage_label=CUTIN_POPUP_LABELS["miss"],
-            is_miss=True,
-        )
-
-    if result.is_critical:
-        label = CUTIN_POPUP_LABELS["critical"]
-    elif result.is_guarded:
-        label = CUTIN_POPUP_LABELS["guard"]
-    else:
-        label = CUTIN_POPUP_LABELS["hit"]
-
-    return CutinPopupModel(
-        primary_label=label,
-        damage_label=f"-{result.effective_damage}",
-        is_miss=False,
-    )

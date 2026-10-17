@@ -1,4 +1,5 @@
 """BattleContext および VisualCoordinator から表示専用モデル (BattleRenderModel) を生成する。"""
+import dataclasses
 from typing import List, Optional, Sequence, TYPE_CHECKING
 from domain.constants import (
     ALL_PART_TYPES,
@@ -9,10 +10,12 @@ from domain.constants import (
     GaugeStatus,
     TeamType,
 )
+from domain.models import ActionResult
 from features.battle.commands import PartCommand
 from features.battle.constants import (
     BattlePhase,
     BattleTiming,
+    CutinStep,
     TARGET_RADAR_PHASES,
     TARGET_RADAR_STATIC_PHASES,
 )
@@ -22,6 +25,7 @@ from .view_models import (
     BattleRenderModel,
     CutinActorModel,
     CutinModel,
+    CutinPopupModel,
     EffectBadgeModel,
     MessageWindowModel,
     OverlayModel,
@@ -34,7 +38,108 @@ from .view_models import (
 
 if TYPE_CHECKING:
     from features.battle.context import BattleContext
-    from .visual_coordinator import VisualCoordinator
+    from features.battle.cutin_director import CutinDirector
+    from features.battle.visual_coordinator import VisualCoordinator
+
+CUTIN_POPUP_LABELS = {
+    "critical": "CRITICAL!!",
+    "guard": "GUARD",
+    "hit": "HIT!",
+    "miss": "MISS!",
+    "pierce": "PENETRATION",
+}
+
+
+def _resolve_cutin_popup(result: ActionResult, step: CutinStep) -> CutinPopupModel:
+    if step == CutinStep.PIERCE:
+        pierce = result.pierce_effect
+        dmg = pierce.effective_damage if pierce else 0
+        return CutinPopupModel(
+            primary_label=CUTIN_POPUP_LABELS["pierce"],
+            damage_label=f"-{dmg}",
+            is_miss=False,
+        )
+
+    if not result.success:
+        return CutinPopupModel(
+            primary_label="",
+            damage_label=CUTIN_POPUP_LABELS["miss"],
+            is_miss=True,
+        )
+
+    if result.is_critical:
+        label = CUTIN_POPUP_LABELS["critical"]
+    elif result.is_guarded:
+        label = CUTIN_POPUP_LABELS["guard"]
+    else:
+        label = CUTIN_POPUP_LABELS["hit"]
+
+    return CutinPopupModel(
+        primary_label=label,
+        damage_label=f"-{result.effective_damage}",
+        is_miss=False,
+    )
+
+
+def _build_cutin_model(
+    director: 'CutinDirector',
+    actor_model: CutinActorModel,
+    target_model: CutinActorModel,
+) -> CutinModel:
+    profile = director.profile
+    elapsed = director.elapsed
+    step = director.step
+    result = director.result
+
+    camera_progress: Optional[float] = None
+    if profile.camera_track is not None:
+        camera_progress = profile.camera_track.evaluate(elapsed)
+
+    if step == CutinStep.PIERCE or director.is_result_shown:
+        if profile.actor_movement is not None:
+            actor_model = dataclasses.replace(actor_model, is_visible=False, motion=None)
+        elif profile.camera_track is not None:
+            camera_progress = 1.0
+            actor_model = dataclasses.replace(actor_model, is_visible=False)
+
+        return CutinModel(
+            actor=actor_model,
+            target=target_model,
+            popup=_resolve_cutin_popup(result, step),
+            projectiles=[],
+            impacts=[],
+            camera_progress=camera_progress,
+        )
+
+    is_hit = result.success
+
+    if profile.actor_movement is not None:
+        is_visible, motion = profile.actor_movement.evaluate(elapsed)
+        actor_model = dataclasses.replace(actor_model, is_visible=is_visible, motion=motion)
+    elif camera_progress is not None:
+        is_visible = camera_progress < 1.0
+        actor_model = dataclasses.replace(actor_model, is_visible=is_visible)
+
+    projectiles = [
+        p for track in profile.projectiles
+        if (p := track.evaluate(elapsed, is_hit)) is not None
+    ]
+    impacts = [
+        i for track in profile.impacts
+        if (i := track.evaluate(elapsed, is_hit)) is not None
+    ]
+
+    show_popup = director.is_animation_finished or profile.popup.is_active(elapsed, is_hit)
+    popup = _resolve_cutin_popup(result, step) if show_popup else None
+
+    return CutinModel(
+        actor=actor_model,
+        target=target_model,
+        popup=popup,
+        projectiles=projectiles,
+        impacts=impacts,
+        camera_progress=camera_progress,
+    )
 
 
 def _resolve_accent_state(gauge_status: GaugeStatus, is_alive: bool, is_stopped: bool) -> AccentState:
@@ -296,7 +401,7 @@ class BattleViewBuilder:
         actor_model = _build_cutin_actor(actor, visual_states[actor])
         target_model = _build_cutin_actor(report.target, visual_states[report.target])
 
-        return director.build_cutin_model(actor_model, target_model)
+        return _build_cutin_model(director, actor_model, target_model)
 
     def _build_overlay(self, phase: BattlePhase) -> Optional[OverlayModel]:
         if phase == BattlePhase.OPENING_POPUP:

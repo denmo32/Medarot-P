@@ -11,6 +11,11 @@ from domain.constants import (
     TeamType,
 )
 from features.battle.constants import BattlePhase
+from features.battle.cutin_timeline import (
+    ActorMotion as ActorMotionModel,
+    ImpactMotion as ImpactEffectModel,
+    ProjectileMotion as ProjectileEffectModel,
+)
 
 
 @dataclass(frozen=True)
@@ -61,13 +66,6 @@ class CommandMenuModel:
 
 
 @dataclass(frozen=True)
-class ActorMotionModel:
-    """攻撃機体の移動演出モデル（接近・すり抜け）"""
-    phase: str
-    progress: float
-
-
-@dataclass(frozen=True)
 class CutinActorModel:
     team: TeamType
     part_status: Dict[PartType, float]
@@ -81,19 +79,6 @@ class CutinPopupModel:
     primary_label: str
     damage_label: str
     is_miss: bool
-
-
-@dataclass(frozen=True)
-class ProjectileEffectModel:
-    progress: float
-    kind: str = "bullet"
-    is_hit: bool = True
-
-
-@dataclass(frozen=True)
-class ImpactEffectModel:
-    progress: float
-    kind: str = "hit"
 
 
 @dataclass(frozen=True)

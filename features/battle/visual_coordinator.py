@@ -2,14 +2,14 @@
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from domain.constants import PartType
-from features.battle.constants import ADVANCEABLE_PHASES, BattlePhase
+from .constants import ADVANCEABLE_PHASES, BattlePhase
 from .cutin_director import CutinDirector, CutinEvent
 from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
     from domain.models import ActionResult
-    from features.battle.commands import ExecutionReport
-    from features.battle.models import Part, Robot
+    from .commands import ExecutionReport
+    from .models import Part, Robot
 
 
 def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType, float]]:
@@ -32,8 +32,8 @@ def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType,
 class VisualCoordinator:
     """戦闘の視覚演出（HP変動アニメーション・演出待機タイマー・カットイン）を一元管理する。
 
-    BattleManager や BattleContext から表示・演出の低レベルな関心事を完全に切り離し、
-    自立した表示状態（VisualState, PhaseTimer, CutinDirector）を保持する。
+    BattleManager からアニメーション・待機・時間軸進行の関心事を分離し、
+    自立した演出状態（VisualState, PhaseTimer, CutinDirector）を保持する。
     """
 
     def __init__(self, robots: Sequence['Robot']):
