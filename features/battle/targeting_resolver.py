@@ -4,7 +4,6 @@ from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 from domain.ai_logic import get_personality
 from domain.constants import PartType, TargetRule
 from domain.targeting import select_closest_enemy
-from .commands import PartCommand
 
 if TYPE_CHECKING:
     from .context import BattleContext
@@ -41,8 +40,8 @@ class TargetingResolver:
         return robot, target_part
 
     def resolve_execution_target(self, actor: 'Robot', part_type: PartType) -> TargetSelection:
-        command = actor.current_command
-        if not isinstance(command, PartCommand):
+        command = actor.current_part_command
+        if command is None:
             return None, None
 
         part = actor.get_part(part_type)
