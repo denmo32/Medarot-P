@@ -61,8 +61,6 @@ class BattleTiming:
     """演出やフェーズ遷移のタイミング（秒）および表示仕様定数"""
     TARGET_INDICATION = 0.8
     OPENING_POPUP = 1.5
-    CUTIN_ANIMATION = 2.0
-    CUTIN_POPUP_THRESHOLD = 1.0
     LOG_DISPLAY_MAX = 3
     # ターゲットレーダー演出
     TARGET_RADAR_TRAVEL = 0.3
