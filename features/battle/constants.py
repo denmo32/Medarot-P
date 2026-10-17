@@ -64,6 +64,10 @@ class BattleTiming:
     CUTIN_ANIMATION = 2.0
     CUTIN_POPUP_THRESHOLD = 1.0
     LOG_DISPLAY_MAX = 3
+    # ターゲットレーダー演出
+    TARGET_RADAR_TRAVEL = 0.3
+    TARGET_RADAR_PULSE = 0.22
+    TARGET_RADAR_PULSE_COUNT = 2
 
 
 @dataclass(frozen=True)

@@ -83,8 +83,26 @@ class BattleManager:
 
         if new_phase == BattlePhase.OPENING_LOG:
             self.ctx.set_log(self.logs.opening())
+        elif new_phase == BattlePhase.TARGET_INDICATION:
+            self._enter_target_indication()
         elif new_phase == BattlePhase.ATTACK_DECLARATION:
             self._enter_attack_declaration()
+
+    def _enter_target_indication(self):
+        actor = self.ctx.current_actor
+        report = self.ctx.current_report
+        target = report.target if report else None
+        if actor and target:
+            attacker_idx = self._find_robot_index(actor)
+            target_idx = self._find_robot_index(target)
+            if attacker_idx is not None and target_idx is not None:
+                self.visual.start_radar(attacker_idx, target_idx)
+
+    def _find_robot_index(self, robot: Robot) -> Optional[int]:
+        for index, candidate in enumerate(self.ctx.robots):
+            if candidate is robot:
+                return index
+        return None
 
     def advance_phase(self):
         if self.visual.is_busy():
@@ -291,6 +309,7 @@ class BattleManager:
     def complete_execution(self):
         self.visual.sync_all_targets()
         self.visual.clear_cutin()
+        self.visual.clear_radar()  # レーダー演出のクリーンアップ
         self.ctx.current_report = None
 
         if self._check_battle_end():

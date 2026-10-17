@@ -351,10 +351,22 @@ class BattleViewBuilder:
         if attacker_index is None or target_index is None:
             return None
 
+        is_static = self.ctx.phase in TARGET_RADAR_STATIC_PHASES
+        radar_dir = self.visual.radar_director
+        if radar_dir is not None:
+            state = radar_dir.evaluate(is_static=is_static)
+            travel_progress = state.travel_progress
+            scale = state.scale
+        else:
+            travel_progress = 1.0
+            scale = 1.0
+
         return TargetRadarModel(
             attacker_index=attacker_index,
             target_index=target_index,
-            is_static=self.ctx.phase in TARGET_RADAR_STATIC_PHASES,
+            travel_progress=travel_progress,
+            scale=scale,
+            is_static=is_static,
         )
 
     def _build_message_window(self) -> Optional[MessageWindowModel]:

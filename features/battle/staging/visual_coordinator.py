@@ -1,9 +1,10 @@
-"""バトルの演出進行（HPアニメーション、タイマー、カットイン）を一元管理するコーディネーター。"""
+"""バトルの演出進行（HPアニメーション、タイマー、カットイン、レーダー）を一元管理するコーディネーター。"""
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from domain.constants import PartType
 from ..constants import ADVANCEABLE_PHASES, BattlePhase
 from .cutin_director import CutinDirector, CutinEvent
+from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType,
 
 
 class VisualCoordinator:
-    """戦闘の視覚演出（HP変動アニメーション・演出待機タイマー・カットイン）を一元管理する。
+    """戦闘の視覚演出（HP変動アニメーション・演出待機タイマー・カットイン・レーダー）を一元管理する。
 
     BattleManager からアニメーション・待機・時間軸進行の関心事を分離し、
     自立した演出状態（VisualState, PhaseTimer, CutinDirector）を保持する。
@@ -42,6 +43,7 @@ class VisualCoordinator:
         }
         self.phase_timer: float = 0.0
         self.cutin_director: Optional[CutinDirector] = None
+        self.radar_director: Optional[TargetRadarDirector] = None
 
     # === タイマー管理 ===
 
@@ -75,6 +77,9 @@ class VisualCoordinator:
 
         if self.phase_timer > 0.0:
             self.phase_timer = max(0.0, self.phase_timer - dt)
+
+        if self.radar_director:
+            self.radar_director.update(dt)
 
     # === ダメージ演出のステージング ===
 
@@ -117,3 +122,12 @@ class VisualCoordinator:
 
     def clear_cutin(self):
         self.cutin_director = None
+
+    # === ターゲットレーダー演出のライフサイクル ===
+
+    def start_radar(self, attacker_index: int, target_index: int) -> TargetRadarDirector:
+        self.radar_director = TargetRadarDirector(attacker_index, target_index)
+        return self.radar_director
+
+    def clear_radar(self):
+        self.radar_director = None

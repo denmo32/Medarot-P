@@ -48,7 +48,9 @@ class RobotViewModel:
 class TargetRadarModel:
     attacker_index: int
     target_index: int
-    is_static: bool
+    travel_progress: float = 1.0  # 0.0 (攻撃側) 〜 1.0 (対象側)
+    scale: float = 1.0            # 拡縮倍率
+    is_static: bool = False
 
 
 @dataclass(frozen=True)
