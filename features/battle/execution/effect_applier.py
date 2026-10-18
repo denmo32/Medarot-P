@@ -1,7 +1,7 @@
 """適用オブジェクトを行動結果からバトルの世界状態へ反映するハンドラ。"""
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Type
 
 from domain.effect_payloads import (
     AppliedEffect,
@@ -12,7 +12,6 @@ from domain.effect_payloads import (
     PierceDamage,
     TrapInstall,
 )
-from domain.models import StatusEffect
 from ..entities.commands import ExecutionReport
 
 if TYPE_CHECKING:
@@ -93,28 +92,27 @@ EFFECT_HANDLERS: Dict[Type[AppliedEffect], EffectHandler] = {
 }
 
 
-def apply_action_to_world(
+def apply_action_effects(
     report: ExecutionReport, actor: 'Robot', ctx: Optional['BattleContext'] = None
-) -> Tuple[ExecutionReport, List[StatusEffect]]:
-    """行動結果の付随効果を確定反映し、機体に事後処理（回数制バフ消費等）を委譲する"""
+) -> ExecutionReport:
+    """適用オブジェクトを世界状態へ反映する（副作用はハンドラ経由のみ）。"""
     result = report.result
     target = report.target
 
-    updated_report = report
-    if result is not None and result.success and target is not None and result.applied_effects:
-        apply_ctx = ApplyContext(actor=actor, target=target, battle=ctx)
-        applied = []
-        for eff in result.applied_effects:
-            handler = EFFECT_HANDLERS.get(type(eff))
-            if handler:
-                res = handler(eff, apply_ctx)
-                if res:
-                    applied.append(res)
-        if applied != result.applied_effects:
-            updated_result = dataclasses.replace(result, applied_effects=applied)
-            updated_report = dataclasses.replace(report, result=updated_result)
+    if result is None or not result.success or target is None or not result.applied_effects:
+        return report
 
-    # 【Tell, Don't Ask】コマンドやパーツ種別を外部で判定せず、機体に完了後処理を命じる
-    expired_effects = actor.on_action_completed()
+    apply_ctx = ApplyContext(actor=actor, target=target, battle=ctx)
+    applied = []
+    for eff in result.applied_effects:
+        handler = EFFECT_HANDLERS.get(type(eff))
+        if handler:
+            res = handler(eff, apply_ctx)
+            if res is not None:
+                applied.append(res)
 
-    return updated_report, expired_effects
+    if applied != result.applied_effects:
+        updated_result = dataclasses.replace(result, applied_effects=applied)
+        return dataclasses.replace(report, result=updated_result)
+
+    return report

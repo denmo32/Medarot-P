@@ -15,7 +15,7 @@ from ..entities.commands import (
     SkipCommand,
 )
 from ..entities.robot import Robot
-from .effect_applier import apply_action_to_world
+from .effect_applier import apply_action_effects
 from .log_builder import BattleLogBuilder
 from .targeting_resolver import TargetingResolver
 
@@ -92,15 +92,23 @@ class CommandExecutor:
         return logs, is_destroyed
 
     def apply_pending(self) -> bool:
+        """予約されている行動効果を確定適用し、後処理およびログ生成を行う"""
         report = self.ctx.current_report
         actor = self.ctx.current_actor
         if report is None or actor is None:
             return self.ctx.has_log
 
-        updated_report, expired_effects = apply_action_to_world(report, actor, ctx=self.ctx)
+        # Step 1: 行動効果の確定適用（世界状態の更新）
+        updated_report = apply_action_effects(report, actor, ctx=self.ctx)
         self.ctx.current_report = updated_report
+
+        # Step 2: アクター機体の事後処理（回数制バフ消費など）
+        expired_effects = actor.on_action_completed()
+
+        # Step 3: 放熱（クールダウン）への遷移
         actor.enter_cooldown()
 
+        # Step 4: 結果ログの構築・記録
         messages = self.logs.effect_resolution(updated_report.result, updated_report.target)
         if messages is not None:
             self.ctx.set_log(messages)
