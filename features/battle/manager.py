@@ -59,28 +59,55 @@ class BattleManager:
     def get_command_menu_preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
         return self.ctx.preview_targets
 
-    def change_phase(self, new_phase: BattlePhase):
-        self.ctx.phase = new_phase
+    # === 状態遷移の一元管理 ===
 
+    def change_phase(self, new_phase: BattlePhase):
+        """マネージャ内部でのみ状態を遷移させる単一エントリーポイント"""
+        old_phase = self.ctx.phase
+        self._on_phase_exit(old_phase)
+        self.ctx.phase = new_phase
+        self._on_phase_enter(new_phase)
+
+    def _on_phase_exit(self, phase: BattlePhase):
+        if phase == BattlePhase.OPENING_POPUP:
+            self.ctx.is_opening_done = True
+            self.ctx.clear_log()
+
+    def _on_phase_enter(self, new_phase: BattlePhase):
         if new_phase == BattlePhase.OPENING_LOG:
             self.ctx.set_log(self.logs.opening())
         elif new_phase == BattlePhase.ATTACK_DECLARATION:
             self._enter_attack_declaration()
 
+    # === 入力・進行イベント ===
+
     def advance_phase(self):
+        """ユーザー入力または自動進行による前進"""
         phase = self.ctx.phase
         if phase == BattlePhase.OPENING_POPUP:
-            self.ctx.is_opening_done = True
-            self.ctx.clear_log()
             self.change_phase(BattlePhase.IDLE)
         elif phase == BattlePhase.ATTACK_DECLARATION:
             self._advance_attack_declaration()
-        elif phase == BattlePhase.LOG_WAIT:
+        elif phase in (BattlePhase.LOG_WAIT, BattlePhase.CUTIN_RESULT):
             self.complete_execution()
         else:
             config = PHASE_CONFIGS.get(phase)
             if config and config.next_phase:
                 self.change_phase(config.next_phase)
+
+    def notify_animation_finished(self):
+        """カットイン演出の終了通知。効果適用と次フェーズ遷移を manager が独占する。"""
+        if self.ctx.phase != BattlePhase.CUTIN:
+            return
+        self.apply_execution_result()
+        self.change_phase(BattlePhase.CUTIN_RESULT)
+
+    def notify_timer_expired(self):
+        """時間駆動フェーズのタイマー切れ通知。"""
+        phase = self.ctx.phase
+        config = PHASE_CONFIGS.get(phase)
+        if config and config.next_phase:
+            self.change_phase(config.next_phase)
 
     def update(self, dt: float):
         if self.ctx.phase in (

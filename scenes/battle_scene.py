@@ -3,7 +3,6 @@ import random
 from typing import Optional
 from core.scene_manager import Scene, SceneTransition
 from core.constants import SceneId
-from domain.constants import SkillPresentation
 from features.battle.constants import BattlePhase, PHASE_CONFIGS
 from features.battle.factory import BattleFactory
 from features.battle.presentation.command_menu_builder import (
@@ -105,56 +104,39 @@ class BattleScene(Scene):
             self.manager.select_command_slot(item.slot_type)
 
     def _advance_phase(self):
+        """入力による前進処理。遷移先の決定は manager に完全委譲する。"""
         if self.visual.is_busy():
             return
 
         phase = self.manager.phase
         if phase in (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT):
-            self._handle_cutin_advance()
-        elif phase == BattlePhase.ATTACK_DECLARATION:
-            self._advance_attack_declaration()
+            self._handle_cutin_input()
         else:
             self.manager.advance_phase()
 
-    def _advance_attack_declaration(self):
-        actor = self.manager.current_actor
-        part = actor.current_part if actor else None
-        if actor and part and part.is_implemented and part.presentation == SkillPresentation.CUTIN:
-            report = self.manager.ctx.current_report
-            if report and report.result:
-                self.visual.start_cutin(part, report)
-        self.manager.advance_phase()
-
-    def _handle_cutin_advance(self):
+    def _handle_cutin_input(self):
+        """カットイン中の前進入力。ディレクターを進め、イベントを manager や演出へ通知する。"""
         if not self.visual.cutin_director:
-            self._complete_action_execution()
+            self._finalize_action_visuals()
+            self.manager.complete_execution()
             return
 
         for event in self.visual.advance_cutin():
             if event == CutinEvent.ANIMATION_FINISHED:
-                self._apply_and_stage_damage()
-                self.manager.change_phase(BattlePhase.CUTIN_RESULT)
+                self.manager.notify_animation_finished()
             elif event == CutinEvent.PIERCE_ADVANCED:
                 self.manager.ctx.set_log(["貫通ダメージ！"])
                 report = self.manager.ctx.current_report
                 if report and report.target:
                     self.visual.advance_damage_step(report.target)
             elif event == CutinEvent.COMPLETED:
-                self._complete_action_execution()
+                self._finalize_action_visuals()
+                self.manager.complete_execution()
 
-    def _apply_and_stage_damage(self):
-        self.manager.apply_execution_result()
-        report = self.manager.ctx.current_report
-        if report:
-            self.visual.stage_damage(report)
-            if report.result:
-                self.visual.update_cutin_result(report.result)
-
-    def _complete_action_execution(self):
+    def _finalize_action_visuals(self):
         self.visual.sync_all_targets()
         self.visual.clear_cutin()
         self.visual.clear_radar()
-        self.manager.complete_execution()
 
     def update(self, dt: float):
         # 1. 演出タイマー・アニメーションの更新
@@ -166,47 +148,60 @@ class BattleScene(Scene):
             self._on_phase_changed(current_phase)
             self._last_phase = current_phase
 
-        # 3. カットイン実行中のアニメーション進行
+        # 3. 物理イベント（アニメーション終了・タイマー満了）を manager へ通知
         if current_phase == BattlePhase.CUTIN:
             events = self.visual.update_cutin(dt)
-            if events:
-                for event in events:
-                    if event == CutinEvent.ANIMATION_FINISHED:
-                        self._apply_and_stage_damage()
-                        self.manager.change_phase(BattlePhase.CUTIN_RESULT)
-            elif not self.visual.cutin_director:
-                self._apply_and_stage_damage()
-                self.manager.change_phase(BattlePhase.CUTIN_RESULT)
-
-        # 4. タイマーによる自動遷移フェーズ
+            if CutinEvent.ANIMATION_FINISHED in events or not self.visual.cutin_director:
+                self.manager.notify_animation_finished()
         elif current_phase in (BattlePhase.OPENING_POPUP, BattlePhase.TARGET_INDICATION):
             if self.visual.is_timer_expired():
-                config = PHASE_CONFIGS.get(current_phase)
-                next_phase = config.next_phase if config else None
-                if next_phase:
-                    if current_phase == BattlePhase.OPENING_POPUP:
-                        self.manager.advance_phase()
-                    else:
-                        self.manager.change_phase(next_phase)
+                self.manager.notify_timer_expired()
+
+        # 4. 通知によってフェーズが遷移した場合の即時検知
+        current_phase = self.manager.phase
+        if current_phase != self._last_phase:
+            self._on_phase_changed(current_phase)
+            self._last_phase = current_phase
 
         # 5. 純粋ロジック（ATB・割り込みなど）の更新
-        # （HPアニメーション中などは割り込み・新規ターン発火を停止）
         if not self.visual.is_hp_animating():
             self.manager.update(dt)
 
     def _on_phase_changed(self, new_phase: BattlePhase):
+        """フェーズ変化を観測して対応する演出を起動する（遷移判断は行わない）。"""
         config = PHASE_CONFIGS.get(new_phase)
         self.visual.start_phase_timer(config.duration if config else 0.0)
 
-        if new_phase == BattlePhase.TARGET_INDICATION:
-            actor = self.manager.current_actor
-            report = self.manager.ctx.current_report
-            target = report.target if report else None
-            if actor and target:
-                actor_idx = self._find_robot_index(actor)
-                target_idx = self._find_robot_index(target)
-                if actor_idx is not None and target_idx is not None:
-                    self.visual.start_radar(actor_idx, target_idx)
+        if new_phase == BattlePhase.CUTIN:
+            self._start_cutin_visuals()
+        elif new_phase == BattlePhase.CUTIN_RESULT:
+            self._stage_damage_visuals()
+        elif new_phase == BattlePhase.TARGET_INDICATION:
+            self._start_radar_visuals()
+
+    def _start_cutin_visuals(self):
+        actor = self.manager.current_actor
+        part = actor.current_part if actor else None
+        report = self.manager.ctx.current_report
+        if part and report and report.result:
+            self.visual.start_cutin(part, report)
+
+    def _stage_damage_visuals(self):
+        report = self.manager.ctx.current_report
+        if report:
+            self.visual.stage_damage(report)
+            if report.result:
+                self.visual.update_cutin_result(report.result)
+
+    def _start_radar_visuals(self):
+        actor = self.manager.current_actor
+        report = self.manager.ctx.current_report
+        target = report.target if report else None
+        if actor and target:
+            actor_idx = self._find_robot_index(actor)
+            target_idx = self._find_robot_index(target)
+            if actor_idx is not None and target_idx is not None:
+                self.visual.start_radar(actor_idx, target_idx)
 
     def _find_robot_index(self, robot) -> Optional[int]:
         for idx, candidate in enumerate(self.manager.robots):
