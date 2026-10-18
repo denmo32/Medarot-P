@@ -73,42 +73,6 @@
         "action": "支援",
         "skill": "スキャン"
       },
-      "head_901": {
-        "name": "ライフルヘッド",
-        "hp": 40,
-        "attack": 15,
-        "success": 30,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ライフル"
-      },
-      "head_902": {
-        "name": "ソードヘッド",
-        "hp": 50,
-        "attack": 10,
-        "success": 40,
-        "attribute": "speed",
-        "action": "殴る",
-        "skill": "ソード"
-      },
-      "head_903": {
-        "name": "ガトリングヘッド",
-        "hp": 35,
-        "attack": 12,
-        "success": 25,
-        "attribute": "power",
-        "action": "狙い撃ち",
-        "skill": "ガトリング"
-      },
-      "head_904": {
-        "name": "ハンマーヘッド",
-        "hp": 35,
-        "attack": 12,
-        "success": 20,
-        "attribute": "technique",
-        "action": "我武者羅",
-        "skill": "ハンマー"
-      },
       "head_905": {
         "name": "サンダーヘッド",
         "hp": 40,
@@ -126,15 +90,6 @@
         "attribute": "technique",
         "action": "妨害",
         "skill": "フリーズ"
-      },
-      "head_907": {
-        "name": "スキャンヘッド",
-        "hp": 40,
-        "attack": 8,
-        "success": 35,
-        "attribute": "technique",
-        "action": "支援",
-        "skill": "スキャン"
       },
       "head_908": {
         "name": "スタンヘッド",
@@ -273,42 +228,6 @@
         "action": "殴る",
         "skill": "ソード"
       },
-      "rarm_901": {
-        "name": "ライフルライト",
-        "hp": 50,
-        "attack": 25,
-        "success": 35,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ライフル"
-      },
-      "rarm_902": {
-        "name": "ソードライト",
-        "hp": 50,
-        "attack": 30,
-        "success": 45,
-        "attribute": "speed",
-        "action": "殴る",
-        "skill": "ソード"
-      },
-      "rarm_903": {
-        "name": "ガトリングライト",
-        "hp": 45,
-        "attack": 20,
-        "success": 30,
-        "attribute": "power",
-        "action": "狙い撃ち",
-        "skill": "ガトリング"
-      },
-      "rarm_904": {
-        "name": "ハンマーライト",
-        "hp": 45,
-        "attack": 20,
-        "success": 25,
-        "attribute": "technique",
-        "action": "我武者羅",
-        "skill": "ハンマー"
-      },
       "rarm_905": {
         "name": "サンダーライト",
         "hp": 45,
@@ -326,15 +245,6 @@
         "attribute": "technique",
         "action": "妨害",
         "skill": "フリーズ"
-      },
-      "rarm_907": {
-        "name": "スキャンライト",
-        "hp": 40,
-        "attack": 10,
-        "success": 45,
-        "attribute": "technique",
-        "action": "支援",
-        "skill": "スキャン"
       },
       "rarm_908": {
         "name": "スタンライト",
@@ -473,42 +383,6 @@
         "action": "我武者羅",
         "skill": "ハンマー"
       },
-      "larm_901": {
-        "name": "ライフルレフト",
-        "hp": 50,
-        "attack": 22,
-        "success": 32,
-        "attribute": "speed",
-        "action": "狙い撃ち",
-        "skill": "ライフル"
-      },
-      "larm_902": {
-        "name": "ソードレフト",
-        "hp": 50,
-        "attack": 35,
-        "success": 42,
-        "attribute": "speed",
-        "action": "我武者羅",
-        "skill": "ソード"
-      },
-      "larm_903": {
-        "name": "ガトリングレフト",
-        "hp": 45,
-        "attack": 28,
-        "success": 28,
-        "attribute": "power",
-        "action": "撃つ",
-        "skill": "ガトリング"
-      },
-      "larm_904": {
-        "name": "ハンマーレフト",
-        "hp": 45,
-        "attack": 28,
-        "success": 22,
-        "attribute": "technique",
-        "action": "殴る",
-        "skill": "ハンマー"
-      },
       "larm_905": {
         "name": "サンダーレフト",
         "hp": 45,
@@ -526,15 +400,6 @@
         "attribute": "technique",
         "action": "妨害",
         "skill": "フリーズ"
-      },
-      "larm_907": {
-        "name": "スキャンレフト",
-        "hp": 40,
-        "attack": 10,
-        "success": 45,
-        "attribute": "technique",
-        "action": "支援",
-        "skill": "スキャン"
       },
       "larm_908": {
         "name": "スタンレフト",
@@ -657,34 +522,6 @@
         "defense": 36,
         "attribute": "speed"
       },
-      "legs_901": {
-        "name": "ライフルレッグ",
-        "hp": 60,
-        "mobility": 35,
-        "defense": 25,
-        "attribute": "speed"
-      },
-      "legs_902": {
-        "name": "ソードレッグ",
-        "hp": 70,
-        "mobility": 45,
-        "defense": 30,
-        "attribute": "speed"
-      },
-      "legs_903": {
-        "name": "ガトリングレッグ",
-        "hp": 50,
-        "mobility": 25,
-        "defense": 40,
-        "attribute": "power"
-      },
-      "legs_904": {
-        "name": "ハンマーレッグ",
-        "hp": 50,
-        "mobility": 20,
-        "defense": 45,
-        "attribute": "technique"
-      },
       "legs_905": {
         "name": "サンダーレッグ",
         "hp": 55,
@@ -697,13 +534,6 @@
         "hp": 50,
         "mobility": 25,
         "defense": 35,
-        "attribute": "technique"
-      },
-      "legs_907": {
-        "name": "スキャンレッグ",
-        "hp": 55,
-        "mobility": 35,
-        "defense": 25,
         "attribute": "technique"
       },
       "legs_908": {
