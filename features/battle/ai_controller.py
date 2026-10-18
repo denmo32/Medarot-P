@@ -2,10 +2,10 @@
 from domain.ai_logic import get_tactics
 from domain.constants import ACTIONABLE_PART_TYPES, TacticsType
 from domain.models import TacticsContext
-from .commands import SkipCommand, build_command_for_part
 from .context import BattleContext
-from .models import Robot
-from .targeting_resolver import TargetingResolver
+from .entities.commands import SkipCommand, build_command_for_part
+from .entities.robot import Robot
+from .execution.targeting_resolver import TargetingResolver
 
 
 class AIController:

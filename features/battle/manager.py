@@ -5,16 +5,18 @@ from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType, TeamT
 from domain.models import GameDataProtocol, RobotSetup
 from domain.rules import check_battle_end
 
-from .atb_system import ATBSystem
-from .commands import BattleCommand, SkipCommand, build_command_for_part
 from .ai_controller import AIController
-from .command_executor import CommandExecutor
+from .atb_system import ATBSystem
 from .constants import BattlePhase, INTERRUPTIBLE_PHASES, PHASE_CONFIGS
 from .context import BattleContext
+from .entities.atb_track import ATBEvent
+from .entities.commands import BattleCommand, SkipCommand, build_command_for_part
+from .entities.part import Part
+from .entities.robot import Robot
+from .execution.command_executor import CommandExecutor
+from .execution.log_builder import BattleLogBuilder
+from .execution.targeting_resolver import TargetingResolver
 from .factory import BattleFactory
-from .log_builder import BattleLogBuilder
-from .models import Robot, Part, ATBEvent
-from .targeting_resolver import TargetingResolver
 
 
 class BattleManager:

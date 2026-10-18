@@ -6,7 +6,7 @@ from domain.action_logic import get_action_definition
 from .view_models import CommandMenuItemModel
 
 if TYPE_CHECKING:
-    from features.battle.models import Robot
+    from features.battle.entities.robot import Robot
 
 SKIP_LABEL = "スキップ"
 SKIP_ACTION_LABEL = "なし"

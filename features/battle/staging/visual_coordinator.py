@@ -9,8 +9,9 @@ from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
     from domain.models import ActionResult
-    from ..commands import ExecutionReport
-    from ..models import Part, Robot
+    from ..entities.commands import ExecutionReport
+    from ..entities.part import Part
+    from ..entities.robot import Robot
 
 
 def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType, float]]:

@@ -4,10 +4,10 @@ from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 from domain.constants import PartType, TeamType
 from domain.traps import TrapManager
 from .constants import BattlePhase
-from .models import Robot
+from .entities.robot import Robot
 
 if TYPE_CHECKING:
-    from .commands import ExecutionReport
+    from .entities.commands import ExecutionReport
 
 
 class BattleContext:

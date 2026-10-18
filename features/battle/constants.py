@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import Dict, Optional
+
 __all__ = [
     "BattlePhase",
     "CutinStep",
@@ -11,7 +12,6 @@ __all__ = [
     "TARGET_RADAR_PHASES",
     "TARGET_RADAR_STATIC_PHASES",
     "BattleTiming",
-    "ExecutionOutcome",
 ]
 
 
@@ -86,14 +86,3 @@ PHASE_CONFIGS: Dict[BattlePhase, PhaseConfig] = {
         next_phase=BattlePhase.CUTIN_RESULT
     ),
 }
-
-
-class ExecutionOutcome(Enum):
-    OK = auto()
-    NO_ACTION = auto()
-    SKIPPED = auto()
-    PART_UNUSABLE = auto()
-    PART_STOPPED = auto()
-    ACTION_UNIMPLEMENTED = auto()
-    TARGET_LOST = auto()
-    RESERVED_PART_DESTROYED = auto()

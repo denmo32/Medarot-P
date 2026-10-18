@@ -1,9 +1,9 @@
 """ATBゲージ進行および待機キューの管理を一元化するシステム。"""
 from typing import List, Optional, Tuple, TYPE_CHECKING
-from .models import ATBEvent
+from .entities.atb_track import ATBEvent
 
 if TYPE_CHECKING:
-    from .models import Robot
+    from .entities.robot import Robot
 
 
 class ATBSystem:

@@ -6,8 +6,8 @@ from domain.constants import PartType, TargetRule
 from domain.targeting import select_closest_enemy
 
 if TYPE_CHECKING:
-    from .context import BattleContext
-    from .models import Robot
+    from ..context import BattleContext
+    from ..entities.robot import Robot
 
 TargetSelection = Tuple[Optional["Robot"], Optional[PartType]]
 Selector = Callable[["Robot", PartType], TargetSelection]

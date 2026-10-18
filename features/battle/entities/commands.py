@@ -1,19 +1,30 @@
-"""バトルコマンド（指示）のデータクラス (Command Pattern / DTO) およびコマンド生成ヘルパー。
+"""バトルコマンド（指示・予約）のデータクラス (Command Pattern / DTO) および実行レポート。
 
-1層「Command（指示）」は、プレイヤーやAIが選ぶ実行予約（どのパーツを使う・スキップする）を表す。
-実際の行動フォーム（撃つ・殴る 等）は 2層「Action（行動形式）」が担う。
+機体の意志（予約状態）を表すため、エンティティ層に属します。
 """
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Tuple, List
+from enum import Enum, auto
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
 from domain.constants import PartType, SkillKind
 from domain.models import ActionResult
 
-from .constants import ExecutionOutcome
-
 if TYPE_CHECKING:
     from domain.effect_payloads import PierceDamage
-    from .models import Robot, Part
+    from .part import Part
+    from .robot import Robot
 
+
+class ExecutionOutcome(Enum):
+    """コマンド実行・自己診断の結果区分"""
+    OK = auto()
+    NO_ACTION = auto()
+    SKIPPED = auto()
+    PART_UNUSABLE = auto()
+    PART_STOPPED = auto()
+    ACTION_UNIMPLEMENTED = auto()
+    TARGET_LOST = auto()
+    RESERVED_PART_DESTROYED = auto()
 
 
 @dataclass(frozen=True)
@@ -39,7 +50,6 @@ class ExecutionReport:
     @property
     def pierce_effect(self) -> Optional['PierceDamage']:
         return self.result.pierce_effect if self.result else None
-
 
 
 @dataclass(frozen=True)

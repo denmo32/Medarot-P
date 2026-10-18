@@ -2,7 +2,6 @@
 *.pyc
 fullcode.txt
 .aicodeprep-gui
-**/__init__.py
 build.bat
 main.spec
 assets/fonts/002zouver.2-Regular.ttf

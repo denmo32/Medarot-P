@@ -6,16 +6,16 @@ from domain.effect_payloads import (
     AppliedEffect, PartRepair, PartRestore, TrapInstall, ApplyStatus
 )
 from domain.models import ActionResult, StatusEffect
+from ..entities.commands import ExecutionOutcome
 
-from .constants import ExecutionOutcome
+if TYPE_CHECKING:
+    from ..entities.commands import BattleCommand
+    from ..entities.part import Part
+    from ..entities.robot import Robot
 
 STATUS_EXPIRE_MESSAGES = {
     EffectType.SUCCESS_UP: "{actor}のスキャン効果が切れた！",
 }
-
-if TYPE_CHECKING:
-    from .commands import BattleCommand, ExecutionReport
-    from .models import Part, Robot
 
 
 class BattleLogBuilder:

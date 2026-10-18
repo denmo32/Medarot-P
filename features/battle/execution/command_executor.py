@@ -1,24 +1,32 @@
 """予約済みコマンドの実行・解決・中断判定を担当するエグゼキュータ。"""
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.combat import resolve_attack
 from domain.combat_formulas import get_best_guard_part
 from domain.constants import PartType, SkillKind
 from domain.models import EffectResolutionContext
 
-from .commands import BattleCommand, ExecutionReport, PartCommand, SkipCommand
-from .constants import BattlePhase, ExecutionOutcome
-from .context import BattleContext
+from ..constants import BattlePhase
+from ..entities.commands import (
+    BattleCommand,
+    ExecutionOutcome,
+    ExecutionReport,
+    PartCommand,
+    SkipCommand,
+)
+from ..entities.robot import Robot
 from .effect_applier import apply_action_to_world
 from .log_builder import BattleLogBuilder
-from .models import Robot
 from .targeting_resolver import TargetingResolver
+
+if TYPE_CHECKING:
+    from ..context import BattleContext
 
 
 class CommandExecutor:
     def __init__(
         self,
-        ctx: BattleContext,
+        ctx: 'BattleContext',
         targeting: TargetingResolver,
         logs: BattleLogBuilder,
         rng: Optional[Callable[[], float]] = None,

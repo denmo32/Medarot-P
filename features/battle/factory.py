@@ -6,7 +6,8 @@ from typing import Dict, List, Optional
 from domain.config import PLAYER_COUNT, ENEMY_COUNT
 from domain.constants import ALL_PART_TYPES, CustomizeSlot, TeamType, PartType, AttributeType, PersonalityType
 from domain.models import GameDataProtocol, MedalData, RobotSetup, SaveDataProtocol
-from .models import Robot, Part
+from .entities.part import Part
+from .entities.robot import Robot
 from .debug_enemy import (
     ENABLE_CUSTOM_ENEMY,
     CUSTOM_ENEMY_SETUPS,

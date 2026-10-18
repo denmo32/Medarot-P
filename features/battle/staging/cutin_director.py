@@ -7,7 +7,7 @@ from ..constants import CutinStep
 from .cutin_timeline import CutinProfile, resolve_cutin_profile
 
 if TYPE_CHECKING:
-    from ..models import Part
+    from ..entities.part import Part
 
 
 class CutinEvent(Enum):

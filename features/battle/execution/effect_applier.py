@@ -1,10 +1,4 @@
-"""適用オブジェクトを行動結果からバトルの世界状態へ反映するハンドラ。
-
-この層が「副作用の唯一の発生点」である。純粋な計算結果（`ActionResult`）を
-受け取り、演出の完了後に初めて機体へ状態の確定を命じる（Tell, Don't Ask）。
-主攻撃ダメージ・貫通ダメージ・修復・状態異常はすべて同一のハンドラレジストリを
-通るため、新しい効果の追加は「適用オブジェクト + 1 行登録」で閉じる（OCP）。
-"""
+"""適用オブジェクトを行動結果からバトルの世界状態へ反映するハンドラ。"""
 import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type
@@ -19,11 +13,11 @@ from domain.effect_payloads import (
     TrapInstall,
 )
 from domain.models import StatusEffect
+from ..entities.commands import ExecutionReport
 
 if TYPE_CHECKING:
-    from .commands import ExecutionReport
-    from .context import BattleContext
-    from .models import Robot
+    from ..context import BattleContext
+    from ..entities.robot import Robot
 
 
 @dataclass
@@ -100,8 +94,8 @@ EFFECT_HANDLERS: Dict[Type[AppliedEffect], EffectHandler] = {
 
 
 def apply_action_to_world(
-    report: 'ExecutionReport', actor: 'Robot', ctx: Optional['BattleContext'] = None
-) -> Tuple['ExecutionReport', List[StatusEffect]]:
+    report: ExecutionReport, actor: 'Robot', ctx: Optional['BattleContext'] = None
+) -> Tuple[ExecutionReport, List[StatusEffect]]:
     """行動結果の付随効果を確定反映し、機体に事後処理（回数制バフ消費等）を委譲する"""
     result = report.result
     target = report.target
