@@ -9,10 +9,10 @@ from domain.config import FPS
 from scenes.title_scene import TitleScene
 from scenes.battle_scene import BattleScene
 from scenes.customize_scene import CustomizeScene
-from data.game_data_manager import GameDataManager
-from data.save_data_manager import SaveDataManager
+from core.game_data_manager import GameDataManager
+from core.save_data_manager import SaveDataManager
 from core.scene_manager import SceneManager, SceneContext
-from infra.event_reader import PygameEventReader
+from ui.event_reader import PygameEventReader
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: [%(name)s] %(message)s")

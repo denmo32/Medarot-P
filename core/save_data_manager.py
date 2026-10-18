@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 from domain.config import PLAYER_COUNT
 from domain.constants import ALL_PART_TYPES, CustomizeSlot, PartType
 from domain.models import RobotSetup, GameDataProtocol
-from infra.paths import get_user_data_path
+from core.paths import get_user_data_path
 
 logger = logging.getLogger(__name__)
 

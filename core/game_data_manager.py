@@ -3,7 +3,7 @@
 import json
 import logging
 from typing import Dict, List, Optional, Union
-from infra.paths import resource_path
+from core.paths import resource_path
 from domain.models import PartData, MedalData
 from domain.constants import CustomizeSlot, PartType
 
