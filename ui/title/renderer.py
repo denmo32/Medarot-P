@@ -1,25 +1,10 @@
 """タイトル画面専用のレンダラー（テーマ色・ViewModel対応）"""
-from typing import List, Tuple
 import pygame
-from domain.constants import SceneId
-from features.title.view_models import TitleButtonModel, TitleViewModel
+from features.title.view_models import TitleViewModel
 from ui.config import FONT_NAMES
 from ui.base.renderer import BaseRenderer
 from ui.base.fonts import FontProvider
-
-
-def calculate_button_layouts(
-    screen_size: Tuple[int, int], buttons: List[TitleButtonModel]
-) -> List[pygame.Rect]:
-    """ボタン定義に基づいて、画面サイズに合わせた Rect のリストを計算する。"""
-    sw, sh = screen_size
-    layouts = []
-    for btn in buttons:
-        w, h = sw * btn.w_ratio, sh * btn.h_ratio
-        x = sw * btn.cx - w / 2
-        y = sh * btn.cy - h / 2
-        layouts.append(pygame.Rect(x, y, w, h))
-    return layouts
+from ui.title.layout import calculate_button_layouts
 
 
 class TitleRenderer(BaseRenderer):

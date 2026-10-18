@@ -2,12 +2,17 @@
 import random
 from typing import Optional
 from core.scene_manager import Scene, SceneTransition
-from domain.constants import SceneId
+from core.constants import SceneId
 from features.battle.constants import BattlePhase
 from features.battle.factory import BattleFactory
-from features.battle.presentation.command_menu_builder import to_selectable_mask
+from features.battle.presentation.command_menu_builder import (
+    build_command_menu_items,
+    to_selectable_mask,
+)
+from features.battle.presentation.view_builder import BattleViewBuilder
 from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 from features.battle.manager import BattleManager
+from ui.battle.layout import hit_test_command_menu
 from ui.battle.renderer import BattleRenderer
 
 
@@ -20,9 +25,9 @@ class BattleScene(Scene):
         player_setups = BattleFactory.get_player_setups(ctx.save_manager)
         enemy_setups = BattleFactory.get_enemy_setups(ctx.data_manager, rng=battle_rng)
 
-        # manager のみを生成・保持（ctx / visual の内部構造は隠蔽される）
+        # Manager（純粋ロジック）と ViewBuilder（プレゼンテーション）を Scene で明示的に配線
         self.manager = BattleManager(player_setups, enemy_setups, ctx.data_manager, seed=self.seed)
-        # screen が渡されている場合のみ Renderer を生成（ヘッドレステスト環境に対応）
+        self.view_builder = BattleViewBuilder(self.manager.ctx, self.manager.visual)
         self.renderer = BattleRenderer(self.screen) if self.screen is not None else None
         self.selected_button_index = 0
 
@@ -62,12 +67,13 @@ class BattleScene(Scene):
             self._confirm_selection(items)
 
     def _handle_mouse_input(self, items, selectable_mask, input_state):
-        if self.renderer is None:
+        if self.screen is None:
             return
 
-        new_index, confirmed = self.renderer.hit_test_command_menu(
+        screen_size = self.screen.get_size()
+        new_index, confirmed = hit_test_command_menu(
+            screen_size,
             (input_state.mouse_x, input_state.mouse_y),
-            True,
             len(items),
             self.selected_button_index,
         )
@@ -77,8 +83,10 @@ class BattleScene(Scene):
             self._confirm_selection(items)
 
     def _build_command_menu_items(self):
-        # manager の公開メソッド経由で取得（内部の current_actor や robots への個別アクセスを排除）
-        return self.manager.get_command_menu_items()
+        actor = self.manager.current_actor
+        if not actor:
+            return []
+        return build_command_menu_items(actor, self.manager.ctx.preview_targets, self.manager.robots)
 
     def _confirm_selection(self, items):
         if not (0 <= self.selected_button_index < len(items)):
@@ -92,5 +100,5 @@ class BattleScene(Scene):
 
     def render(self):
         if self.renderer is not None:
-            # manager から完成された描画モデルを受け取って描画するだけ
-            self.renderer.render(self.manager.build_render_model(self.selected_button_index))
+            model = self.view_builder.build(self.selected_button_index)
+            self.renderer.render(model)

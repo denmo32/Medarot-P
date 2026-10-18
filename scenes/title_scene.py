@@ -1,9 +1,9 @@
-"""タイトル画面の実装（型付き遷移・ViewModel対応）"""
+"""タイトル画面の実装（型付き遷移・ViewModel対応・ヘッドレス両対応）"""
 from core.scene_manager import Scene, SceneTransition
-from domain.constants import SceneId
+from core.constants import SceneId
 from features.title.view_models import TitleButtonModel, TitleViewModel
-from ui.title.renderer import TitleRenderer, calculate_button_layouts
-from ui.base.interaction import handle_menu_mouse
+from ui.title.renderer import TitleRenderer
+from ui.title.layout import hit_test_title_buttons
 
 
 class TitleScene(Scene):
@@ -14,7 +14,7 @@ class TitleScene(Scene):
 
     def __init__(self, ctx):
         super().__init__(ctx)
-        self.renderer = TitleRenderer(self.screen)
+        self.renderer = TitleRenderer(self.screen) if self.screen is not None else None
         self.selected_index = 0
 
     def _build_model(self) -> TitleViewModel:
@@ -45,13 +45,12 @@ class TitleScene(Scene):
         elif input_state.btn_menu:
             return SceneTransition.quit()
 
-        if input_state.mouse_clicked:
-            sw, sh = self.renderer.get_screen_size()
-            layouts = calculate_button_layouts((sw, sh), model.buttons)
-            self.selected_index, confirmed = handle_menu_mouse(
+        if input_state.mouse_clicked and self.screen is not None:
+            sw, sh = self.screen.get_size()
+            self.selected_index, confirmed = hit_test_title_buttons(
+                (sw, sh),
                 (input_state.mouse_x, input_state.mouse_y),
-                True,
-                layouts,
+                model.buttons,
                 self.selected_index,
             )
             if confirmed:
@@ -60,4 +59,5 @@ class TitleScene(Scene):
         return SceneTransition.stay()
 
     def render(self):
-        self.renderer.render(self._build_model())
+        if self.renderer is not None:
+            self.renderer.render(self._build_model())

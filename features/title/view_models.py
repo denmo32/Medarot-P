@@ -1,7 +1,7 @@
 """タイトル画面の表示専用データ構造（View Model）。"""
 from dataclasses import dataclass
 from typing import List
-from domain.constants import SceneId
+from core.constants import SceneId
 
 
 @dataclass(frozen=True)

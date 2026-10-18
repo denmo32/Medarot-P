@@ -107,6 +107,7 @@ class MedalData:
     nickname: str
     personality: PersonalityType = PersonalityType.RANDOM
     attribute: AttributeType = AttributeType.UNDEFINED
+    # 熟練度データ（※第4層定義。現状の戦闘計算では未配線のため将来の拡張タスク）
     proficiency: Dict[str, int] = field(default_factory=dict)
 
     @classmethod
@@ -160,6 +161,7 @@ class EffectResolutionContext:
     attacker_success: int
     target_mobility: int
     skill: Optional[SkillType] = None
+    # 熟練度ボーナス（※現状は未配線のため 0 固定）
     proficiency_bonus: int = 0
     target_parts_hp: Dict[PartType, int] = field(default_factory=dict)
     target_parts_max_hp: Dict[PartType, int] = field(default_factory=dict)

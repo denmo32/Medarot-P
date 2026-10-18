@@ -1,8 +1,5 @@
 """バトル画面の描画オーケストレーション（ファサード）。"""
-from typing import Tuple
-from ui.base.interaction import handle_menu_mouse
 from ui.base.renderer import BaseRenderer
-from ui.battle import layout
 from ui.battle.renderers.command_menu_renderer import CommandMenuRenderer
 from ui.battle.renderers.cutin_renderer import CutinRenderer
 from ui.battle.renderers.field_renderer import FieldRenderer
@@ -15,7 +12,7 @@ from features.battle.presentation.view_models import BattleRenderModel
 
 
 class BattleRenderer(BaseRenderer):
-    """バトル画面の描画順およびUIインタラクションを制御するファサード"""
+    """バトル画面の描画順を制御するファサード"""
 
     def __init__(self, screen):
         super().__init__(screen)
@@ -28,20 +25,6 @@ class BattleRenderer(BaseRenderer):
         self.command_menu_renderer = CommandMenuRenderer(screen)
         self.cutin_renderer = CutinRenderer(screen)
         self.overlay_renderer = OverlayRenderer(screen)
-
-    # === UI インタラクション（当たり判定の委譲） ===
-
-    def hit_test_command_menu(
-        self,
-        mouse_pos: Tuple[int, int],
-        mouse_clicked: bool,
-        item_count: int,
-        current_index: int,
-    ) -> Tuple[int, bool]:
-        """コマンドメニューに対するマウス操作の当たり判定を行い、(新インデックス, 決定フラグ) を返す"""
-        screen_size = self.get_screen_size()
-        layouts = layout.calculate_command_menu_rects(item_count, screen_size)
-        return handle_menu_mouse(mouse_pos, mouse_clicked, layouts, current_index)
 
     # === 描画オーケストレーション ===
 

@@ -4,6 +4,7 @@ import pygame
 
 from domain.config import PLAYER_COUNT
 from domain.constants import CustomizeState
+from ui.base.interaction import handle_menu_mouse
 from ui.config import SCREEN_HEIGHT, UI_PARAMS
 from features.customize.view_models import CustomizeViewModel
 
@@ -114,3 +115,18 @@ def calculate_customize_layout(
         'list_start_y': list_start_y,
         'part_list_rects': part_list_rects,
     }
+
+
+def hit_test_customize(
+    screen_size: Tuple[int, int],
+    mouse_pos: Tuple[int, int],
+    state: CustomizeState,
+    current_idx: int,
+    model: Optional[CustomizeViewModel] = None,
+) -> Tuple[int, bool]:
+    """カスタマイズ画面に対する純粋な幾何当たり判定を行う"""
+    layout = calculate_customize_layout(screen_size, model)
+    rects = get_state_rects(layout, state)
+    if not rects:
+        return current_idx, False
+    return handle_menu_mouse(mouse_pos, True, rects, current_idx)

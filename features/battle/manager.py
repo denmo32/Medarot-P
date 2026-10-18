@@ -14,15 +14,14 @@ from .context import BattleContext
 from .factory import BattleFactory
 from .log_builder import BattleLogBuilder
 from .models import Robot, Part
-from .presentation.command_menu_builder import build_command_menu_items
-from .presentation.view_builder import BattleViewBuilder
-from .presentation.view_models import BattleRenderModel, CommandMenuItemModel
 from .staging.cutin_director import CutinEvent
 from .staging.visual_coordinator import VisualCoordinator
 from .targeting_resolver import TargetingResolver
 
 
 class BattleManager:
+    """純粋な戦闘進行ステートマシン（表示専用 ViewModel への依存を排除）。"""
+
     def __init__(
         self,
         player_setups: List[RobotSetup],
@@ -39,27 +38,12 @@ class BattleManager:
         self.atb = ATBSystem(self.ctx.robots)
         self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
         self.visual = VisualCoordinator(self.ctx.robots)
-        # 描画用モデルビルダーを内部でカプセル化
-        self.view_builder = BattleViewBuilder(self.ctx, self.visual)
 
         self.change_phase(BattlePhase.INITIAL_SETUP)
 
         for robot in robots:
             if robot.team == TeamType.ENEMY:
                 self.ai.decide_command(robot)
-
-    # === プレゼンテーション用公開インターフェース ===
-
-    def build_render_model(self, selected_button_index: int = 0) -> BattleRenderModel:
-        """現在の戦闘状態・演出状態から UI 描画用モデル (ViewModel) を生成して返す"""
-        return self.view_builder.build(selected_button_index)
-
-    def get_command_menu_items(self) -> List[CommandMenuItemModel]:
-        """現在のアクター機体に応じたコマンドメニュー項目一覧を生成して返す"""
-        actor = self.ctx.current_actor
-        if not actor:
-            return []
-        return build_command_menu_items(actor, self.ctx.preview_targets, self.ctx.robots)
 
     @property
     def phase(self) -> BattlePhase:

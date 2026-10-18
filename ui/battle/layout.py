@@ -14,6 +14,7 @@ from domain.constants import (
     COMMAND_MENU_RIGHT_ARM_INDEX,
     TeamType,
 )
+from ui.base.interaction import handle_menu_mouse
 from ui.config import SCREEN_HEIGHT, UI_PARAMS
 
 if TYPE_CHECKING:
@@ -342,3 +343,14 @@ def calculate_cutin_projectile_x(
         world_x = base_actor_x - progress * total_dist
         cam_offset = camera_progress * scroll_distance
         return int(world_x + cam_offset)
+
+
+def hit_test_command_menu(
+    screen_size: Tuple[int, int],
+    mouse_pos: Tuple[int, int],
+    item_count: int,
+    current_index: int,
+) -> Tuple[int, bool]:
+    """コマンドメニューに対する純粋な幾何当たり判定を行う"""
+    layouts = calculate_command_menu_rects(item_count, screen_size)
+    return handle_menu_mouse(mouse_pos, True, layouts, current_index)

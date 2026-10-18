@@ -1,11 +1,11 @@
-"""カスタマイズ画面のエントリーポイント（型付き遷移・一元化された入力処理）"""
+"""カスタマイズ画面のエントリーポイント（型付き遷移・一元化された入力処理・ヘッドレス両対応）"""
 from core.scene_manager import Scene, SceneTransition
-from domain.constants import CustomizeState, SceneId
+from core.constants import SceneId
+from domain.constants import CustomizeState
 from features.customize.manager import CustomizeManager
 from features.customize.view_builder import CustomizeViewBuilder
-from ui.customize.layout import get_state_rects
+from ui.customize.layout import hit_test_customize
 from ui.customize.renderer import CustomizeRenderer
-from ui.base.interaction import handle_menu_mouse
 
 
 class CustomizeScene(Scene):
@@ -13,26 +13,29 @@ class CustomizeScene(Scene):
         super().__init__(ctx)
         self.manager = CustomizeManager(ctx.data_manager, ctx.save_manager)
         self.view_builder = CustomizeViewBuilder(ctx.data_manager, ctx.save_manager)
-        self.renderer = CustomizeRenderer(self.screen)
+        self.renderer = CustomizeRenderer(self.screen) if self.screen is not None else None
 
     def handle_input(self, input_state) -> SceneTransition:
         if input_state.btn_menu:
             return SceneTransition.to(SceneId.TITLE)
 
-        if input_state.mouse_clicked:
+        if input_state.mouse_clicked and self.screen is not None:
+            sw, sh = self.screen.get_size()
+            current_idx = self.manager.get_current_selection_index()
+            # レイアウト計算用の最小限のモデルを取得して判定
             model = self._build_model()
-            layout = self.renderer.calc_layout(model)
-            rects = get_state_rects(layout, self.manager.state)
-            if rects:
-                current_idx = self.manager.get_current_selection_index()
-                new_idx, confirmed = handle_menu_mouse(
-                    (input_state.mouse_x, input_state.mouse_y), True, rects, current_idx
-                )
-                if new_idx != current_idx:
-                    self.manager.select_by_index(new_idx)
-                if confirmed:
-                    self.manager.confirm_current_selection()
-                    return SceneTransition.stay()
+            new_idx, confirmed = hit_test_customize(
+                (sw, sh),
+                (input_state.mouse_x, input_state.mouse_y),
+                self.manager.state,
+                current_idx,
+                model,
+            )
+            if new_idx != current_idx:
+                self.manager.select_by_index(new_idx)
+            if confirmed:
+                self.manager.confirm_current_selection()
+                return SceneTransition.stay()
 
         # キーボード入力のディスパッチ
         if input_state.btn_ok:
@@ -72,4 +75,5 @@ class CustomizeScene(Scene):
         )
 
     def render(self):
-        self.renderer.render(self._build_model())
+        if self.renderer is not None:
+            self.renderer.render(self._build_model())

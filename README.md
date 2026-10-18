@@ -10,12 +10,12 @@
 
 Command（何をする指示） → Action（どう動く: 撃つ/殴る） → Skill（何の技: ライフル/ミサイル） → Proficiency（どれだけ熟練しているか）
 
-|レイヤー|概念|日本語|責務|代表的な識別子|
-|---|---|---|---|---|
-|1|**Command**|指示|プレイヤーやAIが選ぶ実行予約（どのパーツを使う・スキップする）|`BattleCommand`, `PartCommand`, `CommandExecutor`|
-|2|**Action**|行動形式|動作フォーム・リスク/リターン・時間補正（撃つ・殴る・我武者羅・支援）|`ActionType`, `ActionCategory`, `ActionDefinition`|
-|3|**Skill**|技・能力|パーツ固有の技、命中方式、効果解決（ライフル・ミサイル・サンダー・ブロック）|`SkillType`, `SkillDefinition`, `SkillPresentation`|
-|4|**Proficiency**|熟練度|メダルの各行動に対する適性値|`MedalData.proficiency`|
+|レイヤー|概念|日本語|責務|代表的な識別子|ステータス|
+|---|---|---|---|---|---|
+|1|**Command**|指示|プレイヤーやAIが選ぶ実行予約（どのパーツを使う・スキップする）|`BattleCommand`, `PartCommand`, `CommandExecutor`|実装済み|
+|2|**Action**|行動形式|動作フォーム・リスク/リターン・時間補正（撃つ・殴る・我武者羅・支援）|`ActionType`, `ActionCategory`, `ActionDefinition`|実装済み|
+|3|**Skill**|技・能力|パーツ固有の技、命中方式、効果解決（ライフル・ミサイル・サンダー・ブロック）|`SkillType`, `SkillDefinition`, `SkillPresentation`|実装済み|
+|4|**Proficiency**|熟練度|メダルの各行動に対する適性値（※データロードのみ）|`MedalData.proficiency`|データ定義のみ（戦闘計算は未配線）|
 
 ---
 
@@ -55,5 +55,6 @@ Command（何をする指示） → Action（どう動く: 撃つ/殴る） → 
 
 ### コアゲームロジック
 
+* [ ] **熟練度（Proficiency）の戦闘計算配線**: メダルの熟練度（proficiency）を行動成功度や威力補正へ反映するロジックの実装.
 * [ ] **AIコマンダー戦術（Tactics）の実装**: ランダム択にとどまらない、破壊パーツ数や相性を考慮したパーツ選定ロジックの追加（`TacticsContext` を活用）。
 * [ ] **未実装技・行動形式の拡充**: クールプラント（供給）等の設置・支援系アクションの実装。

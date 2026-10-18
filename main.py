@@ -3,8 +3,7 @@
 import logging
 import pygame
 import sys
-import traceback
-from domain.constants import SceneId
+from core.constants import SceneId
 from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
 from domain.config import FPS
 from scenes.title_scene import TitleScene
@@ -15,22 +14,24 @@ from data.save_data_manager import SaveDataManager
 from core.scene_manager import SceneManager, SceneContext
 from infra.event_reader import PygameEventReader
 
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: [%(name)s] %(message)s")
 pygame.init()
+
+# ウィンドウ移動などの極端なラグスパイク時のみ上限を制限するクランプ値（10FPS相当）
+MAX_DELTA_TIME = 0.1
 
 
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Medarot-P")
 
-    # データリポジトリおよびイベントリーダー（具象アダプター）の生成
     data_manager = GameDataManager()
     save_manager = SaveDataManager(data_manager)
     event_reader = PygameEventReader()
 
     ctx = SceneContext(screen, data_manager, save_manager)
 
-    # Composition Root において、依存性を明示的に注入
     manager = SceneManager(ctx, event_reader=event_reader)
     manager.register_scene(SceneId.TITLE, TitleScene)
     manager.register_scene(SceneId.BATTLE, BattleScene)
@@ -40,20 +41,22 @@ def main():
 
     clock = pygame.time.Clock()
     running = True
+    exit_code = 0
 
     try:
         while running:
-            dt = min(clock.tick(FPS) / 1000.0, 1.0 / FPS)
-            # 入力・更新・描画を一元処理
+            # 処理落ち時の不自然なスローモーションを防ぎつつ、極端なスパイクのみ抑止
+            raw_dt = clock.tick(FPS) / 1000.0
+            dt = min(raw_dt, MAX_DELTA_TIME)
             running = manager.process_frame(dt)
     except KeyboardInterrupt:
         pass
     except Exception:
-        print("=== 予期せぬエラーが発生しました ===", file=sys.stderr)
-        traceback.print_exc()
+        logger.exception("予期せぬエラーが発生しました")
+        exit_code = 1
     finally:
         pygame.quit()
-        sys.exit()
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

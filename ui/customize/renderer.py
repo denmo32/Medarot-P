@@ -4,11 +4,9 @@ import pygame
 
 from ui.base.renderer import BaseRenderer
 from ui.config import UI_PARAMS
-from ui.customize.layout import calculate_customize_layout, get_state_rects
+from ui.customize.layout import calculate_customize_layout
 from features.customize.view_models import CustomizeViewModel
 from domain.constants import CustomizeState
-
-__all__ = ["CustomizeRenderer", "get_state_rects"]
 
 
 class CustomizeRenderer(BaseRenderer):

@@ -1,26 +1,15 @@
-"""シーン管理を統括するクラス（型付き遷移・イベント一元集約・描画抽象化）"""
+"""シーン管理を統括するクラス（型付き遷移・イベント一元集約）"""
 
-from typing import Dict, Optional, Tuple, Type, Any, Protocol, runtime_checkable
+from typing import Dict, Optional, Type, Any
 from dataclasses import dataclass, field
 import logging
+import pygame
 
-from domain.constants import SceneId
+from core.constants import SceneId
 from core.inputs import InputState, EventReaderProtocol
 from domain.models import GameDataProtocol, SaveDataProtocol
 
 logger = logging.getLogger(__name__)
-
-
-@runtime_checkable
-class RenderSurfaceProtocol(Protocol):
-    """描画対象サーフェスの抽象プロトコル。
-    
-    pygame.Surface への具象依存を排除し、ヘッドレステストや別グラフィック基盤への
-    差し替えを可能にします。
-    """
-    def get_size(self) -> Tuple[int, int]: ...
-    def get_width(self) -> int: ...
-    def get_height(self) -> int: ...
 
 
 @dataclass(frozen=True)
@@ -45,8 +34,8 @@ class SceneTransition:
 
 @dataclass
 class SceneContext:
-    """シーン間で共有される依存関係（すべて Protocol または抽象型で統一）"""
-    screen: Optional[RenderSurfaceProtocol]
+    """シーン間で共有される依存関係"""
+    screen: Optional[pygame.Surface]
     data_manager: GameDataProtocol
     save_manager: SaveDataProtocol
 
@@ -59,6 +48,10 @@ class Scene:
 
     def on_enter(self, **payload):
         """シーン遷移時の引数受け取りフック"""
+        pass
+
+    def on_exit(self):
+        """シーン終了・破棄時のクリーンアップフック"""
         pass
 
     def handle_input(self, input_state: InputState) -> SceneTransition:
@@ -89,6 +82,9 @@ class SceneManager:
         if not scene_class:
             logger.error(f"Scene tag '{tag}' not found.")
             return
+
+        if self.current_scene is not None:
+            self.current_scene.on_exit()
 
         self.current_scene = scene_class(self.ctx)
         self.current_scene.on_enter(**payload)

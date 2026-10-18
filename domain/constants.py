@@ -57,13 +57,6 @@ class _RandomFallbackEnum(KeyedEnum):
         return True
 
 
-class SceneId(KeyedEnum):
-    """シーン識別子"""
-    TITLE = "title"
-    BATTLE = "battle"
-    CUSTOMIZE = "customize"
-
-
 class CustomizeState(KeyedEnum):
     """カスタマイズ画面の操作ステート"""
     ROBOT_SELECT = "robot_select"
