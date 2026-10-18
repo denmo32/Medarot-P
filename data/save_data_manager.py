@@ -24,7 +24,9 @@ class SaveDataManager:
     def _load_and_validate_data(self) -> List[RobotSetup]:
         """保存データを読み込み検証。ファイルがない・破損・不正時はフォールバック"""
         raw_list: List[dict] = []
-        if os.path.exists(self.save_file_path):
+        file_existed = os.path.exists(self.save_file_path)
+
+        if file_existed:
             try:
                 with open(self.save_file_path, 'r', encoding='utf-8') as f:
                     content = json.load(f)
@@ -35,8 +37,11 @@ class SaveDataManager:
         validated = [self._validate_or_fallback_setup(i, raw_list[i] if i < len(raw_list) else {})
                      for i in range(PLAYER_COUNT)]
 
-        # 初回または修正が入った場合は最新の整形状態を保存
-        self._save_data(validated)
+        # 既存の内容と差分がある場合、または初回作成時のみ書き込む
+        current_dict_list = [s.to_dict() for s in validated]
+        if not file_existed or raw_list != current_dict_list:
+            self._save_data(validated)
+
         return validated
 
     def _validate_or_fallback_setup(self, idx: int, raw: dict) -> RobotSetup:

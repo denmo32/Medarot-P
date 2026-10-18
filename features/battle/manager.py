@@ -1,11 +1,11 @@
-"""バトルの全体進行、フェーズ遷移、ルール適用を統括するマネージャ。"""
+"""バトルの全体進行、フェーズ遷移、ルール適用を統括するマネージャ（純粋ロジックステートマシン）。"""
 from typing import List, Dict, Optional, Tuple
 
 from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType, TeamType, GaugeStatus, SkillPresentation
 from domain.models import GameDataProtocol, RobotSetup
 from domain.rules import check_battle_end
 
-from .atb_system import ATBEvent, ATBSystem
+from .atb_system import ATBSystem
 from .commands import BattleCommand, SkipCommand, build_command_for_part
 from .ai_controller import AIController
 from .command_executor import CommandExecutor
@@ -13,14 +13,12 @@ from .constants import BattlePhase, INTERRUPTIBLE_PHASES, PHASE_CONFIGS
 from .context import BattleContext
 from .factory import BattleFactory
 from .log_builder import BattleLogBuilder
-from .models import Robot, Part
-from .staging.cutin_director import CutinEvent
-from .staging.visual_coordinator import VisualCoordinator
+from .models import Robot, Part, ATBEvent
 from .targeting_resolver import TargetingResolver
 
 
 class BattleManager:
-    """純粋な戦闘進行ステートマシン（表示専用 ViewModel への依存を排除）。"""
+    """純粋な戦闘進行ステートマシン。演出（VisualCoordinator）には依存せず、進行のみを司る。"""
 
     def __init__(
         self,
@@ -37,7 +35,6 @@ class BattleManager:
         self.logs = BattleLogBuilder()
         self.atb = ATBSystem(self.ctx.robots)
         self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
-        self.visual = VisualCoordinator(self.ctx.robots)
 
         self.change_phase(BattlePhase.INITIAL_SETUP)
 
@@ -62,36 +59,13 @@ class BattleManager:
 
     def change_phase(self, new_phase: BattlePhase):
         self.ctx.phase = new_phase
-        config = PHASE_CONFIGS.get(new_phase)
-        self.visual.start_phase_timer(config.duration if config else 0.0)
 
         if new_phase == BattlePhase.OPENING_LOG:
             self.ctx.set_log(self.logs.opening())
-        elif new_phase == BattlePhase.TARGET_INDICATION:
-            self._enter_target_indication()
         elif new_phase == BattlePhase.ATTACK_DECLARATION:
             self._enter_attack_declaration()
 
-    def _enter_target_indication(self):
-        actor = self.ctx.current_actor
-        report = self.ctx.current_report
-        target = report.target if report else None
-        if actor and target:
-            attacker_idx = self._find_robot_index(actor)
-            target_idx = self._find_robot_index(target)
-            if attacker_idx is not None and target_idx is not None:
-                self.visual.start_radar(attacker_idx, target_idx)
-
-    def _find_robot_index(self, robot: Robot) -> Optional[int]:
-        for index, candidate in enumerate(self.ctx.robots):
-            if candidate is robot:
-                return index
-        return None
-
     def advance_phase(self):
-        if self.visual.is_busy():
-            return
-
         phase = self.ctx.phase
         if phase == BattlePhase.OPENING_POPUP:
             self.ctx.is_opening_done = True
@@ -99,8 +73,6 @@ class BattleManager:
             self.change_phase(BattlePhase.IDLE)
         elif phase == BattlePhase.ATTACK_DECLARATION:
             self._advance_attack_declaration()
-        elif phase in (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT):
-            self._handle_cutin_advance()
         elif phase == BattlePhase.LOG_WAIT:
             self.complete_execution()
         else:
@@ -108,26 +80,7 @@ class BattleManager:
             if config and config.next_phase:
                 self.change_phase(config.next_phase)
 
-    def _handle_cutin_advance(self):
-        if not self.visual.cutin_director:
-            self.complete_execution()
-            return
-
-        for event in self.visual.advance_cutin():
-            if event == CutinEvent.ANIMATION_FINISHED:
-                self.apply_execution_result()
-                self.change_phase(BattlePhase.CUTIN_RESULT)
-            elif event == CutinEvent.PIERCE_ADVANCED:
-                self.ctx.set_log(["貫通ダメージ！"])
-                report = self.ctx.current_report
-                if report and report.target:
-                    self.visual.advance_damage_step(report.target)
-            elif event == CutinEvent.COMPLETED:
-                self.complete_execution()
-
     def update(self, dt: float):
-        self.visual.update(dt)
-
         if self.ctx.phase in (
             BattlePhase.CUTIN,
             BattlePhase.CUTIN_RESULT,
@@ -138,8 +91,7 @@ class BattleManager:
             return
 
         if self._check_battle_end():
-            if not self.visual.is_hp_animating():
-                self.complete_execution()
+            self.complete_execution()
             return
 
         self._handle_charging_interrupts()
@@ -155,26 +107,6 @@ class BattleManager:
             self.change_phase(BattlePhase.OPENING_LOG if not self.ctx.is_opening_done else BattlePhase.IDLE)
         elif phase == BattlePhase.IDLE:
             self.update_atb(dt)
-        elif phase == BattlePhase.CUTIN:
-            events = self.visual.update_cutin(dt)
-            if events:
-                for event in events:
-                    if event == CutinEvent.ANIMATION_FINISHED:
-                        self.apply_execution_result()
-                        self.change_phase(BattlePhase.CUTIN_RESULT)
-            elif not self.visual.cutin_director:
-                self.apply_execution_result()
-                self.change_phase(BattlePhase.CUTIN_RESULT)
-        elif phase in (BattlePhase.OPENING_POPUP, BattlePhase.TARGET_INDICATION):
-            if self.visual.is_timer_expired():
-                config = PHASE_CONFIGS.get(phase)
-                next_phase = config.next_phase if config else None
-                if next_phase is None:
-                    return
-                if phase == BattlePhase.OPENING_POPUP:
-                    self.advance_phase()
-                else:
-                    self.change_phase(next_phase)
 
     def _enter_attack_declaration(self):
         actor, part = self._get_current_part()
@@ -196,9 +128,6 @@ class BattleManager:
 
         presentation = part.presentation
         if presentation == SkillPresentation.CUTIN:
-            report = self.ctx.current_report
-            if report and report.result:
-                self.visual.start_cutin(part, report)
             self.change_phase(BattlePhase.CUTIN)
         elif presentation == SkillPresentation.LOG_ONLY:
             if self.apply_execution_result():
@@ -223,7 +152,7 @@ class BattleManager:
         return is_ended
 
     def _handle_charging_interrupts(self):
-        if self.visual.is_hp_animating() or self.ctx.phase not in INTERRUPTIBLE_PHASES:
+        if self.ctx.phase not in INTERRUPTIBLE_PHASES:
             return
 
         interrupted = False
@@ -251,16 +180,9 @@ class BattleManager:
         }
         self.change_phase(BattlePhase.INPUT)
 
-    def is_hp_animating(self) -> bool:
-        return self.visual.is_hp_animating()
-
-    def is_waiting_for_advance(self) -> bool:
-        return self.visual.is_waiting_for_advance(self.ctx.phase)
-
     def update_atb(self, dt: float):
         if self._check_battle_end():
-            if not self.visual.is_hp_animating():
-                self.complete_execution()
+            self.complete_execution()
             return
 
         self.atb.update(dt)
@@ -279,21 +201,9 @@ class BattleManager:
             self.change_phase(self.executor.execute_charged(actor))
 
     def apply_execution_result(self) -> bool:
-        applied = self.executor.apply_pending()
-        report = self.ctx.current_report
-
-        if report:
-            self.visual.stage_damage(report)
-
-        if report and report.result:
-            self.visual.update_cutin_result(report.result)
-
-        return applied
+        return self.executor.apply_pending()
 
     def complete_execution(self):
-        self.visual.sync_all_targets()
-        self.visual.clear_cutin()
-        self.visual.clear_radar()  # レーダー演出のクリーンアップ
         self.ctx.current_report = None
 
         if self._check_battle_end():

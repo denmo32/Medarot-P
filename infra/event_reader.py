@@ -2,7 +2,7 @@
 from typing import Dict, Optional
 import pygame
 
-from core.inputs import InputState, EventReaderProtocol
+from core.inputs import InputState
 
 
 # デフォルトのキーマッピング (pygameキーコード -> InputStateの属性名)
@@ -36,23 +36,37 @@ class PygameEventReader:
         return self._state
 
     def handle_events(self) -> bool:
-        """Pygame イベントを処理し、論理入力状態を更新する。
+        """Pygame イベントを処理し、InputState を新たに構築する。
 
         Returns:
             bool: 正常継続なら True、ウィンドウ終了 (QUIT) なら False。
         """
-        self._state.reset()
-        self._state.mouse_x, self._state.mouse_y = pygame.mouse.get_pos()
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        mouse_clicked = False
+        pressed_keys = {}
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self._state.mouse_clicked = True
+                mouse_clicked = True
             elif event.type == pygame.KEYDOWN:
                 attr = self.key_map.get(event.key)
                 if attr:
-                    setattr(self._state, attr, True)
+                    pressed_keys[attr] = True
+
+        self._state = InputState(
+            btn_ok=pressed_keys.get('btn_ok', False),
+            btn_cancel=pressed_keys.get('btn_cancel', False),
+            btn_menu=pressed_keys.get('btn_menu', False),
+            btn_left=pressed_keys.get('btn_left', False),
+            btn_right=pressed_keys.get('btn_right', False),
+            btn_up=pressed_keys.get('btn_up', False),
+            btn_down=pressed_keys.get('btn_down', False),
+            mouse_x=mouse_x,
+            mouse_y=mouse_y,
+            mouse_clicked=mouse_clicked,
+        )
 
         return True

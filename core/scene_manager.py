@@ -1,9 +1,8 @@
-"""シーン管理を統括するクラス（型付き遷移・イベント一元集約）"""
+"""シーン管理を統括するクラス（型付き遷移・イベント一元集約・特定描画API非依存）"""
 
 from typing import Dict, Optional, Type, Any
 from dataclasses import dataclass, field
 import logging
-import pygame
 
 from core.constants import SceneId
 from core.inputs import InputState, EventReaderProtocol
@@ -34,10 +33,10 @@ class SceneTransition:
 
 @dataclass
 class SceneContext:
-    """シーン間で共有される依存関係"""
-    screen: Optional[pygame.Surface]
+    """シーン間で共有される依存関係（描画API非依存）"""
     data_manager: GameDataProtocol
     save_manager: SaveDataProtocol
+    screen: Optional[Any] = None  # 描画対象サーフェス（UI層が解釈）
 
 
 class Scene:
@@ -80,8 +79,9 @@ class SceneManager:
     def switch_to(self, tag: SceneId, **payload):
         scene_class = self.scene_classes.get(tag)
         if not scene_class:
-            logger.error(f"Scene tag '{tag}' not found.")
-            return
+            error_msg = f"シーン識別子 '{tag}' は登録されていません。"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         if self.current_scene is not None:
             self.current_scene.on_exit()

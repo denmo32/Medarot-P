@@ -18,18 +18,20 @@ class GameDataManager:
         self.medals_json_path = medals_json_path or resource_path('assets/data/medals_data.json')
 
         raw_data = self._load_all_data()
-        # 読み込み時点で部位を PartType に正規化して保持
-        self._parts_by_type: Dict[PartType, Dict[str, dict]] = self._build_typed_parts(raw_data)
-        # パース済みの不変オブジェクトを読み込み時に構築し、以降は同一インスタンスを再利用する
-        # （PartData / MedalData は frozen なため、毎回 from_dict する意味はない）
-        self._part_instances: Dict[str, PartData] = {
-            pid: PartData.from_dict(raw)
-            for parts in self._parts_by_type.values()
-            for pid, raw in parts.items()
-        }
+
+        # パース済みの不変オブジェクトを読み込み時に構築
         self._medal_instances: Dict[str, MedalData] = {
             mid: MedalData.from_dict(raw)
             for mid, raw in raw_data.get('medals', {}).items()
+        }
+
+        # パーツデータを PartData の型付き辞書に正規化
+        self._parts_by_type: Dict[PartType, Dict[str, PartData]] = self._build_typed_parts(raw_data)
+
+        self._part_instances: Dict[str, PartData] = {
+            pid: part
+            for parts in self._parts_by_type.values()
+            for pid, part in parts.items()
         }
 
     def _load_all_data(self) -> Dict:
@@ -38,12 +40,15 @@ class GameDataManager:
         data.update(self._load_json(self.medals_json_path))
         return data
 
-    def _build_typed_parts(self, data: Dict) -> Dict[PartType, Dict[str, dict]]:
-        typed_parts = {}
+    def _build_typed_parts(self, data: Dict) -> Dict[PartType, Dict[str, PartData]]:
+        typed_parts: Dict[PartType, Dict[str, PartData]] = {}
         for raw_pt, parts in data.get('parts', {}).items():
             pt = PartType.from_key(raw_pt)
             if pt:
-                typed_parts[pt] = parts
+                typed_parts[pt] = {
+                    pid: PartData.from_dict(raw)
+                    for pid, raw in parts.items()
+                }
             else:
                 logger.warning(f"未知のパーツ部位キーを無視しました: {raw_pt}")
         return typed_parts

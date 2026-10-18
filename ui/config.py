@@ -1,7 +1,7 @@
 """UI関連の設定値とテーマ定義"""
 
-from dataclasses import dataclass
-from typing import Tuple
+from dataclasses import dataclass, field
+from typing import Any, Tuple
 
 from domain.constants import AccentState
 
@@ -102,72 +102,110 @@ def resolve_accent_color(state: AccentState, theme: Theme = DEFAULT_THEME) -> Co
 FONT_NAMES = ['assets/fonts/NotoSansJP-Regular.ttf']
 COMMAND_BUTTON_FONT_NAME = 'assets/fonts/851Gkktt_005.ttf'
 
-UI_PARAMS = {
-    'BATTLEFIELD_Y_START_RATIO': 0.25,
-    'BATTLEFIELD_Y_END_RATIO': 0.75,
-    'PLAYER_TEAM_X_RATIO': 0.06,
-    'ENEMY_TEAM_X_RATIO': 0.56,
-    'GAUGE_WIDTH_RATIO': 0.38,
-    'TEAM_BOUNDARY_MARGIN_RATIO': 0.05,
-    'GUIDE_LINE_OFFSET_RATIO': 0.05,
-    'ROBOT_Y_PADDING': 0.5,
-    'HOME_MARKER_RX': 24,
-    'HOME_MARKER_RY': 10,
-    'ROBOT_ICON_SCALE': 0.4,
-    'TARGET_MARKER_OFFSET': 4,
-    'MESSAGE_WINDOW_Y_RATIO': 0.75,
-    'MESSAGE_WINDOW_HEIGHT_RATIO': 0.25,
-    'MESSAGE_WINDOW_PADDING_RATIO': 0.012,
-    'LOG_LINE_HEIGHT': 25,
-    'BLINK_INTERVAL_MS': 500,
-    'ADVANCE_MARKER_SIZE': 8,
-    'COMMAND_MENU_TOP_PADDING_RATIO': 0.04,
-    'ACTION_NAME_Y_RATIO': 0.05,
-    'CUTIN_LEFT_RATIO': 0.25,
-    'CUTIN_RIGHT_RATIO': 0.75,
-    'CUTIN_LABEL_OFFSET': 80,
-    'CUTIN_DAMAGE_OFFSET': 50,
-    'CUTIN_POPUP_THRESHOLD': 1.0,
-    'CUTIN_PROJECTILE_RADIUS': 7,
-    'CUTIN_MELEE_CONTACT_OFFSET': 50,
-    'CUTIN_MELEE_EXIT_MARGIN': 80,
-    'TARGET_RADAR_SIZE': 56,
-    'TARGET_RADAR_CORNER_LEN': 12,
-    'TARGET_RADAR_TRAVEL_SEC': 0.3,
-    'TARGET_RADAR_PULSE_SEC': 0.22,
-    'UI': {
-        'BTN_WIDTH_RATIO': 0.25,
-        'BTN_HEIGHT_RATIO': 0.075,
-        'BTN_PADDING_RATIO': 0.012,
-    },
-    'CUSTOMIZE': {
-        'PANEL_PADDING_RATIO': 0.02,
-        'PANEL_Y_RATIO': 0.07,
-        'PANEL_HEIGHT_RATIO': 0.86,
-        'COLUMN_1_WIDTH_RATIO': 0.22,
-        'COLUMN_2_WIDTH_RATIO': 0.38,
-        'COLUMN_3_WIDTH_RATIO': 0.32,
-        'CONTENT_START_Y_RATIO': 0.06,
-        'COLUMN_1_ITEM_HEIGHT_RATIO': 0.07,
-        'COLUMN_1_ITEM_GAP_RATIO': 0.02,
-        'COLUMN_1_ITEM_PADDING': 10,
-        'COLUMN_1_TEXT_OFFSET_X': 15,
-        'COLUMN_2_ITEM_HEIGHT_RATIO': 0.06,
-        'COLUMN_2_ITEM_GAP_RATIO': 0.015,
-        'COLUMN_2_TEXT_OFFSET_X': 10,
-        'COLUMN_2_PART_NAME_OFFSET_X': 80,
-        'COLUMN_2_LIST_TITLE_OFFSET_Y': 10,
-        'COLUMN_2_LIST_START_PADDING': 40,
-        'COLUMN_2_LIST_HIGHLIGHT_WIDTH': 5,
-        'COLUMN_2_LIST_ITEM_HEIGHT_RATIO': 0.05,
-        'COLUMN_2_LIST_ITEM_OFFSET_X': 25,
-        'COLUMN_2_LIST_INDENT': 30,
-        'COLUMN_3_TITLE_OFFSET_X': 15,
-        'COLUMN_3_INFO_START_OFFSET_Y': 40,
-        'COLUMN_3_ROW_LABEL_OFFSET_X': 15,
-        'COLUMN_3_ROW_VALUE_OFFSET_X': 20,
-        'COLUMN_3_ROW_LINE_OFFSET_Y': 5,
-        'COLUMN_3_ROW_HEIGHT_RATIO': 0.07,
-        'COLUMN_3_SECTION_GAP_RATIO': 0.03,
-    },
-}
+# ==============================================================================
+# 型安全な UI レイアウトパラメータ定義
+# ==============================================================================
+
+@dataclass(frozen=True)
+class CommandButtonUiParams:
+    btn_width_ratio: float = 0.25
+    btn_height_ratio: float = 0.075
+    btn_padding_ratio: float = 0.012
+
+    def __getitem__(self, item: str) -> Any:
+        mapping = {
+            'BTN_WIDTH_RATIO': self.btn_width_ratio,
+            'BTN_HEIGHT_RATIO': self.btn_height_ratio,
+            'BTN_PADDING_RATIO': self.btn_padding_ratio,
+        }
+        return mapping[item]
+
+
+@dataclass(frozen=True)
+class CustomizeUiParams:
+    panel_padding_ratio: float = 0.02
+    panel_y_ratio: float = 0.07
+    panel_height_ratio: float = 0.86
+    column_1_width_ratio: float = 0.22
+    column_2_width_ratio: float = 0.38
+    column_3_width_ratio: float = 0.32
+    content_start_y_ratio: float = 0.06
+    column_1_item_height_ratio: float = 0.07
+    column_1_item_gap_ratio: float = 0.02
+    column_1_item_padding: int = 10
+    column_1_text_offset_x: int = 15
+    column_2_item_height_ratio: float = 0.06
+    column_2_item_gap_ratio: float = 0.015
+    column_2_text_offset_x: int = 10
+    column_2_part_name_offset_x: int = 80
+    column_2_list_title_offset_y: int = 10
+    column_2_list_start_padding: int = 40
+    column_2_list_highlight_width: int = 5
+    column_2_list_item_height_ratio: float = 0.05
+    column_2_list_item_offset_x: int = 25
+    column_2_list_indent: int = 30
+    column_3_title_offset_x: int = 15
+    column_3_info_start_offset_y: int = 40
+    column_3_row_label_offset_x: int = 15
+    column_3_row_value_offset_x: int = 20
+    column_3_row_line_offset_y: int = 5
+    column_3_row_height_ratio: float = 0.07
+    column_3_section_gap_ratio: float = 0.03
+
+    def __getitem__(self, item: str) -> Any:
+        key = item.lower()
+        return getattr(self, key)
+
+
+@dataclass(frozen=True)
+class UiParams:
+    """UI の比率・マージン・ピクセル規定（イミュータブル・辞書互換アクセス両対応）"""
+    battlefield_y_start_ratio: float = 0.25
+    battlefield_y_end_ratio: float = 0.75
+    player_team_x_ratio: float = 0.06
+    enemy_team_x_ratio: float = 0.56
+    gauge_width_ratio: float = 0.38
+    team_boundary_margin_ratio: float = 0.05
+    guide_line_offset_ratio: float = 0.05
+    robot_y_padding: float = 0.5
+    home_marker_rx: int = 24
+    home_marker_ry: int = 10
+    robot_icon_scale: float = 0.4
+    target_marker_offset: int = 4
+    message_window_y_ratio: float = 0.75
+    message_window_height_ratio: float = 0.25
+    message_window_padding_ratio: float = 0.012
+    log_line_height: int = 25
+    blink_interval_ms: int = 500
+    advance_marker_size: int = 8
+    command_menu_top_padding_ratio: float = 0.04
+    action_name_y_ratio: float = 0.05
+    cutin_left_ratio: float = 0.25
+    cutin_right_ratio: float = 0.75
+    cutin_label_offset: int = 80
+    cutin_damage_offset: int = 50
+    cutin_popup_threshold: float = 1.0
+    cutin_projectile_radius: int = 7
+    cutin_melee_contact_offset: int = 50
+    cutin_melee_exit_margin: int = 80
+    target_radar_size: int = 56
+    target_radar_corner_len: int = 12
+    target_radar_travel_sec: float = 0.3
+    target_radar_pulse_sec: float = 0.22
+    ui: CommandButtonUiParams = field(default_factory=CommandButtonUiParams)
+    customize: CustomizeUiParams = field(default_factory=CustomizeUiParams)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __getitem__(self, key: str) -> Any:
+        attr = key.lower()
+        if hasattr(self, attr):
+            return getattr(self, attr)
+        raise KeyError(key)
+
+
+UI_PARAMS = UiParams()

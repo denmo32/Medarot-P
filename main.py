@@ -30,7 +30,11 @@ def main():
     save_manager = SaveDataManager(data_manager)
     event_reader = PygameEventReader()
 
-    ctx = SceneContext(screen, data_manager, save_manager)
+    ctx = SceneContext(
+        data_manager=data_manager,
+        save_manager=save_manager,
+        screen=screen,
+    )
 
     manager = SceneManager(ctx, event_reader=event_reader)
     manager.register_scene(SceneId.TITLE, TitleScene)
@@ -45,7 +49,6 @@ def main():
 
     try:
         while running:
-            # 処理落ち時の不自然なスローモーションを防ぎつつ、極端なスパイクのみ抑止
             raw_dt = clock.tick(FPS) / 1000.0
             dt = min(raw_dt, MAX_DELTA_TIME)
             running = manager.process_frame(dt)

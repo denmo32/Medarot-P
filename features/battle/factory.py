@@ -84,6 +84,7 @@ class BattleFactory:
     def get_enemy_setups(
         cls, data_manager: GameDataProtocol, count: Optional[int] = None, rng: Optional[random.Random] = None
     ) -> List[RobotSetup]:
+        _rng = rng or random.Random()
         target_count = count
         if target_count is None:
             if DEBUG_ENEMY_COUNT is not None:
@@ -96,8 +97,8 @@ class BattleFactory:
         target_count = max(1, target_count)
 
         if ENABLE_CUSTOM_ENEMY and CUSTOM_ENEMY_SETUPS:
-            return cls._build_custom_enemy_setups(data_manager, target_count, rng)
-        return cls.generate_random_enemy_setups(data_manager, target_count, rng)
+            return cls._build_custom_enemy_setups(data_manager, target_count, _rng)
+        return cls.generate_random_enemy_setups(data_manager, target_count, _rng)
 
     @staticmethod
     def _get_enemy_candidate_resources(data_manager: GameDataProtocol):
@@ -110,7 +111,7 @@ class BattleFactory:
 
     @classmethod
     def _build_custom_enemy_setups(
-        cls, data_manager: GameDataProtocol, count: int = ENEMY_COUNT, rng: Optional[random.Random] = None
+        cls, data_manager: GameDataProtocol, count: int, rng: random.Random
     ) -> List[RobotSetup]:
         medal_ids, part_ids_by_type = cls._get_enemy_candidate_resources(data_manager)
         setups = []
@@ -133,9 +134,9 @@ class BattleFactory:
 
     @classmethod
     def generate_random_enemy_setups(
-        cls, data_manager: GameDataProtocol, count: int = ENEMY_COUNT, rng: Optional[random.Random] = None
+        cls, data_manager: GameDataProtocol, count: int, rng: Optional[random.Random] = None
     ) -> List[RobotSetup]:
-        _rng = rng or random
+        _rng = rng or random.Random()
         medal_ids, part_ids_by_type = cls._get_enemy_candidate_resources(data_manager)
 
         return [
