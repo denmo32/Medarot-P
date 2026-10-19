@@ -1,8 +1,7 @@
-"""バトルの演出進行（HPアニメーション、タイマー、カットイン、レーダー）を一元管理するコーディネーター。"""
+"""バトルの演出進行（HPアニメーション、カットイン、レーダー）を一元管理するコーディネーター。"""
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from domain.constants import PartType
-from ..constants import ADVANCEABLE_PHASES, BattlePhase
 from .cutin_director import CutinDirector, CutinEvent
 from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
@@ -32,52 +31,25 @@ def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType,
 
 
 class VisualCoordinator:
-    """戦闘の視覚演出（HP変動アニメーション・演出待機タイマー・カットイン・レーダー）を一元管理する。
-
-    BattleManager からアニメーション・待機・時間軸進行の関心事を分離し、
-    自立した演出状態（VisualState, PhaseTimer, CutinDirector）を保持する。
-    """
+    """戦闘の視覚演出（HP変動アニメーション・カットイン・レーダー）を一元管理する。"""
 
     def __init__(self, robots: Sequence['Robot']):
         self.visual_states: Dict['Robot', RobotVisualState] = {
             r: RobotVisualState(r) for r in robots
         }
-        self.phase_timer: float = 0.0
         self.cutin_director: Optional[CutinDirector] = None
         self.radar_director: Optional[TargetRadarDirector] = None
 
-    # === タイマー管理 ===
-
-    def start_phase_timer(self, duration: float):
-        self.phase_timer = max(0.0, duration)
-
-    def is_timer_active(self) -> bool:
-        return self.phase_timer > 0.0
-
-    def is_timer_expired(self) -> bool:
-        return self.phase_timer <= 0.0
-
-    # === HP アニメーション・待機判定 ===
+    # === HP アニメーション判定 ===
 
     def is_hp_animating(self) -> bool:
         return any(vs.is_hp_animating for vs in self.visual_states.values())
-
-    def is_busy(self) -> bool:
-        return self.is_hp_animating() or self.is_timer_active()
-
-    def is_waiting_for_advance(self, phase: BattlePhase) -> bool:
-        if self.is_busy():
-            return False
-        return phase in ADVANCEABLE_PHASES
 
     # === フレーム更新 ===
 
     def update(self, dt: float):
         for vs in self.visual_states.values():
             vs.update(dt)
-
-        if self.phase_timer > 0.0:
-            self.phase_timer = max(0.0, self.phase_timer - dt)
 
         if self.radar_director:
             self.radar_director.update(dt)
@@ -97,7 +69,6 @@ class VisualCoordinator:
     def sync_all_targets(self):
         for vs in self.visual_states.values():
             vs.sync_all_targets()
-        self.phase_timer = 0.0
 
     # === カットイン演出のライフサイクル ===
 
@@ -119,6 +90,7 @@ class VisualCoordinator:
 
     def update_cutin_result(self, result: 'ActionResult'):
         if self.cutin_director:
+            self.cutin_director.show_result()
             self.cutin_director.update_final_result(result)
 
     def clear_cutin(self):

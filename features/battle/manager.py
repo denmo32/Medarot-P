@@ -1,13 +1,13 @@
-"""バトルの全体進行、フェーズ遷移、ルール適用を統括するマネージャ（純粋ロジックステートマシン）。"""
+"""バトルのシミュレーション・計算・ルール適用を統括するマネージャ（シミュレーション専任）。"""
 from typing import List, Dict, Optional, Tuple
 
-from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType, TeamType, GaugeStatus, SkillPresentation
+from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType, TeamType, GaugeStatus
 from domain.models import GameDataProtocol, RobotSetup
 from domain.rules import check_battle_end
 
 from .ai_controller import AIController
 from .atb_system import ATBSystem
-from .constants import BattlePhase, INTERRUPTIBLE_PHASES, PHASE_CONFIGS
+from .constants import BattlePhase
 from .context import BattleContext
 from .entities.atb_track import ATBEvent
 from .entities.commands import BattleCommand, SkipCommand, build_command_for_part
@@ -20,7 +20,7 @@ from .factory import BattleFactory
 
 
 class BattleManager:
-    """純粋な戦闘進行ステートマシン。演出（VisualCoordinator）には依存せず、進行のみを司る。"""
+    """戦闘の純粋シミュレーションエンジン。フェーズ進行は BattleFlow が管轄します。"""
 
     def __init__(
         self,
@@ -38,8 +38,7 @@ class BattleManager:
         self.atb = ATBSystem(self.ctx.robots)
         self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
 
-        self.change_phase(BattlePhase.INITIAL_SETUP)
-
+        # 敵AIの初期行動予約
         for robot in robots:
             if robot.team == TeamType.ENEMY:
                 self.ai.decide_command(robot)
@@ -59,85 +58,17 @@ class BattleManager:
     def get_command_menu_preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
         return self.ctx.preview_targets
 
-    # === 状態遷移の一元管理 ===
+    # === シミュレーション制御 ===
 
-    def change_phase(self, new_phase: BattlePhase):
-        """マネージャ内部でのみ状態を遷移させる単一エントリーポイント"""
-        old_phase = self.ctx.phase
-        self._on_phase_exit(old_phase)
-        self.ctx.phase = new_phase
-        self._on_phase_enter(new_phase)
+    def find_ready_player_robot(self) -> Optional[Robot]:
+        """待機状態にある自軍機体を探索する"""
+        for robot in self.ctx.robots:
+            if robot.team == TeamType.PLAYER and robot.gauge_status == GaugeStatus.READY:
+                return robot
+        return None
 
-    def _on_phase_exit(self, phase: BattlePhase):
-        if phase == BattlePhase.OPENING_POPUP:
-            self.ctx.is_opening_done = True
-            self.ctx.clear_log()
-
-    def _on_phase_enter(self, new_phase: BattlePhase):
-        if new_phase == BattlePhase.OPENING_LOG:
-            self.ctx.set_log(self.logs.opening())
-        elif new_phase == BattlePhase.ATTACK_DECLARATION:
-            self._enter_attack_declaration()
-
-    # === 入力・進行イベント ===
-
-    def advance_phase(self):
-        """ユーザー入力または自動進行による前進"""
-        phase = self.ctx.phase
-        if phase == BattlePhase.OPENING_POPUP:
-            self.change_phase(BattlePhase.IDLE)
-        elif phase == BattlePhase.ATTACK_DECLARATION:
-            self._advance_attack_declaration()
-        elif phase in (BattlePhase.LOG_WAIT, BattlePhase.CUTIN_RESULT):
-            self.complete_execution()
-        else:
-            config = PHASE_CONFIGS.get(phase)
-            if config and config.next_phase:
-                self.change_phase(config.next_phase)
-
-    def notify_animation_finished(self):
-        """カットイン演出の終了通知。効果適用と次フェーズ遷移を manager が独占する。"""
-        if self.ctx.phase != BattlePhase.CUTIN:
-            return
-        self.apply_execution_result()
-        self.change_phase(BattlePhase.CUTIN_RESULT)
-
-    def notify_timer_expired(self):
-        """時間駆動フェーズのタイマー切れ通知。"""
-        phase = self.ctx.phase
-        config = PHASE_CONFIGS.get(phase)
-        if config and config.next_phase:
-            self.change_phase(config.next_phase)
-
-    def update(self, dt: float):
-        if self.ctx.phase in (
-            BattlePhase.CUTIN,
-            BattlePhase.CUTIN_RESULT,
-            BattlePhase.LOG_WAIT,
-            BattlePhase.GAME_OVER,
-        ):
-            self._update_phase(dt)
-            return
-
-        if self._check_battle_end():
-            self.complete_execution()
-            return
-
-        self._handle_charging_interrupts()
-        self._update_phase(dt)
-
-    def _update_phase(self, dt: float):
-        phase = self.ctx.phase
-        if phase == BattlePhase.INITIAL_SETUP:
-            for robot in self.ctx.robots:
-                if robot.team == TeamType.PLAYER and robot.gauge_status == GaugeStatus.READY:
-                    self.enter_input_phase(robot)
-                    return
-            self.change_phase(BattlePhase.OPENING_LOG if not self.ctx.is_opening_done else BattlePhase.IDLE)
-        elif phase == BattlePhase.IDLE:
-            self.update_atb(dt)
-
-    def _enter_attack_declaration(self):
+    def setup_attack_declaration(self):
+        """行動宣言ログの構築"""
         actor, part = self._get_current_part()
         if not actor or not part:
             return
@@ -147,31 +78,11 @@ class BattleManager:
         else:
             self.ctx.set_log(self.logs.declaration(actor, part))
 
-    def _advance_attack_declaration(self):
-        actor, part = self._get_current_part()
-        if not actor or not part or not part.is_implemented:
-            if actor:
-                actor.enter_cooldown(interrupted=False)
-            self.complete_execution()
-            return
-
-        presentation = part.presentation
-        if presentation == SkillPresentation.CUTIN:
-            self.change_phase(BattlePhase.CUTIN)
-        elif presentation == SkillPresentation.LOG_ONLY:
-            if self.apply_execution_result():
-                self.change_phase(BattlePhase.LOG_WAIT)
-            else:
-                self.complete_execution()
-        else:
-            self.apply_execution_result()
-            self.complete_execution()
-
     def _get_current_part(self) -> Tuple[Optional[Robot], Optional[Part]]:
         actor = self.ctx.current_actor
         return (actor, actor.current_part) if actor else (None, None)
 
-    def _check_battle_end(self) -> bool:
+    def check_battle_end(self) -> bool:
         if self.ctx.winner:
             return True
         snapshots = [r.get_snapshot(i) for i, r in enumerate(self.ctx.robots)]
@@ -180,10 +91,8 @@ class BattleManager:
             self.ctx.winner = winner
         return is_ended
 
-    def _handle_charging_interrupts(self):
-        if self.ctx.phase not in INTERRUPTIBLE_PHASES:
-            return
-
+    def handle_charging_interrupts(self) -> bool:
+        """充填中の割り込み判定を行い、発生した場合はログ記録とクールダウン移行を実施"""
         interrupted = False
         for robot in self.ctx.robots:
             interrupt_reason = robot.evaluate_interruption()
@@ -198,36 +107,39 @@ class BattleManager:
                 self.ctx.extend_log(messages)
             robot.enter_cooldown(interrupted=True)
 
-        if interrupted:
-            self.change_phase(BattlePhase.LOG_WAIT)
+        return interrupted
 
     def enter_input_phase(self, actor: Robot):
+        """指定機体のコマンド入力状態を準備"""
         self.ctx.current_actor = actor
         self.ctx.preview_targets = {
             pt: self.targeting.resolve_preview_target(actor, pt)
             for pt in ACTIONABLE_PART_TYPES
         }
-        self.change_phase(BattlePhase.INPUT)
 
-    def update_atb(self, dt: float):
-        if self._check_battle_end():
-            self.complete_execution()
-            return
+    def update_atb(self, dt: float) -> Optional[BattlePhase]:
+        """ATB時間を進行させ、手番発生があれば遷移先フェーズを返す"""
+        if self.check_battle_end():
+            return None
 
         self.atb.update(dt)
         turn = self.atb.pop_next_turn()
         if turn is None:
-            return
+            return None
 
         actor, event = turn
         self.ctx.current_actor = actor
         if event == ATBEvent.COOLED:
             if actor.team == TeamType.PLAYER:
                 self.enter_input_phase(actor)
+                return BattlePhase.INPUT
             else:
                 self.ai.decide_command(actor)
+                return None
         elif event == ATBEvent.CHARGED:
-            self.change_phase(self.executor.execute_charged(actor))
+            return self.executor.execute_charged(actor)
+
+        return None
 
     def apply_execution_result(self) -> bool:
         return self.executor.apply_pending()
@@ -235,39 +147,29 @@ class BattleManager:
     def complete_execution(self):
         self.ctx.current_report = None
 
-        if self._check_battle_end():
-            if not self.ctx.result_announced:
-                self.ctx.result_announced = True
-                self.ctx.set_log(self.logs.battle_end(self.ctx.winner))
-                self.change_phase(BattlePhase.LOG_WAIT)
-            else:
-                self.change_phase(BattlePhase.GAME_OVER)
-        else:
-            self.ctx.clear_log()
-            self.change_phase(BattlePhase.IDLE)
-
-    def select_command_slot(self, slot: CommandSlot):
+    def select_command_slot(self, slot: CommandSlot) -> Optional[BattlePhase]:
+        """プレイヤーのコマンド選択を検証・確定し、遷移先フェーズを導出"""
         actor = self.ctx.current_actor
         if not actor or self.ctx.phase != BattlePhase.INPUT:
-            return
+            return None
 
         if slot.is_skip:
-            self.submit_player_command(SkipCommand(actor))
-            return
+            return self.submit_player_command(SkipCommand(actor))
 
         part_type = slot.part_type
         if part_type is None:
-            return
+            return None
 
         part = actor.get_part(part_type)
         if not part or not part.can_execute:
-            return
+            return None
 
         preview = self.ctx.preview_targets.get(part_type)
-        self.submit_player_command(build_command_for_part(actor, part, preview))
+        return self.submit_player_command(build_command_for_part(actor, part, preview))
 
-    def submit_player_command(self, command: BattleCommand):
+    def submit_player_command(self, command: BattleCommand) -> Optional[BattlePhase]:
         if self.ctx.phase == BattlePhase.INPUT and self.ctx.current_actor:
             self.ctx.current_actor.set_command(command)
             self.ctx.current_actor = None
-            self.change_phase(BattlePhase.INITIAL_SETUP if not self.ctx.is_opening_done else BattlePhase.IDLE)
+            return BattlePhase.INITIAL_SETUP if not self.ctx.is_opening_done else BattlePhase.IDLE
+        return None

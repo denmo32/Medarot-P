@@ -1,14 +1,8 @@
-from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional
 
 __all__ = [
     "BattlePhase",
     "CutinStep",
-    "PhaseConfig",
-    "PHASE_CONFIGS",
-    "INTERRUPTIBLE_PHASES",
-    "ADVANCEABLE_PHASES",
     "TARGET_RADAR_PHASES",
     "TARGET_RADAR_STATIC_PHASES",
     "BattleTiming",
@@ -36,14 +30,6 @@ class CutinStep(str, Enum):
     PIERCE = "pierce"
 
 
-INTERRUPTIBLE_PHASES = (BattlePhase.IDLE,)
-ADVANCEABLE_PHASES = (
-    BattlePhase.OPENING_LOG,
-    BattlePhase.OPENING_POPUP,
-    BattlePhase.ATTACK_DECLARATION,
-    BattlePhase.CUTIN_RESULT,
-    BattlePhase.LOG_WAIT,
-)
 TARGET_RADAR_PHASES = (
     BattlePhase.TARGET_INDICATION,
     BattlePhase.ATTACK_DECLARATION,
@@ -66,23 +52,3 @@ class BattleTiming:
     TARGET_RADAR_TRAVEL = 0.3
     TARGET_RADAR_PULSE = 0.22
     TARGET_RADAR_PULSE_COUNT = 2
-
-
-@dataclass(frozen=True)
-class PhaseConfig:
-    duration: float = 0.0
-    next_phase: Optional[BattlePhase] = None
-
-
-PHASE_CONFIGS: Dict[BattlePhase, PhaseConfig] = {
-    BattlePhase.OPENING_LOG: PhaseConfig(next_phase=BattlePhase.OPENING_POPUP),
-    BattlePhase.OPENING_POPUP: PhaseConfig(
-        duration=BattleTiming.OPENING_POPUP, next_phase=BattlePhase.IDLE
-    ),
-    BattlePhase.TARGET_INDICATION: PhaseConfig(
-        duration=BattleTiming.TARGET_INDICATION, next_phase=BattlePhase.ATTACK_DECLARATION
-    ),
-    BattlePhase.CUTIN: PhaseConfig(
-        next_phase=BattlePhase.CUTIN_RESULT
-    ),
-}
