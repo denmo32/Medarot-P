@@ -16,10 +16,16 @@ if TYPE_CHECKING:
 
 
 class AdvanceTrigger(Enum):
-    """フェーズ前進の契機（トリガー区分）"""
-    USER_CONFIRM = auto()    # ユーザー決定・マウスクリック
-    TIMER = auto()           # タイマー満了
-    ANIMATION_END = auto()   # 演出（カットインなど）の物理的終了
+    """フェーズ前進の契機（トリガー区分）。
+
+    発火主体:
+    - USER_CONFIRM: プレイヤーの明示的操作（決定キー押下 / マウスクリック） -> BattleScene (Input) が発火
+    - TIMER: 設定時間（duration）の満了 -> BattleFlow.update() が自己発火
+    - ANIMATION_END: 演出（カットイン等）の物理的完了 -> BattleScene (VisualCoordinator) が通知
+    """
+    USER_CONFIRM = auto()
+    TIMER = auto()
+    ANIMATION_END = auto()
 
 
 @dataclass(frozen=True)
@@ -28,7 +34,7 @@ class PhaseRule:
     advance_on: AdvanceTrigger
     next_phase: Optional[BattlePhase] = None
     duration: float = 0.0
-    can_user_skip: bool = False  # タイマー/アニメ中でもユーザー確認で前進可能か
+    can_user_skip: bool = False  # タイマー/演出中でもユーザー操作でスキップ可能か
 
 
 # フェーズ進行ルールテーブル（宣言的定義）
@@ -51,6 +57,7 @@ PHASE_RULES: Dict[BattlePhase, PhaseRule] = {
     ),
     BattlePhase.ATTACK_DECLARATION: PhaseRule(
         advance_on=AdvanceTrigger.USER_CONFIRM,
+        # 技の presentation (CUTIN / LOG_ONLY / NONE) に応じて動的に分岐
     ),
     BattlePhase.CUTIN: PhaseRule(
         advance_on=AdvanceTrigger.ANIMATION_END,
@@ -59,9 +66,15 @@ PHASE_RULES: Dict[BattlePhase, PhaseRule] = {
     ),
     BattlePhase.CUTIN_RESULT: PhaseRule(
         advance_on=AdvanceTrigger.USER_CONFIRM,
+        # 貫通ステップ継続、または行動完了へ動的に分岐
     ),
     BattlePhase.LOG_WAIT: PhaseRule(
         advance_on=AdvanceTrigger.USER_CONFIRM,
+        # 行動完了（通常は IDLE、勝敗決着時は RESULT_LOG）へ動的に遷移
+    ),
+    BattlePhase.RESULT_LOG: PhaseRule(
+        advance_on=AdvanceTrigger.USER_CONFIRM,
+        next_phase=BattlePhase.GAME_OVER,
     ),
 }
 
@@ -109,51 +122,50 @@ class BattleFlow:
         return False
 
     def advance(self, trigger: AdvanceTrigger) -> List[FlowEvent]:
-        """トリガーを受け取り、条件に合致すればフェーズを前進させる"""
+        """トリガーを受け取り、条件に合致すればフェーズを前進させる。"""
         if not self.can_advance_on(trigger):
             return []
 
-        events: List[FlowEvent] = []
+        rule = PHASE_RULES.get(self.phase)
 
-        if self.phase == BattlePhase.OPENING_LOG:
-            events.extend(self.change_phase(BattlePhase.OPENING_POPUP))
-
-        elif self.phase == BattlePhase.OPENING_POPUP:
-            self.manager.ctx.is_opening_done = True
-            self.manager.ctx.clear_log()
-            events.extend(self.change_phase(BattlePhase.IDLE))
-
-        elif self.phase == BattlePhase.TARGET_INDICATION:
-            events.extend(self.change_phase(BattlePhase.ATTACK_DECLARATION))
-
-        elif self.phase == BattlePhase.ATTACK_DECLARATION:
-            events.extend(self._advance_attack_declaration())
-
-        elif self.phase == BattlePhase.CUTIN:
-            self.manager.apply_execution_result()
-            events.extend(self.change_phase(BattlePhase.CUTIN_RESULT))
-
+        # 動的分岐または固有の完了処理を持つフェーズのハンドリング
+        if self.phase == BattlePhase.ATTACK_DECLARATION:
+            return self._dispatch_by_presentation()
         elif self.phase == BattlePhase.CUTIN_RESULT:
-            events.extend(self._advance_cutin_result())
-
+            return self._advance_cutin_result()
         elif self.phase == BattlePhase.LOG_WAIT:
-            events.extend(self._complete_action())
+            return self._complete_action()
 
-        return events
+        # フェーズ退出時の固有副作用（フック）
+        if self.phase == BattlePhase.OPENING_POPUP:
+            self.manager.ctx.is_opening_done = True
+            self.manager.clear_log()
+        elif self.phase == BattlePhase.CUTIN:
+            # カットイン演出完了時にダメージ効果を世界状態へ確定反映する
+            self.manager.apply_execution_result()
 
-    def _advance_attack_declaration(self) -> List[FlowEvent]:
+        # テーブルで宣言された next_phase に従って遷移
+        if rule and rule.next_phase:
+            return self.change_phase(rule.next_phase)
+
+        return []
+
+    def _dispatch_by_presentation(self) -> List[FlowEvent]:
+        """行動宣言確認後、技の演出形式（Presentation）に応じたフェーズへ分岐する。"""
         actor = self.manager.current_actor
         part = actor.current_part if actor else None
 
         if not actor or not part or not part.is_implemented:
             if actor:
-                actor.enter_cooldown(interrupted=False)
+                self.manager.abort_current_actor()
             return self._complete_action()
 
         presentation = part.presentation
         if presentation == SkillPresentation.CUTIN:
+            # カットイン演出へ。効果適用は CUTIN 終了時（CUTIN_RESULT 遷移時）に行われる
             return self.change_phase(BattlePhase.CUTIN)
         elif presentation == SkillPresentation.LOG_ONLY:
+            # カットインなし。即時効果適用し、ログ表示フェーズへ
             has_log = self.manager.apply_execution_result()
             if has_log:
                 return self.change_phase(BattlePhase.LOG_WAIT)
@@ -163,54 +175,62 @@ class BattleFlow:
             return self._complete_action()
 
     def _advance_cutin_result(self) -> List[FlowEvent]:
+        """カットイン結果確認後、貫通演出ステップに進むか行動完了とするかを判定する。"""
         report = self.manager.ctx.current_report
         if report and report.has_pierce and not self.is_pierce_step and report.target:
             self.is_pierce_step = True
-            self.manager.ctx.set_log(["貫通ダメージ！"])
+            self.manager.set_log(self.manager.logs.pierce())
             return [PierceStepEvent(target=report.target)]
 
         return self._complete_action()
 
     def _complete_action(self) -> List[FlowEvent]:
+        """一連の行動演出・解決を終了し、勝敗判定を行って次のフェーズ（RESULT_LOG または IDLE）へ進む。"""
         events: List[FlowEvent] = [ActionCompletedEvent()]
         self.is_pierce_step = False
         self.manager.complete_execution()
 
         if self.manager.check_battle_end():
-            if not self.manager.ctx.result_announced:
-                self.manager.ctx.result_announced = True
-                self.manager.ctx.set_log(self.manager.logs.battle_end(self.manager.ctx.winner))
-                events.extend(self.change_phase(BattlePhase.LOG_WAIT))
-            else:
-                events.extend(self.change_phase(BattlePhase.GAME_OVER))
+            # リーダー撃破により決着：勝敗ログ表示フェーズへ遷移
+            events.extend(self.change_phase(BattlePhase.RESULT_LOG))
         else:
-            self.manager.ctx.clear_log()
+            self.manager.clear_log()
             events.extend(self.change_phase(BattlePhase.IDLE))
 
         return events
 
     def change_phase(self, new_phase: BattlePhase) -> List[FlowEvent]:
+        """フェーズを変更し、対応する初期化処理を行って PhaseChangeEvent を発行する。"""
         old_phase = self.phase
         if old_phase == new_phase:
             return []
 
         self.phase = new_phase
-        self.manager.ctx.phase = new_phase  # コンテキストと描画モデルの同期
         rule = PHASE_RULES.get(new_phase)
         self.timer = rule.duration if rule else 0.0
 
         if new_phase == BattlePhase.OPENING_LOG:
-            self.manager.ctx.set_log(self.manager.logs.opening())
+            self.manager.set_log(self.manager.logs.opening())
         elif new_phase == BattlePhase.ATTACK_DECLARATION:
             self.manager.setup_attack_declaration()
+        elif new_phase == BattlePhase.RESULT_LOG:
+            if self.manager.winner:
+                self.manager.set_log(self.manager.logs.battle_end(self.manager.winner))
 
         return [PhaseChangeEvent(old_phase=old_phase, new_phase=new_phase)]
 
     def submit_player_command(self, slot: CommandSlot) -> List[FlowEvent]:
-        next_phase = self.manager.select_command_slot(slot)
-        if next_phase:
-            return self.change_phase(next_phase)
-        return []
+        """プレイヤーのコマンド入力を処理し、状態機械を適切なフェーズへ前進させる。"""
+        if self.phase != BattlePhase.INPUT:
+            return []
+
+        accepted = self.manager.select_command_slot(slot)
+        if not accepted:
+            return []
+
+        # 開戦前なら待機中の自軍機体（2機目・3機目）の入力確認のため INITIAL_SETUP へ、開戦後なら IDLE へ
+        next_phase = BattlePhase.INITIAL_SETUP if not self.manager.is_opening_done else BattlePhase.IDLE
+        return self.change_phase(next_phase)
 
     def update(self, dt: float) -> List[FlowEvent]:
         """毎フレームのタイマー更新およびシミュレーション進行"""
@@ -224,23 +244,19 @@ class BattleFlow:
                 events.extend(self.advance(AdvanceTrigger.TIMER))
                 return events
 
-        # 2. 初期セットアップ進行
+        # 2. 初期セットアップ進行（開戦前の機体コマンド入力・開始演出への移行）
         if self.phase == BattlePhase.INITIAL_SETUP:
             ready_robot = self.manager.find_ready_player_robot()
             if ready_robot:
                 self.manager.enter_input_phase(ready_robot)
                 events.extend(self.change_phase(BattlePhase.INPUT))
             else:
-                next_p = BattlePhase.OPENING_LOG if not self.manager.ctx.is_opening_done else BattlePhase.IDLE
+                next_p = BattlePhase.OPENING_LOG if not self.manager.is_opening_done else BattlePhase.IDLE
                 events.extend(self.change_phase(next_p))
             return events
 
         # 3. IDLE 進行（シミュレーション）
         if self.phase == BattlePhase.IDLE:
-            if self.manager.check_battle_end():
-                events.extend(self._complete_action())
-                return events
-
             if self.manager.handle_charging_interrupts():
                 events.extend(self.change_phase(BattlePhase.LOG_WAIT))
                 return events

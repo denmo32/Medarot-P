@@ -167,6 +167,7 @@ MESSAGE_WINDOW_PHASES = (
     BattlePhase.CUTIN,
     BattlePhase.CUTIN_RESULT,
     BattlePhase.LOG_WAIT,
+    BattlePhase.RESULT_LOG,
     BattlePhase.GAME_OVER,
 )
 CUTIN_PHASES = (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT)
@@ -175,13 +176,13 @@ CUTIN_PHASES = (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT)
 class BattleViewBuilder:
     """戦闘状態（Context）、演出状態（Visual）および進行状態（Flow）から描画用モデルを一括生成するプロジェクター"""
 
-    def __init__(self, ctx: 'BattleContext', visual: VisualCoordinator, flow: Optional[BattleFlow] = None):
+    def __init__(self, ctx: 'BattleContext', visual: VisualCoordinator, flow: BattleFlow):
         self.ctx = ctx
         self.visual = visual
         self.flow = flow
 
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
-        phase = self.flow.phase if self.flow else self.ctx.phase
+        phase = self.flow.phase
 
         robots = self._build_robots()
         target_radar = self._build_target_radar(phase)
@@ -376,9 +377,7 @@ class BattleViewBuilder:
         max_lines = BattleTiming.LOG_DISPLAY_MAX
 
         # 前進マーカー表示判定：Flowがユーザー確認を受け付け可能かつHPアニメが完了しているか
-        can_advance = False
-        if self.flow:
-            can_advance = self.flow.can_advance_on(AdvanceTrigger.USER_CONFIRM) and not self.visual.is_hp_animating()
+        can_advance = self.flow.can_advance_on(AdvanceTrigger.USER_CONFIRM) and not self.visual.is_hp_animating()
 
         return MessageWindowModel(
             lines=list(self.ctx.battle_log[-max_lines:]),

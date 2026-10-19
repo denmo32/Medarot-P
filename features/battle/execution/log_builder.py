@@ -94,6 +94,11 @@ class BattleLogBuilder:
 
         return [f"{robot.name}はターゲットを失った！"]
 
+    @staticmethod
+    def pierce() -> List[str]:
+        """貫通ダメージ発生時のログ"""
+        return ["貫通ダメージ！"]
+
     # === 結果反映 ===
 
     @staticmethod

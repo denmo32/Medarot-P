@@ -3,7 +3,6 @@ import random
 from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 from domain.constants import PartType, TeamType
 from domain.traps import TrapManager
-from .constants import BattlePhase
 from .entities.robot import Robot
 
 if TYPE_CHECKING:
@@ -17,7 +16,6 @@ class BattleContext:
         self.seed = seed if seed is not None else random.randrange(2**32)
         self.rng = random.Random(self.seed)
 
-        self.phase = BattlePhase.INITIAL_SETUP
         self.is_opening_done = False
 
         self._battle_log: List[str] = []
@@ -26,7 +24,6 @@ class BattleContext:
         self.preview_targets: Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]] = {}
 
         self.winner: Optional[TeamType] = None
-        self.result_announced: bool = False
         self.traps = TrapManager()
 
     # === ログ管理の一元化 ===
