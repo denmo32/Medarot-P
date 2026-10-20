@@ -3,9 +3,9 @@ from core.scene_manager import Scene, SceneTransition
 from core.constants import SceneId
 from domain.constants import CustomizeState
 from features.customize.manager import CustomizeManager
-from features.customize.view_builder import CustomizeViewBuilder
-from ui.customize.layout import hit_test_customize
-from ui.customize.renderer import CustomizeRenderer
+from features.customize.presentation.view_builder import CustomizeViewBuilder
+from features.customize.ui.layout import hit_test_customize
+from features.customize.ui.renderer import CustomizeRenderer
 
 
 class CustomizeScene(Scene):
@@ -22,7 +22,6 @@ class CustomizeScene(Scene):
         if input_state.mouse_clicked and self.screen is not None:
             sw, sh = self.screen.get_size()
             current_idx = self.manager.get_current_selection_index()
-            # レイアウト計算用の最小限のモデルを取得して判定
             model = self._build_model()
             new_idx, confirmed = hit_test_customize(
                 (sw, sh),

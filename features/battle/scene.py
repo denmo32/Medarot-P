@@ -22,8 +22,8 @@ from features.battle.input.command_menu_navigation import resolve_command_menu_n
 from features.battle.manager import BattleManager
 from features.battle.staging.cutin_director import CutinEvent
 from features.battle.staging.visual_coordinator import VisualCoordinator
-from ui.battle.layout import hit_test_command_menu
-from ui.battle.renderer import BattleRenderer
+from features.battle.ui.layout import hit_test_command_menu
+from features.battle.ui.renderer import BattleRenderer
 
 
 class BattleScene(Scene):

@@ -4,9 +4,10 @@ import pygame
 
 from domain.config import PLAYER_COUNT
 from domain.constants import CustomizeState
-from ui.base.interaction import handle_menu_mouse
-from ui.config import SCREEN_HEIGHT, UI_PARAMS
-from features.customize.view_models import CustomizeViewModel
+from ui_base.interaction import handle_menu_mouse
+from ui_base.config import SCREEN_HEIGHT
+from features.customize.ui.config import CUSTOMIZE_UI_PARAMS
+from features.customize.presentation.view_models import CustomizeViewModel
 
 
 def _ui_scale(screen_size: Tuple[int, int]) -> float:
@@ -33,7 +34,7 @@ def calculate_customize_layout(
     model: Optional[CustomizeViewModel] = None,
 ) -> dict:
     sw, sh = screen_size
-    cfg = UI_PARAMS['CUSTOMIZE']
+    cfg = CUSTOMIZE_UI_PARAMS
 
     padding = int(sw * cfg['PANEL_PADDING_RATIO'])
     y = int(sh * cfg['PANEL_Y_RATIO'])

@@ -3,14 +3,14 @@ import pygame
 from typing import List, Tuple
 
 from domain.constants import BadgeKind
-from ui.base.renderer import BaseRenderer
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from features.battle.ui import layout
 from features.battle.presentation.view_models import (
     TopStatusPanelModel,
     RobotStatusCardModel,
     PartMiniHpModel,
 )
-from ui.config import Theme, resolve_accent_color
+from ui_base.config import Theme, resolve_accent_color
 
 
 def resolve_badge_colors(kind: BadgeKind, theme: Theme) -> Tuple[Tuple[int, int, int], Tuple[int, int, int]]:

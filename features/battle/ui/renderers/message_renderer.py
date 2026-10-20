@@ -1,10 +1,10 @@
 """メッセージウィンドウと前進マーカーを描画する（テーマ色適用）。"""
 import pygame
 
-from ui.base.renderer import BaseRenderer
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from features.battle.ui import layout
 from features.battle.presentation.view_models import MessageWindowModel
-from ui.config import UI_PARAMS
+from features.battle.ui.config import BATTLE_UI_PARAMS as UI_PARAMS
 
 
 class MessageRenderer(BaseRenderer):

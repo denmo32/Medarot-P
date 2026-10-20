@@ -1,7 +1,7 @@
 """メダロット固有の共通UIコンポーネント"""
 import pygame
 from domain.constants import PartType
-from ui.base.renderer import BaseRenderer
+from ui_base.renderer import BaseRenderer
 
 
 class MedabotWidgets:

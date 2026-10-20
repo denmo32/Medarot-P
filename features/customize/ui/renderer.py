@@ -2,10 +2,10 @@
 from typing import Optional
 import pygame
 
-from ui.base.renderer import BaseRenderer
-from ui.config import UI_PARAMS
-from ui.customize.layout import calculate_customize_layout
-from features.customize.view_models import CustomizeViewModel
+from ui_base.renderer import BaseRenderer
+from features.customize.ui.config import CUSTOMIZE_UI_PARAMS
+from features.customize.ui.layout import calculate_customize_layout
+from features.customize.presentation.view_models import CustomizeViewModel
 from domain.constants import CustomizeState
 
 
@@ -28,7 +28,7 @@ class CustomizeRenderer(BaseRenderer):
         rect = (col['x'], layout['y'], col['w'], layout['height'])
         self.draw_box(rect, self.theme.panel_bg, self.theme.panel_border)
 
-        cfg = UI_PARAMS['CUSTOMIZE']
+        cfg = CUSTOMIZE_UI_PARAMS
         title_x = self.scaled(cfg['COLUMN_1_ITEM_PADDING'])
         title_y = self.scaled(cfg['COLUMN_1_ITEM_PADDING'])
         self.draw_text(title, (col['x'] + title_x, layout['y'] + title_y), (150, 160, 180), 'normal')
@@ -44,7 +44,7 @@ class CustomizeRenderer(BaseRenderer):
 
     def _draw_column_1(self, model: CustomizeViewModel, layout: dict):
         self._draw_panel_base(0, "機体選択", layout)
-        cfg = UI_PARAMS['CUSTOMIZE']
+        cfg = CUSTOMIZE_UI_PARAMS
         text_offset_x = self.scaled(cfg['COLUMN_1_TEXT_OFFSET_X'])
 
         for i, name in enumerate(model.robot_names):
@@ -56,7 +56,7 @@ class CustomizeRenderer(BaseRenderer):
     def _draw_column_2(self, model: CustomizeViewModel, layout: dict):
         self._draw_panel_base(1, model.active_robot_name, layout)
         col = layout['cols'][1]
-        cfg = UI_PARAMS['CUSTOMIZE']
+        cfg = CUSTOMIZE_UI_PARAMS
         text_offset_x = self.scaled(cfg['COLUMN_2_TEXT_OFFSET_X'])
         part_name_offset_x = self.scaled(cfg['COLUMN_2_PART_NAME_OFFSET_X'])
         list_title_offset_y = self.scaled(cfg['COLUMN_2_LIST_TITLE_OFFSET_Y'])
@@ -104,7 +104,7 @@ class CustomizeRenderer(BaseRenderer):
         start_y = self._draw_panel_base(2, detail.title, layout)
         col = layout['cols'][2]
 
-        cfg = UI_PARAMS['CUSTOMIZE']
+        cfg = CUSTOMIZE_UI_PARAMS
         title_offset_x = self.scaled(cfg['COLUMN_3_TITLE_OFFSET_X'])
         info_offset_y = self.scaled(cfg['COLUMN_3_INFO_START_OFFSET_Y'])
         row_label_offset_x = self.scaled(cfg['COLUMN_3_ROW_LABEL_OFFSET_X'])

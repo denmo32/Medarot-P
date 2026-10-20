@@ -1,11 +1,5 @@
-"""バトル画面の座標・矩形計算。
-
-ゲーム状態（BattleManager / Robot）は一切参照せず、描画用の値だけから
-座標を算出する。計算式は従来の `BattleRenderer` / `UIHitTester` から
-`int()` のタイミングを含めてそのまま移設した（1px のずれを避けるため）。
-"""
+"""バトル画面の座標・矩形計算。"""
 from typing import TYPE_CHECKING, List, Optional, Tuple
-
 import pygame
 
 from domain.constants import (
@@ -14,14 +8,13 @@ from domain.constants import (
     COMMAND_MENU_RIGHT_ARM_INDEX,
     TeamType,
 )
-from ui.base.interaction import handle_menu_mouse
-from ui.config import SCREEN_HEIGHT, UI_PARAMS
+from ui_base.interaction import handle_menu_mouse
+from ui_base.config import SCREEN_HEIGHT
+from features.battle.ui.config import BATTLE_UI_PARAMS as UI_PARAMS
 
 if TYPE_CHECKING:
     from features.battle.presentation.view_models import RobotViewModel, CutinActorModel
 
-
-# === スケーリング補助（BaseRenderer と同一の丸め規則） ===
 
 def _ui_scale(screen_size: Tuple[int, int]) -> float:
     return screen_size[1] / SCREEN_HEIGHT
@@ -50,28 +43,20 @@ def _is_player(team: TeamType) -> bool:
 # === フィールド系 ===
 
 def calculate_field_top_y(screen_size: Tuple[int, int]) -> int:
-    """フィールド上端の Y 座標（カットインオーバーレイの上端と完全一致）"""
     return _scale_y(UI_PARAMS['BATTLEFIELD_Y_START_RATIO'], screen_size)
 
 
 def calculate_field_bottom_y(screen_size: Tuple[int, int]) -> int:
-    """フィールド下端の Y 座標（カットインオーバーレイの下端と完全一致）"""
     return _scale_y(UI_PARAMS['BATTLEFIELD_Y_END_RATIO'], screen_size)
 
 
 def calculate_field_background_rect(screen_size: Tuple[int, int]) -> pygame.Rect:
-    """フィールド背景の矩形"""
     top_y = calculate_field_top_y(screen_size)
     bottom_y = calculate_field_bottom_y(screen_size)
     return pygame.Rect(0, top_y, screen_size[0], bottom_y - top_y)
 
 
 def calculate_top_status_layout(screen_size: Tuple[int, int]) -> dict:
-    """上部ステータスパネル全体のレイアウト矩形を一元算出する。
-
-    左右 2 分割のチームパネル（左: PLAYER / 右: ENEMY）と、
-    その各パネルに横 3 列（左から 1, 2, 3）で並べる機体カードの矩形を返す。
-    """
     sw, sh = screen_size
     top_area_h = calculate_field_top_y(screen_size)
 
@@ -112,7 +97,6 @@ def calculate_top_status_layout(screen_size: Tuple[int, int]) -> dict:
 
 
 def calculate_guide_line_xs(screen_size: Tuple[int, int]) -> List[int]:
-    """ガイドライン 2 本の X 座標"""
     center_x = screen_size[0] // 2
     offset = _scale_x(UI_PARAMS['GUIDE_LINE_OFFSET_RATIO'], screen_size)
     return [center_x - offset, center_x + offset]
@@ -121,7 +105,6 @@ def calculate_guide_line_xs(screen_size: Tuple[int, int]) -> List[int]:
 # === ロボット系 ===
 
 def calculate_robot_y_ratio(team_index: int, team_count: int) -> float:
-    """チーム内インデックスから描画用の Y 比率を求める"""
     start_y = UI_PARAMS['BATTLEFIELD_Y_START_RATIO']
     end_y = UI_PARAMS['BATTLEFIELD_Y_END_RATIO']
     height = end_y - start_y
@@ -136,7 +119,6 @@ def calculate_robot_position(
     robot: 'RobotViewModel',
     screen_size: Tuple[int, int],
 ) -> Tuple[int, int]:
-    """ゲージ進行率に応じたロボットアイコン中心座標"""
     y_ratio = calculate_robot_y_ratio(robot.team_index, robot.team_count)
     is_player = _is_player(robot.team)
     team_x_ratio = (UI_PARAMS['PLAYER_TEAM_X_RATIO'] if is_player
@@ -159,7 +141,6 @@ def calculate_home_marker_rect(
     robot: 'RobotViewModel',
     screen_size: Tuple[int, int],
 ) -> pygame.Rect:
-    """ホームマーカー（楕円）の矩形"""
     marker_rx = _scaled(UI_PARAMS['HOME_MARKER_RX'], screen_size)
     marker_ry = _scaled(UI_PARAMS['HOME_MARKER_RY'], screen_size)
 
@@ -182,7 +163,6 @@ def calculate_home_marker_rect(
 # === メッセージ系 ===
 
 def calculate_message_window_rect(screen_size: Tuple[int, int]) -> pygame.Rect:
-    """メッセージウィンドウ（コマンドメニューの背景も兼ねる）の矩形"""
     sw, sh = screen_size
     wy = _scale_y(UI_PARAMS['MESSAGE_WINDOW_Y_RATIO'], screen_size)
     wh = _scale_y(UI_PARAMS['MESSAGE_WINDOW_HEIGHT_RATIO'], screen_size)
@@ -190,12 +170,10 @@ def calculate_message_window_rect(screen_size: Tuple[int, int]) -> pygame.Rect:
 
 
 def calculate_message_padding(screen_size: Tuple[int, int]) -> int:
-    """メッセージウィンドウ内の余白"""
     return _scale_x(UI_PARAMS['MESSAGE_WINDOW_PADDING_RATIO'], screen_size)
 
 
 def calculate_log_line_height(screen_size: Tuple[int, int]) -> int:
-    """ログ 1 行分の高さ"""
     return _scaled(UI_PARAMS['LOG_LINE_HEIGHT'], screen_size)
 
 
@@ -205,7 +183,6 @@ def calculate_command_menu_rects(
     button_count: int,
     screen_size: Tuple[int, int],
 ) -> List[pygame.Rect]:
-    """コマンドメニューのボタン配置を計算する"""
     sw, sh = screen_size
 
     btn_w = int(sw * UI_PARAMS['UI']['BTN_WIDTH_RATIO'])
@@ -229,7 +206,6 @@ def calculate_command_menu_rects(
             rect.left = center_x + (btn_pad // 2)
             rect.top = start_y + btn_h + btn_pad
         else:
-            # COMMAND_MENU_SKIP_INDEX 等（右端）
             rect.left = center_x + btn_w + btn_pad * 2
             rect.centery = start_y + btn_h + (btn_pad // 2)
         layout.append(rect)
@@ -238,7 +214,6 @@ def calculate_command_menu_rects(
 
 
 def calculate_action_label_position(screen_size: Tuple[int, int]) -> Tuple[int, int]:
-    """選択中ボタンの行動形式名を表示する位置"""
     pad = calculate_message_padding(screen_size)
     wy = _scale_y(UI_PARAMS['MESSAGE_WINDOW_Y_RATIO'], screen_size)
     return pad, wy + pad + int(screen_size[1] * UI_PARAMS['ACTION_NAME_Y_RATIO'])
@@ -247,7 +222,6 @@ def calculate_action_label_position(screen_size: Tuple[int, int]) -> Tuple[int, 
 # === カットイン系 ===
 
 def calculate_cutin_layout(screen_size: Tuple[int, int]) -> dict:
-    """カットインのパネル矩形と左右の基準 X 座標（フィールド領域と完全に一致）"""
     sw, sh = screen_size
     top_y = calculate_field_top_y(screen_size)
     bottom_y = calculate_field_bottom_y(screen_size)
@@ -263,7 +237,6 @@ def calculate_cutin_actor_positions(
     actor_team: TeamType,
     screen_size: Tuple[int, int],
 ) -> Tuple[int, int]:
-    """(アクター側 X, ターゲット側 X) を返す。プレイヤーが左、エネミーが右。"""
     cutin_layout = calculate_cutin_layout(screen_size)
     if _is_player(actor_team):
         return cutin_layout['left_x'], cutin_layout['right_x']
@@ -274,7 +247,6 @@ def calculate_cutin_actor_x(
     actor_model: 'CutinActorModel',
     screen_size: Tuple[int, int],
 ) -> int:
-    """カットイン演出中のアクター（攻撃側）の現在 X 座標を計算する"""
     actor_x, target_x = calculate_cutin_actor_positions(actor_model.team, screen_size)
     motion = actor_model.motion
     if motion is None:
@@ -304,7 +276,6 @@ def calculate_cutin_scrolled_positions(
     camera_progress: float,
     screen_size: Tuple[int, int],
 ) -> Tuple[int, int]:
-    """カメラ追従演出時の (アクター現在X, ターゲット現在X) を計算する。"""
     sw, _ = screen_size
     base_actor_x, base_target_x = calculate_cutin_actor_positions(actor_team, screen_size)
     scroll_distance = int(sw * 0.5)
@@ -325,7 +296,6 @@ def calculate_cutin_projectile_x(
     camera_progress: Optional[float],
     screen_size: Tuple[int, int],
 ) -> int:
-    """カットイン飛翔体の現在X座標を計算する。"""
     sw, _ = screen_size
     base_actor_x, base_target_x = calculate_cutin_actor_positions(actor_team, screen_size)
 
@@ -351,6 +321,5 @@ def hit_test_command_menu(
     item_count: int,
     current_index: int,
 ) -> Tuple[int, bool]:
-    """コマンドメニューに対する純粋な幾何当たり判定を行う"""
     layouts = calculate_command_menu_rects(item_count, screen_size)
     return handle_menu_mouse(mouse_pos, True, layouts, current_index)
