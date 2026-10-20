@@ -25,6 +25,7 @@ class ExecutionOutcome(Enum):
     ACTION_UNIMPLEMENTED = auto()
     TARGET_LOST = auto()
     RESERVED_PART_DESTROYED = auto()
+    TRAP_DESTROYED = auto()  # トラップ被弾によるパーツ破壊を明示
 
 
 @dataclass(frozen=True)

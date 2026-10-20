@@ -160,10 +160,14 @@ class Robot:
             is_leader=self.is_leader,
         )
 
-    # === ATB ライフサイクル (自律更新) ===
+# === ATB ライフサイクル (Tell, Don't Ask) ===
 
     def tick(self, dt: float) -> Optional[ATBEvent]:
-        """【Hollywood Principle】1フレーム分の時間を自律進行させ、端到達イベントがあれば返す"""
+        """1フレーム分の時間を進行させる。
+
+        ※仕様: 状態異常・バフの効果時間減算は、機体が稼働移動中（充填中または放熱中）
+        にのみ進行する（待機中および実行演出中は停止）。
+        """
         if not self.is_alive:
             return None
 
@@ -171,12 +175,8 @@ class Robot:
             self.effects.update(dt)
 
         is_paused = self.is_stopped
-        event = self.atb.advance(dt, is_paused=is_paused)
-
-        if event == ATBEvent.COOLED:
-            self.enter_ready()
-
-        return event
+        # 状態変更（enter_ready）はここでは行わず、純粋にイベント通知のみを行う
+        return self.atb.advance(dt, is_paused=is_paused)
 
     def set_command(self, command: 'BattleCommand'):
         """コマンドをセットし、充填を開始する"""
@@ -193,10 +193,16 @@ class Robot:
         self.effects.clear_stances()
         self.atb.start_execution()
 
-    def enter_cooldown(self, interrupted: bool = False):
-        self.atb.enter_cooldown(interrupted=interrupted)
+    def abort_charging(self):
+        """充填中に割り込み（パーツ破壊・ターゲット喪失）が発生したため、現在位置から放熱へ移行する"""
+        self.atb.abort_charge_to_cooldown()
+
+    def enter_cooldown(self):
+        """行動実行完了、または中央ラインでの不発により、端(1.0)から放熱へ移行する"""
+        self.atb.enter_cooldown_from_execution()
 
     def enter_ready(self):
+        """放熱完了に伴い、予約コマンドを消去して待機状態へ戻る"""
         self.current_command = None
         self.atb.enter_ready()
 
