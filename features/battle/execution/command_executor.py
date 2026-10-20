@@ -13,7 +13,7 @@ from ..entities.commands import (
     PartCommand,
     SkipCommand,
 )
-from ..entities.robot import Robot
+from ..entities.robot import CooldownReason, Robot
 from .effect_applier import apply_action_effects
 from .log_builder import BattleLogBuilder
 from .targeting_resolver import TargetingResolver
@@ -43,7 +43,7 @@ class CommandExecutor:
 
         command = actor.current_command
         if isinstance(command, SkipCommand):
-            actor.enter_cooldown()
+            actor.finish_execution_to_cooldown(CooldownReason.ACTION_COMPLETED)
             return ExecutionReport(
                 outcome=ExecutionOutcome.SKIPPED,
                 pre_messages=self.logs.skipped(actor),
@@ -54,7 +54,7 @@ class CommandExecutor:
             trap_logs, is_destroyed = self._check_trap(actor, command.part_type)
             pre_messages.extend(trap_logs)
             if is_destroyed:
-                actor.enter_cooldown()
+                actor.finish_execution_to_cooldown(CooldownReason.TRAP_DESTROYED)
                 fail_logs = self.logs.execution_failure(actor, command, ExecutionOutcome.TRAP_DESTROYED)
                 return ExecutionReport(
                     outcome=ExecutionOutcome.TRAP_DESTROYED,
@@ -66,14 +66,14 @@ class CommandExecutor:
 
         if report.outcome is ExecutionOutcome.PART_STOPPED:
             part_type = getattr(command, "part_type", "")
-            actor.enter_cooldown()
+            actor.finish_execution_to_cooldown(CooldownReason.PART_UNUSABLE)
             return ExecutionReport(
                 outcome=report.outcome,
                 pre_messages=all_pre_messages + self.logs.part_stopped(actor, part_type),
             )
 
         if report.outcome is not ExecutionOutcome.OK:
-            actor.enter_cooldown()
+            actor.finish_execution_to_cooldown(CooldownReason.PART_UNUSABLE)
             return ExecutionReport(
                 outcome=report.outcome,
                 pre_messages=all_pre_messages + self.logs.execution_failure(actor, command, report.outcome),
@@ -97,12 +97,12 @@ class CommandExecutor:
         )
         return logs, is_destroyed
 
-    def apply_pending(self) -> bool:
-        """予約されている行動効果を確定適用し、後処理およびログ生成を行う"""
+    def apply_pending(self) -> List[str]:
+        """予約されている行動効果を確定適用し、後処理を行い、表示すべきログメッセージ一覧を返す"""
         report = self.ctx.current_report
         actor = self.ctx.current_actor
         if report is None or actor is None:
-            return self.ctx.has_log
+            return []
 
         # Step 1: 行動効果の確定適用（世界状態の更新）
         updated_report = apply_action_effects(report, actor, ctx=self.ctx)
@@ -112,19 +112,20 @@ class CommandExecutor:
         expired_effects = actor.on_action_completed()
 
         # Step 3: 放熱（クールダウン）への遷移
-        actor.enter_cooldown()
+        actor.finish_execution_to_cooldown(CooldownReason.ACTION_COMPLETED)
 
-        # Step 4: 結果ログの構築・記録
+        # Step 4: 結果ログの構築
+        all_messages: List[str] = []
         messages = self.logs.effect_resolution(updated_report.result, updated_report.target)
-        if messages is not None:
-            self.ctx.set_log(messages)
+        if messages:
+            all_messages.extend(messages)
 
         for eff in expired_effects:
             msg = self.logs.effect_expired(actor, eff)
             if msg:
-                self.ctx.append_log(msg)
+                all_messages.append(msg)
 
-        return self.ctx.has_log
+        return all_messages
 
     def _execute_internal(self, command: Optional[BattleCommand]) -> ExecutionReport:
         if isinstance(command, SkipCommand):

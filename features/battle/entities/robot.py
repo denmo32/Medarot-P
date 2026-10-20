@@ -1,4 +1,5 @@
 """機体 (Robot) の集約ルートエンティティ定義。"""
+from enum import Enum
 from typing import Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.action_logic import ActionDefinition
@@ -15,12 +16,21 @@ from domain.models import (
 from domain.traps import InstalledTrap, TrapManager
 
 from .atb_track import ATBEvent, ATBTrack
-from .commands import ExecutionOutcome, PartCommand  # ← 同階層からの参照に修正（循環解消）
+from .commands import ExecutionOutcome, PartCommand
 from .effect_tracker import EffectTracker
 from .part import Part
 
 if TYPE_CHECKING:
     from .commands import BattleCommand
+
+
+class CooldownReason(str, Enum):
+    """機体が放熱（クールダウン）へ移行した理由区分"""
+    ACTION_COMPLETED = "action_completed"          # 正常に行動完了
+    TRAP_DESTROYED = "trap_destroyed"              # 実行時トラップ被弾によるパーツ破壊
+    PART_UNUSABLE = "part_unusable"                # 実行時パーツ使用不能（破壊・停止）
+    PHASE_ABORTED = "phase_aborted"                # システム・フェーズ都合の中絶
+    CHARGING_INTERRUPTED = "charging_interrupted"  # 充填中の割り込み中断
 
 
 class Robot:
@@ -48,6 +58,7 @@ class Robot:
         self.atb = ATBTrack()
         self.effects = EffectTracker()
         self.current_command: Optional['BattleCommand'] = None
+        self._last_cooldown_reason: Optional[CooldownReason] = None
 
     # === 基本プロパティ ===
     @property
@@ -60,6 +71,8 @@ class Robot:
     def head(self) -> Optional[Part]: return self._parts.get(PartType.HEAD)
     @property
     def legs(self) -> Optional[Part]: return self._parts.get(PartType.LEGS)
+    @property
+    def last_cooldown_reason(self) -> Optional[CooldownReason]: return self._last_cooldown_reason
 
     @property
     def is_alive(self) -> bool:
@@ -160,14 +173,10 @@ class Robot:
             is_leader=self.is_leader,
         )
 
-# === ATB ライフサイクル (Tell, Don't Ask) ===
+    # === ATB ライフサイクル (Tell, Don't Ask) ===
 
     def tick(self, dt: float) -> Optional[ATBEvent]:
-        """1フレーム分の時間を進行させる。
-
-        ※仕様: 状態異常・バフの効果時間減算は、機体が稼働移動中（充填中または放熱中）
-        にのみ進行する（待機中および実行演出中は停止）。
-        """
+        """1フレーム分の時間を進行させる。"""
         if not self.is_alive:
             return None
 
@@ -175,7 +184,6 @@ class Robot:
             self.effects.update(dt)
 
         is_paused = self.is_stopped
-        # 状態変更（enter_ready）はここでは行わず、純粋にイベント通知のみを行う
         return self.atb.advance(dt, is_paused=is_paused)
 
     def set_command(self, command: 'BattleCommand'):
@@ -193,17 +201,31 @@ class Robot:
         self.effects.clear_stances()
         self.atb.start_execution()
 
-    def abort_charging(self):
-        """充填中に割り込み（パーツ破壊・ターゲット喪失）が発生したため、現在位置から放熱へ移行する"""
+    def finish_execution_to_cooldown(self, reason: CooldownReason = CooldownReason.ACTION_COMPLETED):
+        """物理軌道1: 中央実行ライン(1.0)からの放熱開始。
+        行動完了、または中央ラインでの不発・トラップ破壊等により端から自陣へ向かう。
+        """
+        self._last_cooldown_reason = reason
+        self.atb.enter_cooldown_from_execution()
+
+    def abort_charging_to_cooldown(self, reason: CooldownReason = CooldownReason.CHARGING_INTERRUPTED):
+        """物理軌道2: 充填トラック途中(pos)からの緊急反転後退。
+        充填中のパーツ破壊・ターゲット喪失により、現在位置から直ちに自陣へ後退する。
+        """
+        self._last_cooldown_reason = reason
         self.atb.abort_charge_to_cooldown()
 
-    def enter_cooldown(self):
-        """行動実行完了、または中央ラインでの不発により、端(1.0)から放熱へ移行する"""
-        self.atb.enter_cooldown_from_execution()
+    # 互換用エイリアス
+    def enter_cooldown(self, reason: CooldownReason = CooldownReason.ACTION_COMPLETED):
+        self.finish_execution_to_cooldown(reason)
+
+    def abort_charging(self, reason: CooldownReason = CooldownReason.CHARGING_INTERRUPTED):
+        self.abort_charging_to_cooldown(reason)
 
     def enter_ready(self):
         """放熱完了に伴い、予約コマンドを消去して待機状態へ戻る"""
         self.current_command = None
+        self._last_cooldown_reason = None
         self.atb.enter_ready()
 
     # === 自己診断（パーツ検証・割り込み・身代わり判定） ===

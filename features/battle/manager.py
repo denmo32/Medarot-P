@@ -9,9 +9,15 @@ from .ai_controller import AIController
 from .atb_system import ATBSystem
 from .context import BattleContext
 from .entities.atb_track import ATBEvent
-from .entities.commands import BattleCommand, ExecutionReport, SkipCommand, build_command_for_part
+from .entities.commands import (
+    BattleCommand,
+    ExecutionOutcome,
+    ExecutionReport,
+    SkipCommand,
+    build_command_for_part,
+)
 from .entities.part import Part
-from .entities.robot import Robot
+from .entities.robot import CooldownReason, Robot
 from .events import ATBTurnEvent, PlayerInputRequiredEvent, ActionExecutedEvent
 from .execution.command_executor import CommandExecutor
 from .execution.log_builder import BattleLogBuilder
@@ -77,21 +83,6 @@ class BattleManager:
                 return robot
         return None
 
-    def setup_attack_declaration(self):
-        """行動宣言ログの構築"""
-        actor, part = self._get_current_part()
-        if not actor or not part:
-            return
-        if not part.is_implemented:
-            action_label = part.action.value if part.action else "未定義"
-            self.ctx.set_log([f"err: 未実装の行動形式「{action_label}」"])
-        else:
-            self.ctx.set_log(self.logs.declaration(actor, part))
-
-    def _get_current_part(self) -> Tuple[Optional[Robot], Optional[Part]]:
-        actor = self.ctx.current_actor
-        return (actor, actor.current_part) if actor else (None, None)
-
     def check_battle_end(self) -> bool:
         if self.ctx.winner:
             return True
@@ -101,28 +92,21 @@ class BattleManager:
             self.ctx.winner = winner
         return is_ended
 
-    def handle_charging_interrupts(self) -> bool:
-        """充填中の割り込み判定を行い、発生した場合はログ記録と直ちの後退を開始させる"""
-        interrupted = False
+    def detect_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
+        """【純粋シミュレーション】充填中の全機体を自己診断し、
+        割り込み対象機体を即座に反転後退させ、(機体, 中断理由) のリストを返す。
+        ログの構築やフェーズ遷移は呼び出し側（Flow）に委ねる。
+        """
+        interrupts: List[Tuple[Robot, ExecutionOutcome]] = []
         for robot in self.ctx.robots:
-            interrupt_reason = robot.evaluate_interruption()
-            if not interrupt_reason:
-                continue
+            reason = robot.evaluate_interruption()
+            if reason:
+                robot.abort_charging_to_cooldown(CooldownReason.CHARGING_INTERRUPTED)
+                interrupts.append((robot, reason))
+        return interrupts
 
-            messages = self.logs.interruption(robot, interrupt_reason)
-            if not interrupted:
-                self.ctx.set_log(messages)
-                interrupted = True
-            else:
-                self.ctx.extend_log(messages)
-
-            # セマンティックな中断メソッドを呼ぶ
-            robot.abort_charging()
-
-        return interrupted
-
-    def enter_input_phase(self, actor: Robot):
-        """指定機体のコマンド入力状態を準備"""
+    def prepare_actor_input(self, actor: Robot):
+        """指定機体のコマンド入力状態（予習ターゲット等）を準備する"""
         self.ctx.current_actor = actor
         self.ctx.preview_targets = {
             pt: self.targeting.resolve_preview_target(actor, pt)
@@ -151,7 +135,7 @@ class BattleManager:
         """放熱完了時の処理：待機状態へ戻し、自軍なら入力要求、敵軍ならAIが即座に予約"""
         actor.enter_ready()
         if actor.team == TeamType.PLAYER:
-            self.enter_input_phase(actor)
+            self.prepare_actor_input(actor)
             return PlayerInputRequiredEvent(actor=actor)
         else:
             self.ai.decide_command(actor)
@@ -170,14 +154,9 @@ class BattleManager:
         self.ctx.current_report = report
         return ActionExecutedEvent(actor=actor, report=report)
 
-    def apply_execution_result(self) -> bool:
+    def apply_execution_result(self) -> List[str]:
+        """保留中の行動効果を確定適用し、表示すべきログメッセージ一覧を返す"""
         return self.executor.apply_pending()
-
-    def abort_current_actor(self):
-        """現在のアクターの行動を中止し、後退（放熱）へ移行させる"""
-        actor = self.ctx.current_actor
-        if actor:
-            actor.enter_cooldown()
 
     def complete_execution(self):
         """行動完了時のクリーンアップ。レポートおよび現在アクターの参照を解除する。"""
