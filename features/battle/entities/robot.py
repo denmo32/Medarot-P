@@ -215,13 +215,6 @@ class Robot:
         self._last_cooldown_reason = reason
         self.atb.abort_charge_to_cooldown()
 
-    # 互換用エイリアス
-    def enter_cooldown(self, reason: CooldownReason = CooldownReason.ACTION_COMPLETED):
-        self.finish_execution_to_cooldown(reason)
-
-    def abort_charging(self, reason: CooldownReason = CooldownReason.CHARGING_INTERRUPTED):
-        self.abort_charging_to_cooldown(reason)
-
     def enter_ready(self):
         """放熱完了に伴い、予約コマンドを消去して待機状態へ戻る"""
         self.current_command = None
