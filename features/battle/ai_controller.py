@@ -1,6 +1,6 @@
 """敵AIの行動選択を担当するコントローラ。"""
 from domain.ai_logic import get_tactics
-from domain.constants import ACTIONABLE_PART_TYPES, TacticsType
+from domain.constants import TacticsType
 from domain.models import TacticsContext
 from .context import BattleContext
 from .entities.commands import SkipCommand, build_command_for_part
@@ -14,10 +14,8 @@ class AIController:
         self.targeting = targeting
 
     def decide_command(self, robot: Robot):
-        valid_parts = [
-            pt for pt, part in robot.iter_parts()
-            if part.is_alive and pt in ACTIONABLE_PART_TYPES and part.is_implemented
-        ]
+        # 【改善】外部で iter_parts() や is_alive, is_implemented を判定せず、Robot に自己診断を命じる
+        valid_parts = robot.get_actionable_part_types()
 
         tactics_ctx = TacticsContext(
             hp_map=robot.get_parts_hp(),

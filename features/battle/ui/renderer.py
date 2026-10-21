@@ -1,13 +1,13 @@
 """バトル画面の描画オーケストレーション（ファサード）。"""
-from ui.base.renderer import BaseRenderer
-from ui.battle.renderers.command_menu_renderer import CommandMenuRenderer
-from ui.battle.renderers.cutin_renderer import CutinRenderer
-from ui.battle.renderers.field_renderer import FieldRenderer
-from ui.battle.renderers.message_renderer import MessageRenderer
-from ui.battle.renderers.overlay_renderer import OverlayRenderer
-from ui.battle.renderers.robot_renderer import RobotRenderer
-from ui.battle.renderers.status_panel_renderer import StatusPanelRenderer
-from ui.battle.renderers.target_radar_renderer import TargetRadarRenderer
+from ui_base.renderer import BaseRenderer
+from features.battle.ui.renderers.command_menu_renderer import CommandMenuRenderer
+from features.battle.ui.renderers.cutin_renderer import CutinRenderer
+from features.battle.ui.renderers.field_renderer import FieldRenderer
+from features.battle.ui.renderers.message_renderer import MessageRenderer
+from features.battle.ui.renderers.overlay_renderer import OverlayRenderer
+from features.battle.ui.renderers.robot_renderer import RobotRenderer
+from features.battle.ui.renderers.status_panel_renderer import StatusPanelRenderer
+from features.battle.ui.renderers.target_radar_renderer import TargetRadarRenderer
 from features.battle.presentation.view_models import BattleRenderModel
 
 
@@ -32,14 +32,12 @@ class BattleRenderer(BaseRenderer):
         """表示モデルに従って 1 フレーム分の描画を行う"""
         self.clear()
 
-        # 画面上部余白のチームステータスパネル（左: 自軍 / 右: 敵軍）
         if model.top_status is not None:
             self.status_panel_renderer.render(model.top_status)
 
         if model.show_field:
             self.field_renderer.render()
             self.robot_renderer.render(model)
-            # レーダーが機体アイコンの上に重なるように描画
             self.target_radar_renderer.render(model)
 
         if model.show_message_window and model.message_window is not None:

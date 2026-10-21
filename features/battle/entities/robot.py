@@ -1,8 +1,15 @@
 """機体 (Robot) の集約ルートエンティティ定義。"""
-from typing import Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.action_logic import ActionDefinition
-from domain.constants import AttributeType, GaugeStatus, PartType, SkillKind, TeamType
+from domain.constants import (
+    ACTIONABLE_PART_TYPES,
+    AttributeType,
+    GaugeStatus,
+    PartType,
+    SkillKind,
+    TeamType,
+)
 from domain.models import (
     BattleParticipant,
     DefensiveInfo,
@@ -15,7 +22,7 @@ from domain.models import (
 from domain.traps import InstalledTrap, TrapManager
 
 from .atb_track import ATBEvent, ATBTrack
-from .commands import ExecutionOutcome, PartCommand  # ← 同階層からの参照に修正（循環解消）
+from .commands import ExecutionOutcome, PartCommand
 from .effect_tracker import EffectTracker
 from .part import Part
 
@@ -79,10 +86,6 @@ class Robot:
     def get_part(self, part_type: PartType) -> Optional[Part]:
         """指定部位のパーツを取得する（存在しない場合は None）"""
         return self._parts.get(part_type)
-
-    def iter_parts(self) -> Iterable[Tuple[PartType, Part]]:
-        """全部位のイテレータを返す"""
-        return self._parts.items()
 
     def is_part_alive(self, part_type: PartType) -> bool:
         """指定部位が存在し生存しているか"""
@@ -160,10 +163,10 @@ class Robot:
             is_leader=self.is_leader,
         )
 
-    # === ATB ライフサイクル (自律更新) ===
+    # === ATB ライフサイクル (Tell, Don't Ask) ===
 
     def tick(self, dt: float) -> Optional[ATBEvent]:
-        """【Hollywood Principle】1フレーム分の時間を自律進行させ、端到達イベントがあれば返す"""
+        """1フレーム分の時間を進行させる。"""
         if not self.is_alive:
             return None
 
@@ -171,12 +174,7 @@ class Robot:
             self.effects.update(dt)
 
         is_paused = self.is_stopped
-        event = self.atb.advance(dt, is_paused=is_paused)
-
-        if event == ATBEvent.COOLED:
-            self.enter_ready()
-
-        return event
+        return self.atb.advance(dt, is_paused=is_paused)
 
     def set_command(self, command: 'BattleCommand'):
         """コマンドをセットし、充填を開始する"""
@@ -193,14 +191,33 @@ class Robot:
         self.effects.clear_stances()
         self.atb.start_execution()
 
-    def enter_cooldown(self, interrupted: bool = False):
-        self.atb.enter_cooldown(interrupted=interrupted)
+    def finish_execution_to_cooldown(self):
+        """物理軌道1: 中央実行ライン(1.0)からの放熱開始。
+        行動完了、または中央ラインでの不発・トラップ破壊等により端から自陣へ向かう。
+        """
+        self.atb.enter_cooldown_from_execution()
+
+    def abort_charging_to_cooldown(self):
+        """物理軌道2: 充填トラック途中(pos)からの緊急反転後退。
+        充填中のパーツ破壊・ターゲット喪失により、現在位置から直ちに自陣へ後退する。
+        """
+        self.atb.abort_charge_to_cooldown()
 
     def enter_ready(self):
+        """放熱完了に伴い、予約コマンドを消去して待機状態へ戻る"""
         self.current_command = None
         self.atb.enter_ready()
 
     # === 自己診断（パーツ検証・割り込み・身代わり判定） ===
+
+    def can_execute_part(self, part_type: PartType) -> bool:
+        """【Tell, Don't Ask】指定部位が存在し、行動実行可能（生存かつ実装済み）かを自己診断する"""
+        part = self._parts.get(part_type)
+        return part.can_execute if part else False
+
+    def get_actionable_part_types(self) -> List[PartType]:
+        """【Tell, Don't Ask】コマンド選択可能な部位（頭・右腕・左腕）のうち、実行可能な部位一覧を返す"""
+        return [pt for pt in ACTIONABLE_PART_TYPES if self.can_execute_part(pt)]
 
     def validate_actionable_part(
         self, part_type: PartType

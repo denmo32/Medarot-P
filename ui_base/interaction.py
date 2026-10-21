@@ -1,6 +1,5 @@
 """メニュー操作（マウス）の共通ロジック。"""
 from typing import List, Tuple
-
 import pygame
 
 

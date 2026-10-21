@@ -9,6 +9,16 @@ if TYPE_CHECKING:
     from .entities.commands import ExecutionReport
 
 
+def find_robot_index(robots: Sequence[Robot], target: Optional[Robot]) -> Optional[int]:
+    """ロボットリストから指定されたロボットのインデックスを同一性判定（is）で検索する。"""
+    if target is None:
+        return None
+    for idx, candidate in enumerate(robots):
+        if candidate is target:
+            return idx
+    return None
+
+
 class BattleContext:
     def __init__(self, robots: List[Robot], seed: Optional[int] = None):
         self.robots = robots
@@ -25,6 +35,11 @@ class BattleContext:
 
         self.winner: Optional[TeamType] = None
         self.traps = TrapManager()
+
+    # === ロボット検索 ===
+    def find_robot_index(self, robot: Optional[Robot]) -> Optional[int]:
+        """管理下のロボットリストから指定機体のインデックスを取得する"""
+        return find_robot_index(self.robots, robot)
 
     # === ログ管理の一元化 ===
     @property

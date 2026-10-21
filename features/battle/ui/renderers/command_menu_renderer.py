@@ -1,12 +1,20 @@
 """コマンドメニュー（コマンド選択ボタン）を描画する（テーマ色適用）。"""
 import pygame
 
-from ui.base.renderer import BaseRenderer
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from ui_base.fonts import FontProvider
+from features.battle.ui import layout
 from features.battle.presentation.view_models import CommandMenuModel
+from features.battle.ui.config import COMMAND_BUTTON_FONT_NAME
 
 
 class CommandMenuRenderer(BaseRenderer):
+    def _init_custom_fonts(self):
+        scale = self.ui_scale
+        button_font_path = COMMAND_BUTTON_FONT_NAME
+        self.fonts['command_button'] = FontProvider.get(button_font_path, 24, scale)
+        self.fonts['command_button_focus'] = FontProvider.get(button_font_path, 28, scale)
+
     def render(self, model: CommandMenuModel):
         screen_size = self.get_screen_size()
         rect = layout.calculate_message_window_rect(screen_size)

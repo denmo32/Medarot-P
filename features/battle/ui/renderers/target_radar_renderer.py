@@ -2,10 +2,10 @@
 from typing import Tuple
 import pygame
 
-from ui.base.renderer import BaseRenderer
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from features.battle.ui import layout
 from features.battle.presentation.view_models import BattleRenderModel
-from ui.config import UI_PARAMS
+from features.battle.ui.config import BATTLE_UI_PARAMS as UI_PARAMS
 
 
 class TargetRadarRenderer(BaseRenderer):
@@ -23,7 +23,6 @@ class TargetRadarRenderer(BaseRenderer):
         start = positions[radar.attacker_index]
         end = positions[radar.target_index]
 
-        # Staging層で事前計算された進行率 (0.0〜1.0) に基づく線形補間
         p = radar.travel_progress
         cx = start[0] + (end[0] - start[0]) * p
         cy = start[1] + (end[1] - start[1]) * p

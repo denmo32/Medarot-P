@@ -1,8 +1,8 @@
 """バトルフィールドの背景とガイドラインを描画する（テーマ色適用）。"""
 import pygame
 
-from ui.base.renderer import BaseRenderer
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from features.battle.ui import layout
 
 
 class FieldRenderer(BaseRenderer):

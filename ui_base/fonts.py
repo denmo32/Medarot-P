@@ -9,7 +9,7 @@ class FontProvider:
     def get(cls, path: str, size: int, scale: float = 1.0) -> pygame.font.Font:
         """スケールに応じたフォントを取得し、整数サイズで安全にキャッシュする"""
         scaled_size = max(1, int(round(size * scale)))
-        key = (path, scaled_size)  # float をキーに含めない
+        key = (path, scaled_size)
 
         if key not in cls._cache:
             cls._cache[key] = pygame.font.Font(resource_path(path), scaled_size)

@@ -4,8 +4,8 @@
 """
 from typing import Optional, Tuple
 import pygame
-from ui.config import Theme, DEFAULT_THEME, FONT_NAMES, COMMAND_BUTTON_FONT_NAME, SCREEN_HEIGHT
-from ui.base.fonts import FontProvider
+from ui_base.config import Theme, DEFAULT_THEME, FONT_NAMES, SCREEN_HEIGHT
+from ui_base.fonts import FontProvider
 
 
 class BaseRenderer:
@@ -37,9 +37,8 @@ class BaseRenderer:
         return int(value * self.ui_scale)
 
     def _init_fonts(self):
-        """フォントの初期化"""
+        """フォントの初期化（全画面共通のサイズセット）"""
         font_path = FONT_NAMES[0] if FONT_NAMES else 'freesansbold.ttf'
-        button_font_path = COMMAND_BUTTON_FONT_NAME
         scale = self.ui_scale
 
         self.fonts = {
@@ -49,8 +48,6 @@ class BaseRenderer:
             'medium': FontProvider.get(font_path, 24, scale),
             'large': FontProvider.get(font_path, 32, scale),
             'notice': FontProvider.get(font_path, 36, scale),
-            'command_button': FontProvider.get(button_font_path, 24, scale),
-            'command_button_focus': FontProvider.get(button_font_path, 28, scale)
         }
 
     def clear(self):

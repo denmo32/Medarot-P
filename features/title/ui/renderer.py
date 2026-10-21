@@ -1,10 +1,10 @@
 """タイトル画面専用のレンダラー（テーマ色・ViewModel対応）"""
 import pygame
-from features.title.view_models import TitleViewModel
-from ui.config import FONT_NAMES
-from ui.base.renderer import BaseRenderer
-from ui.base.fonts import FontProvider
-from ui.title.layout import calculate_button_layouts
+from features.title.presentation.view_models import TitleViewModel
+from ui_base.config import FONT_NAMES
+from ui_base.renderer import BaseRenderer
+from ui_base.fonts import FontProvider
+from features.title.ui.layout import calculate_button_layouts
 
 
 class TitleRenderer(BaseRenderer):

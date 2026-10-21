@@ -1,9 +1,9 @@
 """タイトル画面の実装（型付き遷移・ViewModel対応・ヘッドレス両対応）"""
 from core.scene_manager import Scene, SceneTransition
 from core.constants import SceneId
-from features.title.view_models import TitleButtonModel, TitleViewModel
-from ui.title.renderer import TitleRenderer
-from ui.title.layout import hit_test_title_buttons
+from features.title.presentation.view_models import TitleButtonModel, TitleViewModel
+from features.title.ui.renderer import TitleRenderer
+from features.title.ui.layout import hit_test_title_buttons
 
 
 class TitleScene(Scene):

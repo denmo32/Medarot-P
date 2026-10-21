@@ -2,8 +2,8 @@
 from typing import Sequence, Tuple
 import pygame
 
-from features.title.view_models import TitleButtonModel
-from ui.base.interaction import handle_menu_mouse
+from features.title.presentation.view_models import TitleButtonModel
+from ui_base.interaction import handle_menu_mouse
 
 
 def calculate_button_layouts(

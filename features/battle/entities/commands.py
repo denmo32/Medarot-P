@@ -25,6 +25,7 @@ class ExecutionOutcome(Enum):
     ACTION_UNIMPLEMENTED = auto()
     TARGET_LOST = auto()
     RESERVED_PART_DESTROYED = auto()
+    TRAP_DESTROYED = auto()  # トラップ被弾によるパーツ破壊を明示
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,8 @@ def build_command_for_part(
     preview_target: Optional[Tuple['Robot', Optional[PartType]]] = None
 ) -> BattleCommand:
     """パーツの行動形式とプレビュー対象に基づいて適切なバトルコマンドを生成する。"""
-    if not part.is_alive or not part.is_implemented:
+    # 【改善】part.can_execute を使用
+    if not part.can_execute:
         return SkipCommand(actor)
 
     target_robot = preview_target[0] if preview_target else None

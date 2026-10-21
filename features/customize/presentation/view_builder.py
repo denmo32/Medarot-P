@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Union
 from domain.config import PLAYER_COUNT
 from domain.constants import PART_TYPE_LABELS, CustomizeState, PartType, CustomizeSlot
 from domain.models import GameDataProtocol, MedalData, PartData, SaveDataProtocol
-from features.customize.view_models import (
+from features.customize.presentation.view_models import (
     CustomizeDetailPanelModel,
     CustomizeDetailStatModel,
     CustomizePartListItemModel,

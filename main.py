@@ -4,15 +4,15 @@ import logging
 import pygame
 import sys
 from core.constants import SceneId
-from ui.config import SCREEN_WIDTH, SCREEN_HEIGHT
+from ui_base.config import SCREEN_WIDTH, SCREEN_HEIGHT
 from domain.config import FPS
-from scenes.title_scene import TitleScene
-from scenes.battle_scene import BattleScene
-from scenes.customize_scene import CustomizeScene
+from features.title.scene import TitleScene
+from features.battle.scene import BattleScene
+from features.customize.scene import CustomizeScene
 from core.game_data_manager import GameDataManager
 from core.save_data_manager import SaveDataManager
 from core.scene_manager import SceneManager, SceneContext
-from ui.event_reader import PygameEventReader
+from ui_base.event_reader import PygameEventReader
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: [%(name)s] %(message)s")

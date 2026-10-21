@@ -3,9 +3,9 @@ from typing import Callable, Dict, Optional, Tuple
 import pygame
 
 from domain.constants import TeamType
-from ui.base.renderer import BaseRenderer
-from ui.base.widgets import MedabotWidgets
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from ui_base.widgets import MedabotWidgets
+from features.battle.ui import layout
 from features.battle.presentation.view_models import (
     CutinActorModel,
     CutinModel,
@@ -13,7 +13,8 @@ from features.battle.presentation.view_models import (
     ImpactEffectModel,
     ProjectileEffectModel,
 )
-from ui.config import UI_PARAMS, resolve_accent_color
+from ui_base.config import resolve_accent_color
+from features.battle.ui.config import BATTLE_UI_PARAMS as UI_PARAMS
 
 ProjectileDrawFn = Callable[['CutinRenderer', int, int, ProjectileEffectModel, bool], None]
 ImpactDrawFn = Callable[['CutinRenderer', int, int, ImpactEffectModel], None]
@@ -104,33 +105,26 @@ class CutinRenderer(BaseRenderer):
 
         center_y = cutin_layout['center_y']
 
-        # カットインパネル内に描画をクリッピング
         self.screen.set_clip(panel_rect)
 
         try:
-            # 攻撃機体の描画（画面外退出後は非表示）
             if model.actor.is_visible:
                 self._draw_actor(actor_x, center_y, model.actor)
 
-            # ミス時の飛翔体はターゲット機体の背後（奥）を通り抜けさせる
             for proj in model.projectiles:
                 if not proj.is_hit:
                     self._draw_projectile(proj, model.actor.team, model.camera_progress, center_y)
 
-            # ターゲット機体の描画
             if model.target.is_visible:
                 self._draw_actor(target_x, center_y, model.target)
 
-            # 命中時の飛翔体はターゲット機体の前面に着弾させる
             for proj in model.projectiles:
                 if proj.is_hit:
                     self._draw_projectile(proj, model.actor.team, model.camera_progress, center_y)
 
-            # 着弾・爆発エフェクトの描画
             for impact in model.impacts:
                 self._draw_impact(target_x, center_y, impact)
 
-            # ダメージポップアップ
             if model.popup is not None:
                 self._draw_popup(target_x, center_y, model.popup)
         finally:

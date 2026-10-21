@@ -82,6 +82,8 @@ class BattleLogBuilder:
                           outcome: ExecutionOutcome) -> List[str]:
         if outcome is ExecutionOutcome.PART_UNUSABLE:
             return [f"{actor.name}の行動パーツは使用不能だ！"]
+        if outcome is ExecutionOutcome.TRAP_DESTROYED:
+            return [f"{actor.name}の行動パーツは破壊された！"]
         if outcome is ExecutionOutcome.TARGET_LOST:
             return [f"{actor.name}はターゲットを失った！"]
         return []

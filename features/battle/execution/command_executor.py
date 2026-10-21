@@ -1,4 +1,4 @@
-"""予約済みコマンドの実行・解決・中断判定を担当するエグゼキュータ。"""
+"""予約済みコマンドの実行・解決を担当するエグゼキュータ（シーンフェーズ非依存）。"""
 from typing import Callable, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.combat import resolve_attack
@@ -6,7 +6,6 @@ from domain.combat_formulas import get_best_guard_part
 from domain.constants import PartType, SkillKind
 from domain.models import EffectResolutionContext
 
-from ..constants import BattlePhase
 from ..entities.commands import (
     BattleCommand,
     ExecutionOutcome,
@@ -24,6 +23,8 @@ if TYPE_CHECKING:
 
 
 class CommandExecutor:
+    """戦闘コマンドの実行解決エンジン。BattlePhase に依存せず純粋な実行結果を返す。"""
+
     def __init__(
         self,
         ctx: 'BattleContext',
@@ -36,51 +37,56 @@ class CommandExecutor:
         self.logs = logs
         self.rng = rng or self.ctx.rng.random
 
-    def execute_charged(self, actor: Robot) -> BattlePhase:
+    def execute_charged(self, actor: Robot) -> ExecutionReport:
+        """充填完了した機体のコマンドを実行し、結果レポートを作成する。"""
         actor.start_execution()
-        self.ctx.clear_log()
-        self.ctx.current_report = None
 
         command = actor.current_command
         if isinstance(command, SkipCommand):
-            actor.enter_cooldown()
-            self.ctx.set_log(self.logs.skipped(actor))
-            return BattlePhase.LOG_WAIT
+            actor.finish_execution_to_cooldown()
+            return ExecutionReport(
+                outcome=ExecutionOutcome.SKIPPED,
+                pre_messages=self.logs.skipped(actor),
+            )
 
         pre_messages: List[str] = []
         if isinstance(command, PartCommand):
             trap_logs, is_destroyed = self._check_trap(actor, command.part_type)
             pre_messages.extend(trap_logs)
             if is_destroyed:
-                self.ctx.set_log(
-                    trap_logs + self.logs.execution_failure(actor, command, ExecutionOutcome.PART_UNUSABLE)
+                actor.finish_execution_to_cooldown()
+                fail_logs = self.logs.execution_failure(actor, command, ExecutionOutcome.TRAP_DESTROYED)
+                return ExecutionReport(
+                    outcome=ExecutionOutcome.TRAP_DESTROYED,
+                    pre_messages=trap_logs + fail_logs,
                 )
-                actor.enter_cooldown(interrupted=False)
-                return BattlePhase.LOG_WAIT
 
         report = self._execute_internal(command)
-        if pre_messages:
-            report = ExecutionReport(
-                outcome=report.outcome,
-                result=report.result,
-                target=report.target,
-                intercepted_by=report.intercepted_by,
-                pre_messages=pre_messages + list(report.pre_messages),
-            )
+        all_pre_messages = pre_messages + list(report.pre_messages)
 
         if report.outcome is ExecutionOutcome.PART_STOPPED:
             part_type = getattr(command, "part_type", "")
-            self.ctx.set_log(pre_messages + self.logs.part_stopped(actor, part_type))
-            actor.enter_cooldown(interrupted=False)
-            return BattlePhase.LOG_WAIT
+            actor.finish_execution_to_cooldown()
+            return ExecutionReport(
+                outcome=report.outcome,
+                pre_messages=all_pre_messages + self.logs.part_stopped(actor, part_type),
+            )
 
         if report.outcome is not ExecutionOutcome.OK:
-            self.ctx.set_log(pre_messages + self.logs.execution_failure(actor, command, report.outcome))
-            actor.enter_cooldown(interrupted=True)
-            return BattlePhase.LOG_WAIT
+            actor.finish_execution_to_cooldown()
+            return ExecutionReport(
+                outcome=report.outcome,
+                pre_messages=all_pre_messages + self.logs.execution_failure(actor, command, report.outcome),
+            )
 
-        self.ctx.current_report = report
-        return BattlePhase.TARGET_INDICATION
+        # 成功時: レポートをそのまま返す（フェーズ遷移は Flow が判断）
+        return ExecutionReport(
+            outcome=report.outcome,
+            result=report.result,
+            target=report.target,
+            intercepted_by=report.intercepted_by,
+            pre_messages=all_pre_messages,
+        )
 
     def _check_trap(self, actor: Robot, part_type: PartType) -> Tuple[List[str], bool]:
         triggered_trap, is_destroyed = actor.trigger_trap_if_applicable(self.ctx.traps)
@@ -91,12 +97,12 @@ class CommandExecutor:
         )
         return logs, is_destroyed
 
-    def apply_pending(self) -> bool:
-        """予約されている行動効果を確定適用し、後処理およびログ生成を行う"""
+    def apply_execution_result(self) -> List[str]:
+        """予約されている行動効果を確定適用し、後処理を行い、表示すべきログメッセージ一覧を返す"""
         report = self.ctx.current_report
         actor = self.ctx.current_actor
         if report is None or actor is None:
-            return self.ctx.has_log
+            return []
 
         # Step 1: 行動効果の確定適用（世界状態の更新）
         updated_report = apply_action_effects(report, actor, ctx=self.ctx)
@@ -106,19 +112,20 @@ class CommandExecutor:
         expired_effects = actor.on_action_completed()
 
         # Step 3: 放熱（クールダウン）への遷移
-        actor.enter_cooldown()
+        actor.finish_execution_to_cooldown()
 
-        # Step 4: 結果ログの構築・記録
+        # Step 4: 結果ログの構築
+        all_messages: List[str] = []
         messages = self.logs.effect_resolution(updated_report.result, updated_report.target)
-        if messages is not None:
-            self.ctx.set_log(messages)
+        if messages:
+            all_messages.extend(messages)
 
         for eff in expired_effects:
             msg = self.logs.effect_expired(actor, eff)
             if msg:
-                self.ctx.append_log(msg)
+                all_messages.append(msg)
 
-        return self.ctx.has_log
+        return all_messages
 
     def _execute_internal(self, command: Optional[BattleCommand]) -> ExecutionReport:
         if isinstance(command, SkipCommand):
@@ -176,5 +183,4 @@ class CommandExecutor:
         return ExecutionReport(outcome=ExecutionOutcome.NO_ACTION)
 
     def _find_interceptor(self, target_robot: Robot) -> Optional[Robot]:
-        """味方機体のうち身代わり（ブロック）可能な機体を探索する"""
         return next((r for r in self.ctx.robots if r.can_intercept(target_robot)), None)

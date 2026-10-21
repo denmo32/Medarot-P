@@ -1,10 +1,11 @@
 """ロボットアイコンとフィールド上のマーカーを描画する。"""
 import pygame
-from ui.base.renderer import BaseRenderer
-from ui.base.widgets import MedabotWidgets
-from ui.battle import layout
+from ui_base.renderer import BaseRenderer
+from ui_base.widgets import MedabotWidgets
+from features.battle.ui import layout
 from features.battle.presentation.view_models import BattleRenderModel, RobotViewModel
-from ui.config import UI_PARAMS, resolve_accent_color
+from ui_base.config import resolve_accent_color
+from features.battle.ui.config import BATTLE_UI_PARAMS as UI_PARAMS
 
 
 class RobotRenderer(BaseRenderer):
