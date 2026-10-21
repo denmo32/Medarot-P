@@ -17,7 +17,7 @@ from .entities.commands import (
     build_command_for_part,
 )
 from .entities.part import Part
-from .entities.robot import CooldownReason, Robot
+from .entities.robot import Robot
 from .events import ATBTurnEvent, PlayerInputRequiredEvent, ActionExecutedEvent
 from .execution.command_executor import CommandExecutor
 from .execution.log_builder import BattleLogBuilder
@@ -101,7 +101,7 @@ class BattleManager:
         for robot in self.ctx.robots:
             reason = robot.evaluate_interruption()
             if reason:
-                robot.abort_charging_to_cooldown(CooldownReason.CHARGING_INTERRUPTED)
+                robot.abort_charging_to_cooldown()
                 interrupts.append((robot, reason))
         return interrupts
 

@@ -38,7 +38,7 @@ from typing import Any, Callable, Dict, List, Optional, Union, TYPE_CHECKING
 from domain.constants import CommandSlot, SkillPresentation
 from .constants import BattlePhase, BattleTiming
 from .entities.commands import ExecutionOutcome
-from .entities.robot import CooldownReason, Robot
+from .entities.robot import Robot
 from .events import ATBTurnEvent, PlayerInputRequiredEvent, ActionExecutedEvent
 
 if TYPE_CHECKING:
@@ -199,7 +199,7 @@ class BattleFlow:
 
         if not actor or not part or not part.is_implemented:
             if actor:
-                actor.finish_execution_to_cooldown(CooldownReason.PHASE_ABORTED)
+                actor.finish_execution_to_cooldown()
             return self._finalize_turn()
 
         presentation = part.presentation
