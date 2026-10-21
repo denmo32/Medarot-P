@@ -97,7 +97,7 @@ class CommandExecutor:
         )
         return logs, is_destroyed
 
-    def apply_pending(self) -> List[str]:
+    def apply_execution_result(self) -> List[str]:
         """予約されている行動効果を確定適用し、後処理を行い、表示すべきログメッセージ一覧を返す"""
         report = self.ctx.current_report
         actor = self.ctx.current_actor

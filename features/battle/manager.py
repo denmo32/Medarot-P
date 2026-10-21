@@ -218,7 +218,7 @@ class BattleManager:
 
     def apply_execution_result(self) -> List[str]:
         """保留中の行動効果を確定適用し、表示すべきログメッセージ一覧を返す"""
-        return self.executor.apply_pending()
+        return self.executor.apply_execution_result()
 
     def complete_execution(self):
         """行動完了時のクリーンアップ。レポートおよび現在アクターの参照を解除する。"""
