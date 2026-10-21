@@ -73,7 +73,8 @@ def build_command_for_part(
     preview_target: Optional[Tuple['Robot', Optional[PartType]]] = None
 ) -> BattleCommand:
     """パーツの行動形式とプレビュー対象に基づいて適切なバトルコマンドを生成する。"""
-    if not part.is_alive or not part.is_implemented:
+    # 【改善】part.can_execute を使用
+    if not part.can_execute:
         return SkipCommand(actor)
 
     target_robot = preview_target[0] if preview_target else None

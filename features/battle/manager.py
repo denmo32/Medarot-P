@@ -176,8 +176,12 @@ class BattleManager:
         if part_type is None:
             return False
 
+        # 【改善】actor に対して実行可能かを直接問い合わせる（Tell, Don't Ask）
+        if not actor.can_execute_part(part_type):
+            return False
+
         part = actor.get_part(part_type)
-        if not part or not part.can_execute:
+        if not part:
             return False
 
         preview = self.ctx.preview_targets.get(part_type)

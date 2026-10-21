@@ -35,7 +35,8 @@ def build_command_menu_items(
             ))
             continue
 
-        visual_enabled = bool(part.is_alive and part.is_implemented)
+        # 【改善】part.is_alive and part.is_implemented の重複判定を can_execute に集約
+        visual_enabled = part.can_execute
         preview_index = _resolve_robot_index(preview_targets.get(part_type), robots)
 
         selectable = visual_enabled
