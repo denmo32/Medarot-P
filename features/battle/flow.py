@@ -1,36 +1,4 @@
-"""戦闘の進行制御・フェーズ遷移状態機械。
-
-フェーズ全体の遷移フロー図:
-
-  [ INITIAL_SETUP ] ──(準備完了)──> [ OPENING_LOG ] ──(確認)──> [ OPENING_POPUP ]
-           │                              ▲                            │
-           │ (開戦前入力)                   │ (初回のみ)                  │ (タイマー/スキップ)
-           ▼                              │                            ▼
-      [ INPUT ] <────────────────────────┴─────────────────────── [ IDLE ] <─────────┐
-           │                                                        │                 │
-           │ (コマンド決定)                                          │ (ATB手番発生)    │
-           └────────────────────────────────────────────────────────┤                 │
-                                                                    ▼                 │
-     ┌─────────────────────────────────────────────────── [ 手番イベント判定 ]         │
-     │                                                              │                 │
-     │ (失敗 / スキップ)                                               │ (成功)          │
-     ▼                                                              ▼                 │
-  [ LOG_WAIT ] <───────────────────────────┐           [ TARGET_INDICATION ]          │
-     │                                     │                        │ (タイマー)       │
-     │                                     │                        ▼                 │
-     │                                     │              [ ATTACK_DECLARATION ]      │
-     │                                     │                        │                 │
-     │                                     │ (LOG_ONLY)             ├─(CUTIN)──> [ CUTIN ]
-     │                                     └────────────────────────┤               │
-     │                                                              │               ▼
-     │                                                              └──────> [ CUTIN_RESULT ]
-     │ (確認)                                                                       │ (確認/貫通)
-     ▼                                                                              │
-  [ ターン終了総合処理 (_finalize_turn) ] <──────────────────────────────────────────┘
-     ├─(決着)───────> [ RESULT_LOG ] ──(確認)──> [ GAME_OVER ]
-     ├─(割り込みあり)──> [ LOG_WAIT ] (理由表示後に IDLE へ)
-     └─(継続)───────> [ IDLE ] へ復帰
-"""
+"""戦闘の進行制御・フェーズ遷移状態機械。"""
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional, Union, TYPE_CHECKING
@@ -79,9 +47,6 @@ PHASE_RULES: Dict[BattlePhase, PhaseRule] = {
         duration=BattleTiming.TARGET_INDICATION,
         can_user_skip=False,
     ),
-    # ATTACK_DECLARATION はユーザー確認で前進するが、
-    # 技の演出種別（SkillPresentation）によって遷移先および副作用適用タイミングが
-    # 動的に分岐するため、next_phase は None とする（_advance_attack_declaration で解決）。
     BattlePhase.ATTACK_DECLARATION: PhaseRule(
         advance_on=AdvanceTrigger.USER_CONFIRM,
         next_phase=None,
@@ -105,15 +70,13 @@ PHASE_RULES: Dict[BattlePhase, PhaseRule] = {
     ),
 }
 
-# 実行結果（ExecutionOutcome）から遷移先フェーズを導出する。
-# 「成功（OK）なら演出フェーズへ、それ以外はログ表示待ち」という不変条件を持つ。
+
 def _resolve_phase_from_outcome(outcome: ExecutionOutcome) -> BattlePhase:
     if outcome is ExecutionOutcome.OK:
         return BattlePhase.TARGET_INDICATION
     return BattlePhase.LOG_WAIT
 
 
-# ターンイベント種別に応じた遷移先フェーズ解決ディスパッチャ
 _TURN_EVENT_RESOLVERS: Dict[type, Callable[[Any], Optional[BattlePhase]]] = {
     PlayerInputRequiredEvent: lambda _: BattlePhase.INPUT,
     ActionExecutedEvent: lambda e: _resolve_phase_from_outcome(e.report.outcome),
@@ -175,7 +138,7 @@ class BattleFlow:
             return self._finalize_turn()
 
         if self.phase == BattlePhase.OPENING_POPUP:
-            self.manager.ctx.is_opening_done = True
+            self.manager.mark_opening_done()
             self.manager.clear_log()
         elif self.phase == BattlePhase.CUTIN:
             messages = self.manager.apply_execution_result()
@@ -210,7 +173,7 @@ class BattleFlow:
             return self._finalize_turn()
 
     def _advance_cutin_result(self) -> List[FlowEvent]:
-        report = self.manager.ctx.current_report
+        report = self.manager.current_report
         if report and report.has_pierce and not self.is_pierce_step and report.target:
             self.is_pierce_step = True
             self.manager.set_log(self.manager.logs.pierce())
@@ -310,7 +273,6 @@ class BattleFlow:
             return events
 
         if self.phase == BattlePhase.IDLE:
-            # 割り込み検査は _finalize_turn に同期化されたため、毎フレームのポーリングは不要
             turn_event: Optional[ATBTurnEvent] = self.manager.update_atb(dt)
             if turn_event is not None:
                 next_phase = self._resolve_phase_from_turn_event(turn_event)
@@ -320,6 +282,5 @@ class BattleFlow:
         return events
 
     def _resolve_phase_from_turn_event(self, turn_event: ATBTurnEvent) -> Optional[BattlePhase]:
-        """テーブル駆動ディスパッチにより、イベントから遷移先フェーズをO(1)で決定する"""
         resolver = _TURN_EVENT_RESOLVERS.get(type(turn_event))
         return resolver(turn_event) if resolver else None

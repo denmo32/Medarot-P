@@ -3,6 +3,7 @@ from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType
 from domain.action_logic import get_action_definition
+from features.battle.context import find_robot_index
 from .view_models import CommandMenuItemModel
 
 if TYPE_CHECKING:
@@ -35,7 +36,6 @@ def build_command_menu_items(
             ))
             continue
 
-        # 【改善】part.is_alive and part.is_implemented の重複判定を can_execute に集約
         visual_enabled = part.can_execute
         preview_index = _resolve_robot_index(preview_targets.get(part_type), robots)
 
@@ -74,8 +74,4 @@ def _resolve_robot_index(
 ) -> Optional[int]:
     if not target_info:
         return None
-    target_robot = target_info[0]
-    for index, robot in enumerate(robots):
-        if robot is target_robot:
-            return index
-    return None
+    return find_robot_index(robots, target_info[0])

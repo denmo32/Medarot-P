@@ -49,21 +49,47 @@ class BattleManager:
             if robot.team == TeamType.ENEMY:
                 self.ai.decide_command(robot)
 
+    # === 外部公開プロパティ（カプセル化） ===
+
     @property
     def current_actor(self) -> Optional[Robot]:
         return self.ctx.current_actor
+
+    @property
+    def current_report(self) -> Optional[ExecutionReport]:
+        return self.ctx.current_report
 
     @property
     def robots(self) -> List[Robot]:
         return self.ctx.robots
 
     @property
+    def preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
+        return self.ctx.preview_targets
+
+    @property
     def is_opening_done(self) -> bool:
         return self.ctx.is_opening_done
+
+    @is_opening_done.setter
+    def is_opening_done(self, value: bool):
+        self.ctx.is_opening_done = value
+
+    def mark_opening_done(self):
+        """オープニング演出完了を記録する"""
+        self.ctx.is_opening_done = True
 
     @property
     def winner(self) -> Optional[TeamType]:
         return self.ctx.winner
+
+    @property
+    def battle_log(self) -> Sequence[str]:
+        return self.ctx.battle_log
+
+    def find_robot_index(self, robot: Optional[Robot]) -> Optional[int]:
+        """指定機体のインデックスを取得する"""
+        return self.ctx.find_robot_index(robot)
 
     def clear_log(self):
         self.ctx.clear_log()
@@ -72,7 +98,7 @@ class BattleManager:
         self.ctx.set_log(messages)
 
     def get_command_menu_preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
-        return self.ctx.preview_targets
+        return self.preview_targets
 
     # === シミュレーション制御 ===
 
@@ -176,7 +202,6 @@ class BattleManager:
         if part_type is None:
             return False
 
-        # 【改善】actor に対して実行可能かを直接問い合わせる（Tell, Don't Ask）
         if not actor.can_execute_part(part_type):
             return False
 
