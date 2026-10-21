@@ -35,8 +35,11 @@ class BattleScene(Scene):
         player_setups = BattleFactory.get_player_setups(ctx.save_manager)
         enemy_setups = BattleFactory.get_enemy_setups(ctx.data_manager, rng=battle_rng)
 
-        # 1. 純粋シミュレーション (BattleManager)
-        self.manager = BattleManager(player_setups, enemy_setups, ctx.data_manager, seed=self.seed)
+        # 1. 純粋シミュレーション (BattleManager) に save_manager を注入
+        self.manager = BattleManager(
+            player_setups, enemy_setups, ctx.data_manager,
+            save_manager=ctx.save_manager, seed=self.seed
+        )
         # 2. 進行・状態機械 (BattleFlow)
         self.flow = BattleFlow(self.manager)
         # 3. 演出進行 (VisualCoordinator)

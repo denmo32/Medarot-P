@@ -1,32 +1,51 @@
 """熟練度（Proficiency）に関するドメインロジック。
 
-メダルの熟練度データに基づき、成功度や威力への補正値を算出する純粋関数群を提供します。
+メダルの適性Lv（固定）と熟練値（成長）に基づき、威力・成功度への補正値および
+経験値獲得によるレベルアップ判定を行う純粋関数群を提供します。
 """
-from typing import Mapping, Optional
-from domain.constants import ActionCategory, ActionType, SkillType
+from typing import Tuple
+from domain.config import (
+    PROFICIENCY_ATTACK_FACTOR,
+    PROFICIENCY_SUCCESS_DIVISOR,
+    MAX_MASTERY_VALUE,
+    EXP_PER_MASTERY_POINT,
+)
 
 
-def calculate_proficiency_bonus(
-    proficiency: Mapping[str, int],
-    skill: Optional[SkillType] = None,
-    action: Optional[ActionType] = None,
-) -> int:
-    """技や行動形式に対応する熟練度ボーナス値を計算する。
+def calculate_aptitude_attack_bonus(aptitude_level: int) -> int:
+    """メダル適性レベル（1〜5）に基づく攻撃力・威力への加算値を計算する。"""
+    return max(0, aptitude_level) * PROFICIENCY_ATTACK_FACTOR
 
-    熟練度は以下の順で解決されます:
-      1. 技名（例: "ライフル"）に直接対応する熟練度
-      2. 行動カテゴリ（例: "shooting", "melee"）に対応する熟練度
-      3. 未設定時は 0
+
+def calculate_mastery_success_bonus(mastery_value: int) -> int:
+    """熟練値（0〜99）に基づく成功度への加算値を計算する。"""
+    return max(0, mastery_value) // PROFICIENCY_SUCCESS_DIVISOR
+
+
+def gain_mastery_exp(
+    current_value: int,
+    current_exp: int,
+    gain: int = 1,
+    exp_per_point: int = EXP_PER_MASTERY_POINT,
+    max_value: int = MAX_MASTERY_VALUE,
+) -> Tuple[int, int, bool]:
+    """経験値を加算し、(新熟練値, 新経験値, レベルアップしたか) のタプルを返す。
+
+    カンスト（MAX_MASTERY_VALUE）到達時は経験値を 0 に固定します。
     """
-    if not proficiency:
-        return 0
+    if current_value >= max_value:
+        return max_value, 0, False
 
-    if skill and skill.value in proficiency:
-        return proficiency[skill.value]
+    total_exp = current_exp + gain
+    new_value = current_value
+    leveled_up = False
 
-    if action:
-        category_key = action.category.value
-        if category_key in proficiency:
-            return proficiency[category_key]
+    while total_exp >= exp_per_point and new_value < max_value:
+        total_exp -= exp_per_point
+        new_value += 1
+        leveled_up = True
 
-    return 0
+    if new_value >= max_value:
+        total_exp = 0
+
+    return new_value, total_exp, leveled_up

@@ -1,7 +1,7 @@
 """カスタマイズ画面の View Model 構築クラス（RobotSetup 対応）"""
 from typing import Optional, Tuple, Union
 from domain.config import PLAYER_COUNT
-from domain.constants import PART_TYPE_LABELS, CustomizeState, PartType, CustomizeSlot
+from domain.constants import ActionCategory, PART_TYPE_LABELS, CustomizeState, PartType, CustomizeSlot
 from domain.models import GameDataProtocol, MedalData, PartData, SaveDataProtocol
 from features.customize.presentation.view_models import (
     CustomizeDetailPanelModel,
@@ -55,7 +55,8 @@ class CustomizeViewBuilder:
         ]
 
         robot_names = [f"機体{i+1}" for i in range(PLAYER_COUNT)]
-        detail = self._build_detail_model(slot, focused_data)
+        # 【修正】focused_id を _build_detail_model に確実に渡す
+        detail = self._build_detail_model(slot, focused_data, focused_id)
 
         return CustomizeViewModel(
             state=current_state,
@@ -83,23 +84,33 @@ class CustomizeViewBuilder:
         return part_data if part_data is not None else self.data_manager.get_medal_data(focused_id)
 
     def _build_detail_model(
-        self, slot: CustomizeSlot, focused_data: Optional[DetailData]
+        self, slot: CustomizeSlot, focused_data: Optional[DetailData], focused_id: str
     ) -> Optional[CustomizeDetailPanelModel]:
         if focused_data is None:
             return None
         if isinstance(focused_data, MedalData):
-            return self._build_medal_detail(focused_data)
+            return self._build_medal_detail(focused_data, focused_id)
         return self._build_part_detail(slot, focused_data)
 
-    def _build_medal_detail(self, medal: MedalData) -> CustomizeDetailPanelModel:
+    def _build_medal_detail(self, medal: MedalData, focused_id: str) -> CustomizeDetailPanelModel:
+        stats = [
+            CustomizeDetailStatModel("ニックネーム", medal.nickname or "-"),
+            CustomizeDetailStatModel("性格", medal.personality.display_name),
+            CustomizeDetailStatModel("属性", medal.attribute.display_name),
+        ]
+
+        # 熟練度・適性の表示（全6カテゴリ）
+        for cat in ActionCategory:
+            aptitude_lv = medal.get_aptitude(cat)
+            mastery_val = self.save_data.get_medal_mastery(focused_id, cat)
+            stats.append(
+                CustomizeDetailStatModel(cat.display_name, f"Lv{aptitude_lv} (熟練:{mastery_val})")
+            )
+
         return CustomizeDetailPanelModel(
             title="メダル詳細",
             name=medal.name,
-            stats=[
-                CustomizeDetailStatModel("ニックネーム", medal.nickname or "-"),
-                CustomizeDetailStatModel("性格", medal.personality.display_name),
-                CustomizeDetailStatModel("属性", medal.attribute.display_name),
-            ],
+            stats=stats,
         )
 
     def _build_part_detail(self, slot: CustomizeSlot, part: PartData) -> CustomizeDetailPanelModel:

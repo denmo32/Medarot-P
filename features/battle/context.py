@@ -1,7 +1,7 @@
 """バトルの状態を一元管理するコンテキストクラス（RNG 一元化・純粋ドメイン状態）。"""
 import random
 from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
-from domain.constants import PartType, TeamType
+from domain.constants import ActionCategory, PartType, TeamType
 from domain.traps import TrapManager
 from .entities.robot import Robot
 
@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
 
 def find_robot_index(robots: Sequence[Robot], target: Optional[Robot]) -> Optional[int]:
-    """ロボットリストから指定されたロボットのインデックスを同一性判定（is）で検索する。"""
     if target is None:
         return None
     for idx, candidate in enumerate(robots):
@@ -35,6 +34,15 @@ class BattleContext:
 
         self.winner: Optional[TeamType] = None
         self.traps = TrapManager()
+
+        # 戦闘中に獲得したEXPキュー: [(medal_id, category, exp), ...]
+        self.pending_exp_gains: List[Tuple[str, ActionCategory, int]] = []
+
+    def record_action_success(self, medal_id: str, category: ActionCategory, exp: int = 1):
+        """プレイヤー行動の成功に伴うEXP獲得を記録する"""
+        if medal_id:
+            self.pending_exp_gains.append((medal_id, category, exp))
+
 
     # === ロボット検索 ===
     def find_robot_index(self, robot: Optional[Robot]) -> Optional[int]:

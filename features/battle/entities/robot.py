@@ -31,12 +31,6 @@ if TYPE_CHECKING:
 
 
 class Robot:
-    """機体（メダロット）の集約ルート。
-
-    配下のパーツ・状態異常・ATBゲージの整合性を完全にカプセル化し、
-    外部に生データを晒さず「振る舞い」を通じて状態を変化させる。
-    """
-
     def __init__(
         self,
         team: TeamType,
@@ -44,11 +38,13 @@ class Robot:
         name: str,
         medal_data: MedalData,
         parts: Dict[PartType, Part],
+        medal_id: str = "",
     ):
         self.team = team
         self.is_leader = is_leader
         self.name = name
         self.medal_data = medal_data
+        self.medal_id = medal_id
         self.personality = self.medal_data.personality
         self._parts: Dict[PartType, Part] = parts
 

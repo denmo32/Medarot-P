@@ -3,7 +3,7 @@ from typing import Callable, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.combat import resolve_attack
 from domain.combat_formulas import get_best_guard_part
-from domain.constants import PartType, SkillKind
+from domain.constants import PartType, SkillKind, TeamType
 from domain.models import EffectResolutionContext
 
 from ..entities.commands import (
@@ -107,6 +107,12 @@ class CommandExecutor:
         # Step 1: 行動効果の確定適用（世界状態の更新）
         updated_report = apply_action_effects(report, actor, ctx=self.ctx)
         self.ctx.current_report = updated_report
+
+        # プレイヤー機体かつ行動成功時、EXP獲得を静かに記録
+        if actor.team == TeamType.PLAYER and updated_report.result and updated_report.result.success:
+            part = actor.current_part
+            if part and part.action:
+                self.ctx.record_action_success(actor.medal_id, part.action.category, exp=1)
 
         # Step 2: アクター機体の事後処理（回数制バフ消費など）
         expired_effects = actor.on_action_completed()

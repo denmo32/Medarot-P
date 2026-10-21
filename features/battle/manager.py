@@ -2,7 +2,7 @@
 from typing import List, Dict, Optional, Tuple, Sequence
 
 from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType, TeamType, GaugeStatus
-from domain.models import GameDataProtocol, RobotSetup
+from domain.models import GameDataProtocol, RobotSetup, SaveDataProtocol  # ← SaveDataProtocol を追加
 from domain.rules import check_battle_end
 
 from .ai_controller import AIController
@@ -33,9 +33,11 @@ class BattleManager:
         player_setups: List[RobotSetup],
         enemy_setups: List[RobotSetup],
         data_manager: GameDataProtocol,
+        save_manager: Optional[SaveDataProtocol] = None,
         seed: Optional[int] = None,
     ):
-        robots = BattleFactory.create_robots(player_setups, enemy_setups, data_manager)
+        self.save_manager = save_manager
+        robots = BattleFactory.create_robots(player_setups, enemy_setups, data_manager, save_manager)
         self.ctx = BattleContext(robots, seed=seed)
 
         self.targeting = TargetingResolver(self.ctx)
@@ -48,6 +50,12 @@ class BattleManager:
         for robot in robots:
             if robot.team == TeamType.ENEMY:
                 self.ai.decide_command(robot)
+
+    def save_battle_progress(self):
+        """戦闘中に獲得した熟練度EXPをセーブデータへ一括反映する"""
+        if self.save_manager is not None and self.ctx.pending_exp_gains:
+            self.save_manager.batch_add_medal_exp(self.ctx.pending_exp_gains)
+            self.ctx.pending_exp_gains.clear()
 
     # === 外部公開プロパティ（カプセル化） ===
 

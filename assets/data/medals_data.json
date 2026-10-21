@@ -1,14 +1,44 @@
 {
   "medals": {
-    "001": { "name": "カブト", "nickname": "メタビー", "personality": "チェイサー", "attribute": "speed" },
-    "002": { "name": "クワガタ", "nickname": "ロクショウ", "personality": "チェイサー", "attribute": "speed" },
-    "003": { "name": "テストメダル3", "nickname": "テストさん", "personality": "チャレンジャー", "attribute": "power" },
-    "004": { "name": "テストメダル4", "nickname": "よんたろー", "personality": "スイーパー", "attribute": "technique" },
-    "005": { "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "ストッパー", "attribute": "speed" },
-    "006": { "name": "テストメダル6", "nickname": "ろくべえ", "personality": "ランダム", "attribute": "power" },
-    "007": { "name": "テストメダル7", "nickname": "ななこ", "personality": "ランダム", "attribute": "technique" },
-    "008": { "name": "テストメダル8", "nickname": "はちろー", "personality": "ランダム", "attribute": "speed" },
-    "009": { "name": "テストメダル9", "nickname": "きゅうた", "personality": "ランダム", "attribute": "power" },
-    "010": { "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "ランダム", "attribute": "technique" }
+    "001": {
+      "name": "カブト", "nickname": "メタビー", "personality": "チェイサー", "attribute": "speed",
+      "aptitude": { "shooting": 5, "setup": 4, "control": 3, "defense": 2, "melee": 2, "care": 1 }
+    },
+    "002": {
+      "name": "クワガタ", "nickname": "ロクショウ", "personality": "チェイサー", "attribute": "speed",
+      "aptitude": { "melee": 5, "defense": 4, "control": 3, "setup": 2, "shooting": 2, "care": 1 }
+    },
+    "003": {
+      "name": "テストメダル3", "nickname": "テストさん", "personality": "チャレンジャー", "attribute": "power",
+      "aptitude": { "shooting": 4, "melee": 4, "defense": 3, "control": 2, "setup": 2, "care": 1 }
+    },
+    "004": {
+      "name": "テストメダル4", "nickname": "よんたろー", "personality": "スイーパー", "attribute": "technique",
+      "aptitude": { "care": 5, "control": 4, "defense": 3, "shooting": 2, "melee": 1, "setup": 2 }
+    },
+    "005": {
+      "name": "テストメダル5", "nickname": "ごっちゃん", "personality": "ストッパー", "attribute": "speed",
+      "aptitude": { "defense": 5, "setup": 4, "control": 3, "care": 2, "shooting": 2, "melee": 2 }
+    },
+    "006": {
+      "name": "テストメダル6", "nickname": "ろくべえ", "personality": "ランダム", "attribute": "power",
+      "aptitude": { "melee": 4, "shooting": 3, "defense": 3, "setup": 3, "control": 2, "care": 2 }
+    },
+    "007": {
+      "name": "テストメダル7", "nickname": "ななこ", "personality": "ランダム", "attribute": "technique",
+      "aptitude": { "control": 5, "care": 4, "setup": 3, "defense": 2, "shooting": 2, "melee": 1 }
+    },
+    "008": {
+      "name": "テストメダル8", "nickname": "はちろー", "personality": "ランダム", "attribute": "speed",
+      "aptitude": { "shooting": 4, "setup": 4, "melee": 3, "control": 3, "defense": 2, "care": 1 }
+    },
+    "009": {
+      "name": "テストメダル9", "nickname": "きゅうた", "personality": "ランダム", "attribute": "power",
+      "aptitude": { "melee": 5, "setup": 3, "defense": 4, "control": 2, "shooting": 1, "care": 1 }
+    },
+    "010": {
+      "name": "テストメダル10", "nickname": "じゅうべえ", "personality": "ランダム", "attribute": "technique",
+      "aptitude": { "setup": 5, "control": 4, "defense": 3, "care": 3, "shooting": 2, "melee": 2 }
+    }
   }
 }

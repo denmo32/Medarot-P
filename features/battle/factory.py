@@ -4,7 +4,15 @@ import logging
 import random
 from typing import Dict, List, Optional
 from domain.config import PLAYER_COUNT, ENEMY_COUNT
-from domain.constants import ALL_PART_TYPES, CustomizeSlot, TeamType, PartType, AttributeType, PersonalityType
+from domain.constants import (
+    ALL_PART_TYPES,
+    ActionCategory,
+    CustomizeSlot,
+    TeamType,
+    PartType,
+    AttributeType,
+    PersonalityType,
+)
 from domain.models import GameDataProtocol, MedalData, RobotSetup, SaveDataProtocol
 from .entities.part import Part
 from .entities.robot import Robot
@@ -39,32 +47,56 @@ class BattleFactory:
 
     @classmethod
     def create_robot(
-        cls, team: TeamType, is_leader: bool, setup: RobotSetup, data_manager: GameDataProtocol
+        cls,
+        team: TeamType,
+        is_leader: bool,
+        setup: RobotSetup,
+        data_manager: GameDataProtocol,
+        save_manager: Optional[SaveDataProtocol] = None,
     ) -> Robot:
         medal_data = data_manager.get_medal_data(setup.medal_id) or cls._fallback_medal_data()
         name = cls._resolve_robot_name(setup.name, medal_data)
+
+        # プレイヤー機体ならセーブデータから熟練値を読み出す
+        mastery_map = {}
+        if team == TeamType.PLAYER and save_manager is not None:
+            mastery_map = {
+                cat: save_manager.get_medal_mastery(setup.medal_id, cat)
+                for cat in ActionCategory
+            }
 
         parts: Dict[PartType, Part] = {}
         for part_type, p_id in setup.part_ids.items():
             p_data = data_manager.get_part_data(p_id)
             if p_data:
-                parts[part_type] = Part(part_type, p_data, medal_data)
+                parts[part_type] = Part(part_type, p_data, medal_data, mastery_map=mastery_map)
             else:
                 logger.warning(f"機体 '{name}' のパーツ '{p_id}' ({part_type.value}) が見つかりません。")
 
-        return Robot(team=team, is_leader=is_leader, name=name, medal_data=medal_data, parts=parts)
+        return Robot(
+            team=team,
+            is_leader=is_leader,
+            name=name,
+            medal_data=medal_data,
+            parts=parts,
+            medal_id=setup.medal_id,
+        )
 
     @classmethod
     def create_robots(
-        cls, player_setups: List[RobotSetup], enemy_setups: List[RobotSetup], data_manager: GameDataProtocol
+        cls,
+        player_setups: List[RobotSetup],
+        enemy_setups: List[RobotSetup],
+        data_manager: GameDataProtocol,
+        save_manager: Optional[SaveDataProtocol] = None,
     ) -> List[Robot]:
         robots: List[Robot] = []
         robots.extend(
-            cls.create_robot(TeamType.PLAYER, i == 0, setup, data_manager)
+            cls.create_robot(TeamType.PLAYER, i == 0, setup, data_manager, save_manager)
             for i, setup in enumerate(player_setups)
         )
         robots.extend(
-            cls.create_robot(TeamType.ENEMY, i == 0, setup, data_manager)
+            cls.create_robot(TeamType.ENEMY, i == 0, setup, data_manager, None)
             for i, setup in enumerate(enemy_setups)
         )
         return robots

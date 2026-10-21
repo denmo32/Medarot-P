@@ -215,6 +215,7 @@ class SkillType(KeyedEnum):
     RESTORE = "レストア"
 
 
+
 class ActionCategory(str, Enum):
     SHOOTING = "shooting"
     MELEE = "melee"
@@ -222,6 +223,20 @@ class ActionCategory(str, Enum):
     SETUP = "setup"
     DEFENSE = "defense"
     CARE = "care"
+
+    @property
+    def display_name(self) -> str:
+        return _ACTION_CATEGORY_NAMES.get(self, self.value)
+
+
+_ACTION_CATEGORY_NAMES = {
+    ActionCategory.SHOOTING: "射撃",
+    ActionCategory.MELEE: "格闘",
+    ActionCategory.CONTROL: "制御",
+    ActionCategory.SETUP: "設置",
+    ActionCategory.DEFENSE: "防護",
+    ActionCategory.CARE: "救護",
+}
 
 
 class SkillKind(str, Enum):

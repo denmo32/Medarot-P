@@ -1,8 +1,10 @@
 """ドメインモデルのデータクラス定義"""
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Optional, Protocol, Sequence, TYPE_CHECKING, Union
+from typing import Dict, List, Mapping, Optional, Protocol, Sequence, Tuple, TYPE_CHECKING, Union
+from domain.config import DEFAULT_APTITUDE_LEVEL
 from domain.constants import (
+    ActionCategory,
     AttributeType, CustomizeSlot, EffectStackPolicy, EffectType, GaugeStatus, HitPolicy,
     PartType, ActionType, PersonalityType, TeamType, SkillType,
 )
@@ -20,11 +22,21 @@ class GameDataProtocol(Protocol):
     def get_part_ids_for_type(self, slot_type: Union[CustomizeSlot, PartType, str]) -> List[str]: ...
 
 
+@dataclass(frozen=True)
+class CategoryProgress:
+    """単一カテゴリの成長状態（不変DTO）"""
+    value: int = 0
+    exp: int = 0
+
+
 class SaveDataProtocol(Protocol):
     """SaveDataManager の公開インターフェースプロトコル"""
     def get_robot_setup(self, robot_idx: int) -> Optional["RobotSetup"]: ...
     def get_part_id(self, robot_idx: int, slot_type: CustomizeSlot) -> str: ...
     def update_part(self, robot_idx: int, slot_type: CustomizeSlot, part_id: str) -> None: ...
+    def get_medal_mastery(self, medal_id: str, category: ActionCategory) -> int: ...
+    def get_medal_progress(self, medal_id: str, category: ActionCategory) -> CategoryProgress: ...
+    def batch_add_medal_exp(self, updates: Sequence[Tuple[str, ActionCategory, int]]) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -107,17 +119,29 @@ class MedalData:
     nickname: str
     personality: PersonalityType = PersonalityType.RANDOM
     attribute: AttributeType = AttributeType.UNDEFINED
-    # 熟練度データ（※第4層定義。現状の戦闘計算では未配線のため将来の拡張タスク）
-    proficiency: Dict[str, int] = field(default_factory=dict)
+    aptitudes: Dict[ActionCategory, int] = field(default_factory=dict)
+
+    def get_aptitude(self, category: Optional[ActionCategory]) -> int:
+        if category is None:
+            return DEFAULT_APTITUDE_LEVEL
+        return self.aptitudes.get(category, DEFAULT_APTITUDE_LEVEL)
 
     @classmethod
     def from_dict(cls, data: dict) -> "MedalData":
+        raw_aptitudes = data.get("aptitude", {})
+        aptitudes: Dict[ActionCategory, int] = {}
+        for cat in ActionCategory:
+            if cat.value in raw_aptitudes:
+                aptitudes[cat] = int(raw_aptitudes[cat.value])
+            else:
+                aptitudes[cat] = DEFAULT_APTITUDE_LEVEL
+
         return cls(
             name=data.get("name", ""),
             nickname=data.get("nickname", ""),
             personality=PersonalityType.from_key(data.get("personality")),
             attribute=AttributeType.from_key(data.get("attribute", "")),
-            proficiency=data.get("proficiency", {}),
+            aptitudes=aptitudes,
         )
 
 
@@ -161,8 +185,6 @@ class EffectResolutionContext:
     attacker_success: int
     target_mobility: int
     skill: Optional[SkillType] = None
-    # 熟練度ボーナス（※現状は未配線のため 0 固定）
-    proficiency_bonus: int = 0
     target_parts_hp: Dict[PartType, int] = field(default_factory=dict)
     target_parts_max_hp: Dict[PartType, int] = field(default_factory=dict)
     target_part_type: Optional[PartType] = None
@@ -184,7 +206,6 @@ class EffectResolutionContext:
             attacker_success=attacker.stats.success + attacker.buff_success,
             target_mobility=target.legs_stats.get("mobility", 0),
             skill=attacker.stats.skill,
-            proficiency_bonus=0,
             target_parts_hp=target.parts_hp,
             target_parts_max_hp=target_parts_max_hp,
             target_part_type=target_part_type,

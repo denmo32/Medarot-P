@@ -18,12 +18,11 @@ def make_stop_effect(duration: float, part_type: Optional[PartType] = None) -> S
 
 
 def resolve_stop_effect(context: EffectResolutionContext) -> ActionResult:
-    adj_success = max(1, context.attacker_success + context.proficiency_bonus)
+    adj_success = max(1, context.attacker_success)
     adj_mobility = max(0, context.target_mobility)
     target_part_type = context.target_part_type
 
     hit_prob = calculate_hit_probability(adj_success, adj_mobility)
-    # コンテキストから注入された RNG を利用
     roll = context.rng.random()
     is_success = roll < hit_prob
 

@@ -1,8 +1,9 @@
 """パーツ個別の性能計算、状態管理、HP変動を自律して担うエンティティ。"""
-from typing import Optional
+from typing import Mapping, Optional
 from domain.action_logic import ActionDefinition, get_action_definition
 from domain.attribute import get_passive_bonuses
 from domain.constants import (
+    ActionCategory,
     ActionType,
     AttributeType,
     HitPolicy,
@@ -21,13 +22,20 @@ from domain.models import (
     PartCombatStats,
     PartData,
 )
+from domain.proficiency import calculate_aptitude_attack_bonus, calculate_mastery_success_bonus
 from domain.skills import SkillDefinition, get_skill_definition
 
 
 class Part:
     """パーツ個別の性能計算、状態管理、HP変動を自律して担うエンティティ"""
 
-    def __init__(self, part_type: PartType, data: PartData, medal_data: MedalData):
+    def __init__(
+        self,
+        part_type: PartType,
+        data: PartData,
+        medal_data: MedalData,
+        mastery_map: Optional[Mapping[ActionCategory, int]] = None,
+    ):
         self.part_type = part_type
         self.data = data
         self.medal_data = medal_data
@@ -37,7 +45,17 @@ class Part:
         # メダル属性との一致パッシブボーナスを算出
         self.bonuses = get_passive_bonuses(part_type, data.attribute, medal_data.attribute)
 
-        # 基礎ステータス＋ボーナス
+        # 熟練度ボーナス（威力・成功度）を算出
+        self.prof_attack_bonus = 0
+        self.prof_success_bonus = 0
+        if self.data.action:
+            cat = self.data.action.category
+            aptitude_lv = medal_data.get_aptitude(cat)
+            mastery_val = (mastery_map or {}).get(cat, 0)
+            self.prof_attack_bonus = calculate_aptitude_attack_bonus(aptitude_lv)
+            self.prof_success_bonus = calculate_mastery_success_bonus(mastery_val)
+
+        # 基礎ステータス＋パッシブ＋熟練度ボーナス
         self.base_attack: int = data.attack or 0
         self.max_hp: int = data.hp + self.bonuses.hp_add
         self.hp: int = self.max_hp
@@ -52,9 +70,9 @@ class Part:
     @property
     def attribute(self) -> AttributeType: return self.data.attribute
     @property
-    def attack(self) -> int: return self.base_attack + self.bonuses.attack_add
+    def attack(self) -> int: return self.base_attack + self.bonuses.attack_add + self.prof_attack_bonus
     @property
-    def success(self) -> int: return self.data.success + self.bonuses.success_add
+    def success(self) -> int: return self.data.success + self.bonuses.success_add + self.prof_success_bonus
     @property
     def mobility(self) -> int: return self.data.mobility + self.bonuses.mobility_add
     @property
@@ -108,12 +126,10 @@ class Part:
         return self.target_timing is TargetTiming.ON_CHARGE
 
     def calculate_charge_duration(self) -> float:
-        """自身の攻撃力と時間補正から充填・放熱所要秒数を計算"""
         base_t = calculate_base_time(self.base_attack)
         return max(0.001, base_t * self.time_modifier)
 
     def to_combat_stats(self) -> PartCombatStats:
-        """現在のパーツとメダルから計算層へ渡す戦闘ステータス集約を生成する"""
         return PartCombatStats(
             name=self.name,
             action=self.action,
@@ -132,20 +148,15 @@ class Part:
         )
 
     def resolve_effect(self, context: EffectResolutionContext) -> ActionResult:
-        """技の効果を解決する（SkillDefinition への委譲）"""
         return self.skill_def.resolve_effect(context)
 
-    # === HP操作（自律的な状態変更） ===
-
     def take_damage(self, amount: int) -> bool:
-        """ダメージを受け、この攻撃で破壊されたかを返す"""
         if not self.is_alive:
             return False
         self.hp = max(0, self.hp - amount)
         return self.hp == 0
 
     def repair(self, amount: int) -> int:
-        """パーツのHPを回復し、実際の回復量を返す"""
         if not self.is_alive:
             return 0
         actual = min(amount, self.max_hp - self.hp)
@@ -153,7 +164,6 @@ class Part:
         return actual
 
     def restore(self, initial_hp: int = 1) -> bool:
-        """破壊されたパーツを復活させる"""
         if self.is_alive:
             return False
         self.hp = max(1, min(initial_hp, self.max_hp))

@@ -182,21 +182,17 @@ class BattleFlow:
         return self._finalize_turn()
 
     def _finalize_turn(self) -> List[FlowEvent]:
-        """ターン終了時の総合処理。
-        1. 勝敗判定（決着なら RESULT_LOG へ）
-        2. 直前の行動による割り込み検査（発生なら LOG_WAIT へ）
-        3. いずれも無ければ IDLE へ復帰
-        """
         events: List[FlowEvent] = [ActionCompletedEvent()]
         self.is_pierce_step = False
         self.manager.complete_execution()
 
-        # 1. 勝敗判定
+        # 1. 勝敗判定（決着ならEXPを保存して RESULT_LOG へ）
         if self.manager.check_battle_end():
+            self.manager.save_battle_progress()
             events.extend(self.change_phase(BattlePhase.RESULT_LOG))
             return events
 
-        # 2. 割り込み検査（Manager に処理・ログ設定を一任）
+        # 2. 割り込み検査
         interrupts = self.manager.handle_charging_interrupts()
         if interrupts:
             events.extend(self.change_phase(BattlePhase.LOG_WAIT))
@@ -206,7 +202,6 @@ class BattleFlow:
         self.manager.clear_log()
         events.extend(self.change_phase(BattlePhase.IDLE))
         return events
-
     def change_phase(self, new_phase: BattlePhase) -> List[FlowEvent]:
         old_phase = self.phase
         if old_phase == new_phase:
