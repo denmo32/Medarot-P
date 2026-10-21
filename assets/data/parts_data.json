@@ -1,590 +1,80 @@
 {
   "parts": {
     "head": {
-      "001": {
-        "name": "みさいる",
-        "hp": 40,
-        "attack": 30,
-        "success": 20,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ミサイル"
-      },
-      "002": {
-        "name": "ミサイルR2",
-        "hp": 50,
-        "attack": 38,
-        "success": 40,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ミサイル"
-      },
-      "003": {
-        "name": "バリスタ―",
-        "hp": 50,
-        "attack": 29,
-        "success": 42,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ミサイル"
-      },
-      "004": {
-        "name": "ミサイル弐式",
-        "hp": 35,
-        "attack": 32,
-        "success": 24,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ミサイル"
-      },
-      "011": {
-        "name": "あんてな",
-        "hp": 40,
-        "attack": 35,
-        "success": 20,
-        "attribute": "speed",
-        "action": "支援",
-        "skill": "スキャン"
-      },
-      "012": {
-        "name": "アンテナR2",
-        "hp": 50,
-        "attack": 32,
-        "success": 40,
-        "attribute": "speed",
-        "action": "支援",
-        "skill": "スキャン"
-      },
-      "013": {
-        "name": "ツインインコム",
-        "hp": 80,
-        "attack": 21,
-        "success": 42,
-        "attribute": "speed",
-        "action": "支援",
-        "skill": "スキャン"
-      },
-      "014": {
-        "name": "アンテナ弐式",
-        "hp": 50,
-        "attack": 42,
-        "success": 18,
-        "attribute": "speed",
-        "action": "支援",
-        "skill": "スキャン"
-      },
-      "905": {
-        "name": "サンダーヘッド",
-        "hp": 40,
-        "attack": 14,
-        "success": 30,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "サンダー"
-      },
-      "906": {
-        "name": "フリーズヘッド",
-        "hp": 40,
-        "attack": 18,
-        "success": 25,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "フリーズ"
-      },
-      "908": {
-        "name": "スタンヘッド",
-        "hp": 40,
-        "attack": 8,
-        "success": 35,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "スタン"
-      },
-      "909": {
-        "name": "ブロックヘッド",
-        "hp": 40,
-        "attack": 8,
-        "success": 35,
-        "attribute": "technique",
-        "action": "護衛",
-        "skill": "ブロック"
-      },
-      "910": {
-        "name": "プロテクトヘッド",
-        "hp": 40,
-        "attack": 8,
-        "success": 35,
-        "attribute": "technique",
-        "action": "自衛",
-        "skill": "プロテクト"
-      },
-      "911": {
-        "name": "クールプラントヘッド",
-        "hp": 40,
-        "attack": 5,
-        "success": 30,
-        "attribute": "technique",
-        "action": "供給",
-        "skill": "クールプラント"
-      },
-      "912": {
-        "name": "射撃トラップヘッド",
-        "hp": 40,
-        "attack": 5,
-        "success": 30,
-        "attribute": "technique",
-        "action": "掛罠",
-        "skill": "射撃トラップ"
-      },
-      "913": {
-        "name": "リペアヘッド",
-        "hp": 40,
-        "attack": 5,
-        "success": 30,
-        "attribute": "technique",
-        "action": "修復",
-        "skill": "リペア"
-      },
-      "914": {
-        "name": "レストアヘッド",
-        "hp": 40,
-        "attack": 5,
-        "success": 30,
-        "attribute": "technique",
-        "action": "復元",
-        "skill": "レストア"
-      }
+      "001": {"name": "みさいる", "hp": 40, "attack": 30, "success": 20, "attribute": "speed", "action": "撃つ", "skill": "ミサイル"},
+      "002": {"name": "ミサイルR2", "hp": 50, "attack": 38, "success": 40, "attribute": "speed", "action": "撃つ", "skill": "ミサイル"},
+      "003": {"name": "バリスタ―", "hp": 50, "attack": 29, "success": 42, "attribute": "speed", "action": "撃つ", "skill": "ミサイル"},
+      "004": {"name": "ミサイル弐式", "hp": 35, "attack": 32, "success": 24, "attribute": "speed", "action": "撃つ", "skill": "ミサイル"},
+      "011": {"name": "あんてな", "hp": 40, "attack": 35, "success": 20, "attribute": "speed", "action": "支援", "skill": "スキャン"},
+      "012": {"name": "アンテナR2", "hp": 50, "attack": 32, "success": 40, "attribute": "speed", "action": "支援", "skill": "スキャン"},
+      "013": {"name": "ツインインコム", "hp": 80, "attack": 21, "success": 42, "attribute": "speed", "action": "支援", "skill": "スキャン"},
+      "014": {"name": "アンテナ弐式", "hp": 50, "attack": 42, "success": 18, "attribute": "speed", "action": "支援", "skill": "スキャン"},
+      "905": {"name": "サンダーヘッド", "hp": 40, "attack": 14, "success": 30, "attribute": "technique", "action": "妨害", "skill": "サンダー"},
+      "906": {"name": "フリーズヘッド", "hp": 40, "attack": 18, "success": 25, "attribute": "technique", "action": "妨害", "skill": "フリーズ"},
+      "908": {"name": "スタンヘッド", "hp": 40, "attack": 8, "success": 35, "attribute": "technique", "action": "妨害", "skill": "スタン"},
+      "909": {"name": "ブロックヘッド", "hp": 40, "attack": 8, "success": 35, "attribute": "technique", "action": "護衛", "skill": "ブロック"},
+      "910": {"name": "プロテクトヘッド", "hp": 40, "attack": 8, "success": 35, "attribute": "technique", "action": "自衛", "skill": "プロテクト"},
+      "911": {"name": "クールプラントヘッド", "hp": 40, "attack": 5, "success": 30, "attribute": "technique", "action": "供給", "skill": "クールプラント"},
+      "912": {"name": "射撃トラップヘッド", "hp": 40, "attack": 5, "success": 30, "attribute": "technique", "action": "掛罠", "skill": "射撃トラップ"},
+      "913": {"name": "リペアヘッド", "hp": 40, "attack": 5, "success": 30, "attribute": "technique", "action": "修復", "skill": "リペア"},
+      "914": {"name": "レストアヘッド", "hp": 40, "attack": 5, "success": 30, "attribute": "technique", "action": "復元", "skill": "レストア"}
     },
     "right_arm": {
-      "001": {
-        "name": "りぼるばー",
-        "hp": 20,
-        "attack": 10,
-        "success": 5,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ライフル"
-      },
-      "002": {
-        "name": "リボルバーR2",
-        "hp": 40,
-        "attack": 22,
-        "success": 50,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ライフル"
-      },
-      "003": {
-        "name": "ヒューザー",
-        "hp": 30,
-        "attack": 17,
-        "success": 30,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ライフル"
-      },
-      "004": {
-        "name": "リボルバー弐式",
-        "hp": 30,
-        "attack": 19,
-        "success": 36,
-        "attribute": "speed",
-        "action": "撃つ",
-        "skill": "ライフル"
-      },
-      "011": {
-        "name": "ちゃんばらそーど",
-        "hp": 40,
-        "attack": 15,
-        "success": 22,
-        "attribute": "speed",
-        "action": "殴る",
-        "skill": "ソード"
-      },
-      "012": {
-        "name": "チャンバラソードR2",
-        "hp": 40,
-        "attack": 30,
-        "success": 58,
-        "attribute": "speed",
-        "action": "殴る",
-        "skill": "ソード"
-      },
-      "013": {
-        "name": "フォーバイス",
-        "hp": 30,
-        "attack": 17,
-        "success": 30,
-        "attribute": "speed",
-        "action": "殴る",
-        "skill": "ソード"
-      },
-      "014": {
-        "name": "チャンバラソード弐式",
-        "hp": 20,
-        "attack": 22,
-        "success": 32,
-        "attribute": "speed",
-        "action": "殴る",
-        "skill": "ソード"
-      },
-      "905": {
-        "name": "サンダーライト",
-        "hp": 45,
-        "attack": 18,
-        "success": 35,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "サンダー"
-      },
-      "906": {
-        "name": "フリーズライト",
-        "hp": 45,
-        "attack": 22,
-        "success": 30,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "フリーズ"
-      },
-      "908": {
-        "name": "スタンライト",
-        "hp": 40,
-        "attack": 10,
-        "success": 45,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "スタン"
-      },
-      "909": {
-        "name": "ブロックライト",
-        "hp": 45,
-        "attack": 15,
-        "success": 40,
-        "attribute": "technique",
-        "action": "護衛",
-        "skill": "ブロック"
-      },
-      "910": {
-        "name": "プロテクトライト",
-        "hp": 50,
-        "attack": 15,
-        "success": 35,
-        "attribute": "technique",
-        "action": "自衛",
-        "skill": "プロテクト"
-      },
-      "911": {
-        "name": "クールプラントライト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "供給",
-        "skill": "クールプラント"
-      },
-      "912": {
-        "name": "射撃トラップライト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "掛罠",
-        "skill": "射撃トラップ"
-      },
-      "913": {
-        "name": "リペアライト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "修復",
-        "skill": "リペア"
-      },
-      "914": {
-        "name": "レストアライト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "復元",
-        "skill": "レストア"
-      }
+      "001": {"name": "りぼるばー", "hp": 20, "attack": 10, "success": 5, "attribute": "speed", "action": "撃つ", "skill": "ライフル"},
+      "002": {"name": "リボルバーR2", "hp": 40, "attack": 22, "success": 50, "attribute": "speed", "action": "撃つ", "skill": "ライフル"},
+      "003": {"name": "ヒューザー", "hp": 30, "attack": 17, "success": 30, "attribute": "speed", "action": "撃つ", "skill": "ライフル"},
+      "004": {"name": "リボルバー弐式", "hp": 30, "attack": 19, "success": 36, "attribute": "speed", "action": "撃つ", "skill": "ライフル"},
+      "011": {"name": "ちゃんばらそーど", "hp": 40, "attack": 15, "success": 22, "attribute": "speed", "action": "殴る", "skill": "ソード"},
+      "012": {"name": "チャンバラソードR2", "hp": 40, "attack": 30, "success": 58, "attribute": "speed", "action": "殴る", "skill": "ソード"},
+      "013": {"name": "フォーバイス", "hp": 30, "attack": 17, "success": 30, "attribute": "speed", "action": "殴る", "skill": "ソード"},
+      "014": {"name": "チャンバラソード弐式", "hp": 20, "attack": 22, "success": 32, "attribute": "speed", "action": "殴る", "skill": "ソード"},
+      "905": {"name": "サンダーライト", "hp": 45, "attack": 18, "success": 35, "attribute": "technique", "action": "妨害", "skill": "サンダー"},
+      "906": {"name": "フリーズライト", "hp": 45, "attack": 22, "success": 30, "attribute": "technique", "action": "妨害", "skill": "フリーズ"},
+      "908": {"name": "スタンライト", "hp": 40, "attack": 10, "success": 45, "attribute": "technique", "action": "妨害", "skill": "スタン"},
+      "909": {"name": "ブロックライト", "hp": 45, "attack": 15, "success": 40, "attribute": "technique", "action": "護衛", "skill": "ブロック"},
+      "910": {"name": "プロテクトライト", "hp": 50, "attack": 15, "success": 35, "attribute": "technique", "action": "自衛", "skill": "プロテクト"},
+      "911": {"name": "クールプラントライト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "供給", "skill": "クールプラント"},
+      "912": {"name": "射撃トラップライト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "掛罠", "skill": "射撃トラップ"},
+      "913": {"name": "リペアライト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "修復", "skill": "リペア"},
+      "914": {"name": "レストアライト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "復元", "skill": "レストア"}
     },
     "left_arm": {
-      "001": {
-        "name": "さぶましんがん",
-        "hp": 20,
-        "attack": 15,
-        "success": 25,
-        "attribute": "speed",
-        "action": "狙い撃ち",
-        "skill": "ガトリング"
-      },
-      "002": {
-        "name": "サブマシンガンR2",
-        "hp": 40,
-        "attack": 40,
-        "success": 22,
-        "attribute": "speed",
-        "action": "狙い撃ち",
-        "skill": "ガトリング"
-      },
-      "003": {
-        "name": "ブラスター",
-        "hp": 30,
-        "attack": 25,
-        "success": 14,
-        "attribute": "speed",
-        "action": "狙い撃ち",
-        "skill": "ガトリング"
-      },
-      "004": {
-        "name": "サブマシンガン弐式",
-        "hp": 30,
-        "attack": 36,
-        "success": 10,
-        "attribute": "speed",
-        "action": "狙い撃ち",
-        "skill": "ガトリング"
-      },
-      "011": {
-        "name": "ぴこぺこはんまー",
-        "hp": 40,
-        "attack": 15,
-        "success": 22,
-        "attribute": "speed",
-        "action": "我武者羅",
-        "skill": "ハンマー"
-      },
-      "012": {
-        "name": "ピコペコハンマーR2",
-        "hp": 40,
-        "attack": 52,
-        "success": 26,
-        "attribute": "speed",
-        "action": "我武者羅",
-        "skill": "ハンマー"
-      },
-      "013": {
-        "name": "インテンスビート",
-        "hp": 30,
-        "attack": 25,
-        "success": 14,
-        "attribute": "speed",
-        "action": "我武者羅",
-        "skill": "ハンマー"
-      },
-      "014": {
-        "name": "ピコペコハンマー弐式",
-        "hp": 20,
-        "attack": 39,
-        "success": 11,
-        "attribute": "speed",
-        "action": "我武者羅",
-        "skill": "ハンマー"
-      },
-      "905": {
-        "name": "サンダーレフト",
-        "hp": 45,
-        "attack": 16,
-        "success": 36,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "サンダー"
-      },
-      "906": {
-        "name": "フリーズレフト",
-        "hp": 45,
-        "attack": 20,
-        "success": 32,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "フリーズ"
-      },
-      "908": {
-        "name": "スタンレフト",
-        "hp": 40,
-        "attack": 10,
-        "success": 45,
-        "attribute": "technique",
-        "action": "妨害",
-        "skill": "スタン"
-      },
-      "909": {
-        "name": "ブロックレフト",
-        "hp": 45,
-        "attack": 15,
-        "success": 40,
-        "attribute": "technique",
-        "action": "護衛",
-        "skill": "ブロック"
-      },
-      "910": {
-        "name": "プロテクトレフト",
-        "hp": 50,
-        "attack": 15,
-        "success": 35,
-        "attribute": "technique",
-        "action": "自衛",
-        "skill": "プロテクト"
-      },
-      "911": {
-        "name": "クールプラントレフト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "供給",
-        "skill": "クールプラント"
-      },
-      "912": {
-        "name": "射撃トラップレフト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "掛罠",
-        "skill": "射撃トラップ"
-      },
-      "913": {
-        "name": "リペアレフト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "修復",
-        "skill": "リペア"
-      },
-      "914": {
-        "name": "レストアレフト",
-        "hp": 40,
-        "attack": 10,
-        "success": 30,
-        "attribute": "technique",
-        "action": "復元",
-        "skill": "レストア"
-      }
+      "001": {"name": "さぶましんがん", "hp": 20, "attack": 15, "success": 25, "attribute": "speed", "action": "狙い撃ち", "skill": "ガトリング"},
+      "002": {"name": "サブマシンガンR2", "hp": 40, "attack": 40, "success": 22, "attribute": "speed", "action": "狙い撃ち", "skill": "ガトリング"},
+      "003": {"name": "ブラスター", "hp": 30, "attack": 25, "success": 14, "attribute": "speed", "action": "狙い撃ち", "skill": "ガトリング"},
+      "004": {"name": "サブマシンガン弐式", "hp": 30, "attack": 36, "success": 10, "attribute": "speed", "action": "狙い撃ち", "skill": "ガトリング"},
+      "011": {"name": "ぴこぺこはんまー", "hp": 40, "attack": 15, "success": 22, "attribute": "speed", "action": "我武者羅", "skill": "ハンマー"},
+      "012": {"name": "ピコペコハンマーR2", "hp": 40, "attack": 52, "success": 26, "attribute": "speed", "action": "我武者羅", "skill": "ハンマー"},
+      "013": {"name": "インテンスビート", "hp": 30, "attack": 25, "success": 14, "attribute": "speed", "action": "我武者羅", "skill": "ハンマー"},
+      "014": {"name": "ピコペコハンマー弐式", "hp": 20, "attack": 39, "success": 11, "attribute": "speed", "action": "我武者羅", "skill": "ハンマー"},
+      "905": {"name": "サンダーレフト", "hp": 45, "attack": 16, "success": 36, "attribute": "technique", "action": "妨害", "skill": "サンダー"},
+      "906": {"name": "フリーズレフト", "hp": 45, "attack": 20, "success": 32, "attribute": "technique", "action": "妨害", "skill": "フリーズ"},
+      "908": {"name": "スタンレフト", "hp": 40, "attack": 10, "success": 45, "attribute": "technique", "action": "妨害", "skill": "スタン"},
+      "909": {"name": "ブロックレフト", "hp": 45, "attack": 15, "success": 40, "attribute": "technique", "action": "護衛", "skill": "ブロック"},
+      "910": {"name": "プロテクトレフト", "hp": 50, "attack": 15, "success": 35, "attribute": "technique", "action": "自衛", "skill": "プロテクト"},
+      "911": {"name": "クールプラントレフト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "供給", "skill": "クールプラント"},
+      "912": {"name": "射撃トラップレフト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "掛罠", "skill": "射撃トラップ"},
+      "913": {"name": "リペアレフト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "修復", "skill": "リペア"},
+      "914": {"name": "レストアレフト", "hp": 40, "attack": 10, "success": 30, "attribute": "technique", "action": "復元", "skill": "レストア"}
     },
     "legs": {
-      "001": {
-        "name": "おちつかー",
-        "hp": 50,
-        "mobility": 35,
-        "defense": 6,
-        "attribute": "speed"
-      },
-      "002": {
-        "name": "オチツカーR2",
-        "hp": 60,
-        "mobility": 39,
-        "defense": 20,
-        "attribute": "speed"
-      },
-      "003": {
-        "name": "エンプレイス",
-        "hp": 55,
-        "mobility": 28,
-        "defense": 62,
-        "attribute": "speed"
-      },
-      "004": {
-        "name": "オチツカー弐式",
-        "hp": 45,
-        "mobility": 17,
-        "defense": 42,
-        "attribute": "speed"
-      },
-      "011": {
-        "name": "たたっかー",
-        "hp": 30,
-        "mobility": 50,
-        "defense": 14,
-        "attribute": "speed"
-      },
-      "012": {
-        "name": "タタッカーR2",
-        "hp": 55,
-        "mobility": 53,
-        "defense": 24,
-        "attribute": "speed"
-      },
-      "013": {
-        "name": "ウィンドフラック",
-        "hp": 55,
-        "mobility": 28,
-        "defense": 62,
-        "attribute": "speed"
-      },
-      "014": {
-        "name": "タタッカー弐式",
-        "hp": 45,
-        "mobility": 32,
-        "defense": 36,
-        "attribute": "speed"
-      },
-      "905": {
-        "name": "サンダーレッグ",
-        "hp": 55,
-        "mobility": 30,
-        "defense": 30,
-        "attribute": "technique"
-      },
-      "906": {
-        "name": "フリーズレッグ",
-        "hp": 50,
-        "mobility": 25,
-        "defense": 35,
-        "attribute": "technique"
-      },
-      "908": {
-        "name": "スタンレッグ",
-        "hp": 50,
-        "mobility": 30,
-        "defense": 30,
-        "attribute": "technique"
-      },
-      "909": {
-        "name": "ブロックレッグ",
-        "hp": 60,
-        "mobility": 25,
-        "defense": 40,
-        "attribute": "technique"
-      },
-      "910": {
-        "name": "プロテクトレッグ",
-        "hp": 65,
-        "mobility": 20,
-        "defense": 45,
-        "attribute": "technique"
-      },
-      "911": {
-        "name": "クールプラントレッグ",
-        "hp": 50,
-        "mobility": 25,
-        "defense": 30,
-        "attribute": "technique"
-      },
-      "912": {
-        "name": "射撃トラップレッグ",
-        "hp": 50,
-        "mobility": 20,
-        "defense": 35,
-        "attribute": "technique"
-      },
-      "913": {
-        "name": "リペアレッグ",
-        "hp": 55,
-        "mobility": 25,
-        "defense": 30,
-        "attribute": "technique"
-      },
-      "914": {
-        "name": "レストアレッグ",
-        "hp": 55,
-        "mobility": 20,
-        "defense": 35,
-        "attribute": "technique"
-      }
+      "001": {"name": "おちつかー", "hp": 50, "mobility": 35, "defense": 6, "attribute": "speed"},
+      "002": {"name": "オチツカーR2", "hp": 60, "mobility": 39, "defense": 20, "attribute": "speed"},
+      "003": {"name": "エンプレイス", "hp": 55, "mobility": 28, "defense": 62, "attribute": "speed"},
+      "004": {"name": "オチツカー弐式", "hp": 45, "mobility": 17, "defense": 42, "attribute": "speed"},
+      "011": {"name": "たたっかー", "hp": 30, "mobility": 50, "defense": 14, "attribute": "speed"},
+      "012": {"name": "タタッカーR2", "hp": 55, "mobility": 53, "defense": 24, "attribute": "speed"},
+      "013": {"name": "ウィンドフラック", "hp": 55, "mobility": 28, "defense": 62, "attribute": "speed"},
+      "014": {"name": "タタッカー弐式", "hp": 45, "mobility": 32, "defense": 36, "attribute": "speed"},
+      "905": {"name": "サンダーレッグ", "hp": 55, "mobility": 30, "defense": 30, "attribute": "technique"},
+      "906": {"name": "フリーズレッグ", "hp": 50, "mobility": 25, "defense": 35, "attribute": "technique"},
+      "908": {"name": "スタンレッグ", "hp": 50, "mobility": 30, "defense": 30, "attribute": "technique"},
+      "909": {"name": "ブロックレッグ", "hp": 60, "mobility": 25, "defense": 40, "attribute": "technique"},
+      "910": {"name": "プロテクトレッグ", "hp": 65, "mobility": 20, "defense": 45, "attribute": "technique"},
+      "911": {"name": "クールプラントレッグ", "hp": 50, "mobility": 25, "defense": 30, "attribute": "technique"},
+      "912": {"name": "射撃トラップレッグ", "hp": 50, "mobility": 20, "defense": 35, "attribute": "technique"},
+      "913": {"name": "リペアレッグ", "hp": 55, "mobility": 25, "defense": 30, "attribute": "technique"},
+      "914": {"name": "レストアレッグ", "hp": 55, "mobility": 20, "defense": 35, "attribute": "technique"}
     }
   }
 }
