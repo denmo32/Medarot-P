@@ -40,9 +40,9 @@ class BattleManager:
 
         self.targeting = TargetingResolver(self.ctx)
         self.ai = AIController(self.ctx, self.targeting)
-        self.logs = BattleLogBuilder()
+        self._logs = BattleLogBuilder()
         self.atb = ATBSystem(self.ctx.robots)
-        self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
+        self.executor = CommandExecutor(self.ctx, self.targeting, self._logs)
 
         # 敵AIの初期行動予約
         for robot in robots:
@@ -97,6 +97,31 @@ class BattleManager:
     def set_log(self, messages: Sequence[str]):
         self.ctx.set_log(messages)
 
+    def set_opening_log(self):
+        """開戦口上ログを設定する"""
+        self.set_log(self._logs.opening())
+
+    def set_declaration_log(self):
+        """現在のアクターの行動・技宣言ログを設定する"""
+        actor = self.ctx.current_actor
+        part = actor.current_part if actor else None
+        if not actor or not part:
+            return
+        if not part.is_implemented:
+            action_label = part.action.value if part.action else "未定義"
+            self.set_log([f"err: 未実装の行動形式「{action_label}」"])
+        else:
+            self.set_log(self._logs.declaration(actor, part))
+
+    def set_pierce_log(self):
+        """貫通ダメージ発生ログを設定する"""
+        self.set_log(self._logs.pierce())
+
+    def set_battle_end_log(self):
+        """バトル決着ログを設定する"""
+        if self.ctx.winner:
+            self.set_log(self._logs.battle_end(self.ctx.winner))
+
     def get_command_menu_preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
         return self.preview_targets
 
@@ -121,7 +146,6 @@ class BattleManager:
     def detect_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
         """【純粋シミュレーション】充填中の全機体を自己診断し、
         割り込み対象機体を即座に反転後退させ、(機体, 中断理由) のリストを返す。
-        ログの構築やフェーズ遷移は呼び出し側（Flow）に委ねる。
         """
         interrupts: List[Tuple[Robot, ExecutionOutcome]] = []
         for robot in self.ctx.robots:
@@ -129,6 +153,18 @@ class BattleManager:
             if reason:
                 robot.abort_charging_to_cooldown()
                 interrupts.append((robot, reason))
+        return interrupts
+
+    def handle_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
+        """充填中の全機体を自己診断し、割り込みが発生した機体を反転後退させ、
+        割り込みログを設定する。発生した (機体, 中断理由) のリストを返す。
+        """
+        interrupts = self.detect_charging_interrupts()
+        if interrupts:
+            messages: List[str] = []
+            for robot, reason in interrupts:
+                messages.extend(self._logs.interruption(robot, reason))
+            self.set_log(messages)
         return interrupts
 
     def prepare_actor_input(self, actor: Robot):

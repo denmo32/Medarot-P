@@ -176,7 +176,7 @@ class BattleFlow:
         report = self.manager.current_report
         if report and report.has_pierce and not self.is_pierce_step and report.target:
             self.is_pierce_step = True
-            self.manager.set_log(self.manager.logs.pierce())
+            self.manager.set_pierce_log()
             return [PierceStepEvent(target=report.target)]
 
         return self._finalize_turn()
@@ -184,7 +184,7 @@ class BattleFlow:
     def _finalize_turn(self) -> List[FlowEvent]:
         """ターン終了時の総合処理。
         1. 勝敗判定（決着なら RESULT_LOG へ）
-        2. 直前の行動による割り込み検査（発生なら理由をログに載せて LOG_WAIT へ）
+        2. 直前の行動による割り込み検査（発生なら LOG_WAIT へ）
         3. いずれも無ければ IDLE へ復帰
         """
         events: List[FlowEvent] = [ActionCompletedEvent()]
@@ -196,13 +196,9 @@ class BattleFlow:
             events.extend(self.change_phase(BattlePhase.RESULT_LOG))
             return events
 
-        # 2. 割り込み検査（Manager は検出と反転のみ、Flow がログ構築）
-        interrupts = self.manager.detect_charging_interrupts()
+        # 2. 割り込み検査（Manager に処理・ログ設定を一任）
+        interrupts = self.manager.handle_charging_interrupts()
         if interrupts:
-            messages: List[str] = []
-            for robot, reason in interrupts:
-                messages.extend(self.manager.logs.interruption(robot, reason))
-            self.manager.set_log(messages)
             events.extend(self.change_phase(BattlePhase.LOG_WAIT))
             return events
 
@@ -221,25 +217,13 @@ class BattleFlow:
         self.timer = rule.duration if rule else 0.0
 
         if new_phase == BattlePhase.OPENING_LOG:
-            self.manager.set_log(self.manager.logs.opening())
+            self.manager.set_opening_log()
         elif new_phase == BattlePhase.ATTACK_DECLARATION:
-            self._setup_attack_declaration()
+            self.manager.set_declaration_log()
         elif new_phase == BattlePhase.RESULT_LOG:
-            if self.manager.winner:
-                self.manager.set_log(self.manager.logs.battle_end(self.manager.winner))
+            self.manager.set_battle_end_log()
 
         return [PhaseChangeEvent(old_phase=old_phase, new_phase=new_phase)]
-
-    def _setup_attack_declaration(self):
-        actor = self.manager.current_actor
-        part = actor.current_part if actor else None
-        if not actor or not part:
-            return
-        if not part.is_implemented:
-            action_label = part.action.value if part.action else "未定義"
-            self.manager.set_log([f"err: 未実装の行動形式「{action_label}」"])
-        else:
-            self.manager.set_log(self.manager.logs.declaration(actor, part))
 
     def submit_player_command(self, slot: CommandSlot) -> List[FlowEvent]:
         if self.phase != BattlePhase.INPUT:
