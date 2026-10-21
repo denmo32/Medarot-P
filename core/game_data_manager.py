@@ -1,4 +1,8 @@
-"""パーツ・メダルデータ管理クラス"""
+"""パーツ・メダルデータ管理クラス
+
+JSON 側では部位キー配下の局所ID（例: "001"）で記述し、
+内部では一意なID（例: "head_001", "medal_001"）へ正規化して保持する。
+"""
 
 import json
 import logging
@@ -9,9 +13,11 @@ from domain.constants import CustomizeSlot, PartType
 
 logger = logging.getLogger(__name__)
 
+_MEDAL_ID_PREFIX = "medal_"
+
 
 class GameDataManager:
-    """parts_data.jsonおよびmedals_data.jsonからデータを管理するクラス"""
+    """parts_data.json および medals_data.json からデータを管理するクラス"""
 
     def __init__(self, parts_json_path: Optional[str] = None, medals_json_path: Optional[str] = None):
         self.parts_json_path = parts_json_path or resource_path('assets/data/parts_data.json')
@@ -19,13 +25,13 @@ class GameDataManager:
 
         raw_data = self._load_all_data()
 
-        # パース済みの不変オブジェクトを読み込み時に構築
+        # メダル: 局所ID ("001") に "medal_" 接頭語を付与して内部ID化
         self._medal_instances: Dict[str, MedalData] = {
-            mid: MedalData.from_dict(raw)
-            for mid, raw in raw_data.get('medals', {}).items()
+            f"{_MEDAL_ID_PREFIX}{local_id}": MedalData.from_dict(raw)
+            for local_id, raw in raw_data.get('medals', {}).items()
         }
 
-        # パーツデータを PartData の型付き辞書に正規化
+        # パーツ: 部位キー + 局所ID を内部ID化 ("head" + "001" -> "head_001")
         self._parts_by_type: Dict[PartType, Dict[str, PartData]] = self._build_typed_parts(raw_data)
 
         self._part_instances: Dict[str, PartData] = {
@@ -45,9 +51,10 @@ class GameDataManager:
         for raw_pt, parts in data.get('parts', {}).items():
             pt = PartType.from_key(raw_pt)
             if pt:
+                prefix = f"{pt.value}_"
                 typed_parts[pt] = {
-                    pid: PartData.from_dict(raw)
-                    for pid, raw in parts.items()
+                    f"{prefix}{local_id}": PartData.from_dict(raw)
+                    for local_id, raw in parts.items()
                 }
             else:
                 logger.warning(f"未知のパーツ部位キーを無視しました: {raw_pt}")
