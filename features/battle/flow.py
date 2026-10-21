@@ -105,24 +105,18 @@ PHASE_RULES: Dict[BattlePhase, PhaseRule] = {
     ),
 }
 
-# 実行結果（ExecutionOutcome）から遷移先フェーズへの宣言的マッピングテーブル
-OUTCOME_TO_PHASE: Dict[ExecutionOutcome, BattlePhase] = {
-    ExecutionOutcome.OK: BattlePhase.TARGET_INDICATION,
-    ExecutionOutcome.SKIPPED: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.PART_STOPPED: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.PART_UNUSABLE: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.TARGET_LOST: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.TRAP_DESTROYED: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.ACTION_UNIMPLEMENTED: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.RESERVED_PART_DESTROYED: BattlePhase.LOG_WAIT,
-    ExecutionOutcome.NO_ACTION: BattlePhase.LOG_WAIT,
-}
+# 実行結果（ExecutionOutcome）から遷移先フェーズを導出する。
+# 「成功（OK）なら演出フェーズへ、それ以外はログ表示待ち」という不変条件を持つ。
+def _resolve_phase_from_outcome(outcome: ExecutionOutcome) -> BattlePhase:
+    if outcome is ExecutionOutcome.OK:
+        return BattlePhase.TARGET_INDICATION
+    return BattlePhase.LOG_WAIT
 
 
 # ターンイベント種別に応じた遷移先フェーズ解決ディスパッチャ
 _TURN_EVENT_RESOLVERS: Dict[type, Callable[[Any], Optional[BattlePhase]]] = {
     PlayerInputRequiredEvent: lambda _: BattlePhase.INPUT,
-    ActionExecutedEvent: lambda e: OUTCOME_TO_PHASE.get(e.report.outcome, BattlePhase.LOG_WAIT),
+    ActionExecutedEvent: lambda e: _resolve_phase_from_outcome(e.report.outcome),
 }
 
 
