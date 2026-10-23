@@ -5,6 +5,7 @@ Manager（発行者）と Flow（購読者・状態機械）の境界インタ�
 """
 from dataclasses import dataclass
 from typing import Union, TYPE_CHECKING
+from domain.constants import TeamType
 
 if TYPE_CHECKING:
     from .entities.commands import ExecutionReport
@@ -24,5 +25,11 @@ class ActionExecutedEvent:
     report: 'ExecutionReport'
 
 
+@dataclass(frozen=True)
+class BattleEndedEvent:
+    """勝敗が決定したイベント"""
+    winner: TeamType
+
+
 # ATB更新時に発生しうるターンイベントの代数的データ型（ADT）
-ATBTurnEvent = Union[PlayerInputRequiredEvent, ActionExecutedEvent]
+ATBTurnEvent = Union[PlayerInputRequiredEvent, ActionExecutedEvent, BattleEndedEvent]

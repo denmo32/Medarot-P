@@ -1,10 +1,11 @@
 """戦闘シーケンスを yield（ジェネレータ）で統括するディレクター。"""
+import logging
 from typing import Any, Generator, Optional
-from domain.constants import SkillPresentation, TargetTiming
+from domain.constants import SkillPresentation
 from features.battle.constants import BattleTiming
 from features.battle.entities.commands import ExecutionOutcome, ExecutionReport
 from features.battle.entities.robot import Robot
-from features.battle.events import ActionExecutedEvent, PlayerInputRequiredEvent
+from features.battle.events import ActionExecutedEvent, BattleEndedEvent, PlayerInputRequiredEvent
 from features.battle.manager import BattleManager
 from features.battle.staging.directives import (
     AdvanceCutinPierce,
@@ -28,6 +29,11 @@ from features.battle.staging.directives import (
 )
 from features.battle.staging.visual_coordinator import VisualCoordinator
 
+logger = logging.getLogger(__name__)
+
+# 1フレーム内でコルーチンを連続消化する最大ステップ数（無限ループ防止）
+_MAX_COROUTINE_STEPS = 100
+
 
 class BattleDirector:
     """戦闘の演出・進行手続きを一元管理するスケジューラ"""
@@ -47,10 +53,6 @@ class BattleDirector:
     # === 外部公開プロパティ ===
 
     @property
-    def is_waiting_player_input(self) -> bool:
-        return isinstance(self.pending_await, AwaitPlayerInput)
-
-    @property
     def current_player_input_await(self) -> Optional[AwaitPlayerInput]:
         return self.pending_await if isinstance(self.pending_await, AwaitPlayerInput) else None
 
@@ -64,31 +66,37 @@ class BattleDirector:
 
     # === フレーム進行と入力 ===
 
+    def advance(self):
+        """完了済みの Await を消費し、コルーチンを次の待機点まで進める"""
+        if self.pending_await is not None and self.pending_await.is_done(self):
+            self._send_value = self.pending_await.take_result()
+            self.pending_await = None
+            self._step()
+
     def tick(self, dt: float):
+        """論理時間を進行させ、待機が完了したら即座に次へ進める"""
         if self.pending_await is not None:
             self.pending_await.tick(dt, self)
-            if self.pending_await.is_done(self):
-                self._send_value = self.pending_await.take_result()
-                self.pending_await = None
-                self._step()
+            self.advance()
 
     def handle_input(self, input_state) -> bool:
+        """入力を待機オブジェクトに委任し、条件が満たされたら進行させる"""
         if self.pending_await is not None:
             handled = self.pending_await.handle_input(input_state, self)
-            if handled and self.pending_await.is_done(self):
-                self._send_value = self.pending_await.take_result()
-                self.pending_await = None
-                self._step()
+            if handled:
+                self.advance()
                 return True
         return False
 
     def _step(self):
-        """コルーチンを次の Await まで一気に進める"""
+        """コルーチンを次の未完了 Await まで一気に進める（無限ループ保護付き）"""
         if self._routine is None:
             return
 
+        steps = 0
         try:
-            while True:
+            while steps < _MAX_COROUTINE_STEPS:
+                steps += 1
                 item = self._routine.send(self._send_value)
                 self._send_value = None
 
@@ -102,6 +110,8 @@ class BattleDirector:
                     break
                 elif isinstance(item, Directive):
                     self._execute_directive(item)
+            else:
+                logger.error("コルーチンの1フレーム消化ステップ数が上限 (%d) を超えました。", _MAX_COROUTINE_STEPS)
         except StopIteration:
             self._routine = None
             self.pending_await = None
@@ -120,9 +130,12 @@ class BattleDirector:
         elif isinstance(d, StartCutin):
             self.visual.start_cutin(d.part, d.report)
         elif isinstance(d, StageDamage):
-            self.visual.stage_damage(d.report)
-            if d.report.result:
-                self.visual.update_cutin_result(d.report.result)
+            # マネージャの最新確定レポート（単一の真実）を参照
+            current_report = self.manager.current_report
+            if current_report:
+                self.visual.stage_damage(current_report)
+                if current_report.result:
+                    self.visual.update_cutin_result(current_report.result)
         elif isinstance(d, AdvanceCutinPierce):
             self.visual.advance_damage_step(d.target)
             self.visual.advance_cutin()
@@ -142,7 +155,7 @@ class BattleDirector:
         # 2. メインATBバトルループ
         while not self.manager.winner:
             turn_event = yield AwaitNextTurn()
-            if turn_event == "battle_end" or self.manager.winner:
+            if isinstance(turn_event, BattleEndedEvent) or self.manager.winner:
                 break
 
             if isinstance(turn_event, PlayerInputRequiredEvent):
@@ -207,7 +220,7 @@ class BattleDirector:
 
             # ダメージ適用と結果ポップアップ反映
             messages = self.manager.apply_execution_result()
-            yield StageDamage(report)
+            yield StageDamage()
             if messages:
                 yield ShowLog(messages)
             yield AwaitUserConfirm()

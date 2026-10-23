@@ -1,13 +1,14 @@
 """戦闘シーケンスの指示（Directive）および待機条件（Await）の定義。"""
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
-from domain.constants import CommandSlot, PartType
+from typing import Any, List, Optional, TYPE_CHECKING
+from domain.constants import CommandSlot
 from core.inputs import InputState
 
 if TYPE_CHECKING:
     from features.battle.entities.commands import ExecutionReport
     from features.battle.entities.part import Part
     from features.battle.entities.robot import Robot
+    from features.battle.events import ATBTurnEvent
     from features.battle.staging.director import BattleDirector
 
 
@@ -54,7 +55,8 @@ class StartCutin(Directive):
 
 @dataclass(frozen=True)
 class StageDamage(Directive):
-    report: 'ExecutionReport'
+    """最新の行動結果（確定後レポート）に基づいて演出へダメージを反映する指示"""
+    pass
 
 
 @dataclass(frozen=True)
@@ -142,7 +144,6 @@ class AwaitCutin(Await):
 
     def handle_input(self, input_state: InputState, director: 'BattleDirector') -> bool:
         if input_state.btn_ok or input_state.mouse_clicked:
-            # 演出進行中のスキップ
             director.visual.advance_cutin()
             self._finished = True
             return True
@@ -171,12 +172,9 @@ class AwaitPlayerInput(Await):
 @dataclass
 class AwaitNextTurn(Await):
     """ATBゲージ進行による手番発生待ち"""
-    _event: Any = None
+    _event: Optional['ATBTurnEvent'] = None
 
     def tick(self, dt: float, director: 'BattleDirector'):
-        if director.manager.check_battle_end():
-            self._event = "battle_end"
-            return
         turn = director.manager.update_atb(dt)
         if turn is not None:
             self._event = turn
@@ -184,5 +182,5 @@ class AwaitNextTurn(Await):
     def is_done(self, director: 'BattleDirector') -> bool:
         return self._event is not None
 
-    def take_result(self) -> Any:
+    def take_result(self) -> Optional['ATBTurnEvent']:
         return self._event
