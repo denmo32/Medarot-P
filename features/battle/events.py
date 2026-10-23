@@ -1,7 +1,7 @@
 """戦闘のドメインイベントDTO。
 
-Manager（発行者）と Flow（購読者・状態機械）の境界インターフェースを担い、
-循環参照を完全に防止する中立なデータ定義モジュール。
+ATBゲージ進行時に発生し、BattleDirector コルーチンへターンの発生を通知する
+代数的データ型（ADT）。
 """
 from dataclasses import dataclass
 from typing import Union, TYPE_CHECKING

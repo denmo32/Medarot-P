@@ -8,7 +8,6 @@ from features.battle.entities.commands import ExecutionOutcome, ExecutionReport
 from features.battle.entities.robot import Robot
 from features.battle.events import ActionExecutedEvent, BattleEndedEvent, PlayerInputRequiredEvent
 from features.battle.manager import BattleManager
-from features.battle.presentation.command_menu_builder import build_command_menu_items
 from features.battle.staging.directives import (
     AdvanceCutinPierce,
     Await,
@@ -79,6 +78,23 @@ class BattleDirector:
                 self.advance()
                 return True
         return False
+
+    # --- Await 向け Facade メソッド（内部構造への深いアクセスを遮断） ---
+    def update_atb(self, dt: float) -> Optional['ATBTurnEvent']:
+        return self.manager.update_atb(dt)
+
+    def update_cutin(self, dt: float):
+        self.visual.update_cutin(dt)
+
+    def advance_cutin(self):
+        self.visual.advance_cutin()
+
+    def is_hp_animating(self) -> bool:
+        return self.visual.is_hp_animating()
+
+    def is_cutin_finished(self) -> bool:
+        return self.visual.cutin_director is None or self.visual.cutin_director.is_animation_finished
+    # ----------------------------------------------------------------
 
     def _step(self):
         if self._routine is None:
@@ -156,8 +172,8 @@ class BattleDirector:
 
     def _run_player_input(self, actor: Robot) -> Generator:
         preview_targets = self.manager.get_preview_targets(actor)
-        items = build_command_menu_items(actor, preview_targets, self.manager.robots)
-        selected_part = yield AwaitPlayerInput(actor=actor, preview_targets=preview_targets, items=items)
+        # UIモデルを作らず、純粋な論理情報だけで Await を生成
+        selected_part = yield AwaitPlayerInput(actor=actor, preview_targets=preview_targets)
         precomputed = preview_targets.get(selected_part) if selected_part else None
         self.manager.select_command(actor, selected_part, precomputed_target=precomputed)
 

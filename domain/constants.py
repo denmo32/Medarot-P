@@ -1,7 +1,7 @@
 # domain/constants.py
 """ゲーム全体で共通の定数・データ型定義"""
 from enum import Enum
-from typing import Optional, Type, TypeVar
+from typing import Optional, Tuple, Type, TypeVar
 
 _KT = TypeVar("_KT", bound="KeyedEnum")
 
@@ -170,6 +170,14 @@ ALL_PART_TYPES = (
     PartType.RIGHT_ARM,
     PartType.LEFT_ARM,
     PartType.LEGS,
+)
+
+# コマンドメニュー項目の表示順契約（None はスキップ項目）
+COMMAND_MENU_PART_ORDER: Tuple[Optional[PartType], ...] = (
+    PartType.HEAD,
+    PartType.RIGHT_ARM,
+    PartType.LEFT_ARM,
+    None,  # スキップ
 )
 
 

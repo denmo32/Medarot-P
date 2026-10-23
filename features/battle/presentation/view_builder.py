@@ -12,6 +12,7 @@ from domain.constants import (
 )
 from domain.models import ActionResult
 from features.battle.constants import BattleTiming
+from features.battle.presentation.command_menu_builder import build_command_menu_items
 from features.battle.staging.cutin_director import CutinDirector, CutinStep
 from features.battle.staging.director import BattleDirector
 from features.battle.staging.visual_coordinator import VisualCoordinator
@@ -306,7 +307,8 @@ class BattleViewBuilder:
             return None
 
         actor = input_await.actor
-        items = input_await.items
+        # ViewBuilder が責任を持って項目モデルを構築
+        items = build_command_menu_items(actor, input_await.preview_targets, self.ctx.robots)
         if not items:
             return None
 
