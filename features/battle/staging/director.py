@@ -1,3 +1,4 @@
+# features/battle/staging/director.py
 """戦闘シーケンスを yield（ジェネレータ）で統括するディレクター。"""
 import logging
 from typing import Any, Generator, Optional
@@ -157,7 +158,8 @@ class BattleDirector:
         preview_targets = self.manager.get_preview_targets(actor)
         items = build_command_menu_items(actor, preview_targets, self.manager.robots)
         selected_part = yield AwaitPlayerInput(actor=actor, preview_targets=preview_targets, items=items)
-        self.manager.select_command(actor, selected_part)
+        precomputed = preview_targets.get(selected_part) if selected_part else None
+        self.manager.select_command(actor, selected_part, precomputed_target=precomputed)
 
     def _run_action(self, actor: Robot, report: ExecutionReport) -> Generator:
         part = actor.current_part
@@ -183,33 +185,29 @@ class BattleDirector:
             yield ShowLog(self.manager.logs.declaration(actor, part))
             yield AwaitUserConfirm()
 
-        # 3. 演出とダメージ適用（report は既に確定済み）
-        if part and part.presentation == SkillPresentation.CUTIN and report.target:
+        # 3. 行動演出の解決（カットイン / ログのみ / その他）
+        is_cutin = bool(part and part.presentation == SkillPresentation.CUTIN and report.target)
+        if is_cutin:
             yield StartCutin(actor, report.target, part, report)
             yield AwaitCutin()
 
-            yield StageDamage(report)
-            if report.result_messages:
-                yield ShowLog(report.result_messages)
-            yield AwaitUserConfirm()
+        # ダメージステージングと結果ログ
+        yield StageDamage(report)
+        if report.result_messages:
+            yield ShowLog(report.result_messages)
 
+        if not is_cutin:
+            yield AwaitHpAnimation()
+        yield AwaitUserConfirm()
+
+        # 貫通演出
+        if is_cutin:
             if report.has_pierce and report.target:
                 yield ShowLog(self.manager.logs.pierce())
                 yield AdvanceCutinPierce(report)
                 yield AwaitHpAnimation()
                 yield AwaitUserConfirm()
-
             yield ClearCutin()
-
-        elif part and part.presentation == SkillPresentation.LOG_ONLY:
-            yield StageDamage(report)
-            if report.result_messages:
-                yield ShowLog(report.result_messages)
-            yield AwaitHpAnimation()
-            yield AwaitUserConfirm()
-        else:
-            yield StageDamage(report)
-            yield AwaitHpAnimation()
 
         # レーダー終了とターンの総合後処理
         yield ClearRadar()
