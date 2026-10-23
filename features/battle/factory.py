@@ -1,9 +1,15 @@
+# features/battle/factory.py
 """バトル関連のオブジェクト生成を担うファクトリクラス（RobotSetup・RNG対応）。"""
 
 import logging
 import random
 from typing import Dict, List, Optional
-from domain.config import PLAYER_COUNT, ENEMY_COUNT
+from domain.config import (
+    PLAYER_COUNT,
+    ENEMY_COUNT,
+    DEFAULT_MEDAL_ID,
+    DEFAULT_FALLBACK_PART_IDS,
+)
 from domain.constants import ALL_PART_TYPES, CustomizeSlot, TeamType, PartType, AttributeType, PersonalityType
 from domain.models import GameDataProtocol, MedalData, RobotSetup, SaveDataProtocol
 from .entities.part import Part
@@ -16,13 +22,6 @@ from .debug_enemy import (
 )
 
 logger = logging.getLogger(__name__)
-
-_FALLBACK_PART_ID = {
-    PartType.HEAD: "head_001",
-    PartType.RIGHT_ARM: "right_arm_001",
-    PartType.LEFT_ARM: "left_arm_001",
-    PartType.LEGS: "legs_001",
-}
 
 
 class BattleFactory:
@@ -103,9 +102,9 @@ class BattleFactory:
 
     @staticmethod
     def _get_enemy_candidate_resources(data_manager: GameDataProtocol):
-        medal_ids = data_manager.get_part_ids_for_type(CustomizeSlot.MEDAL) or ["medal_001"]
+        medal_ids = data_manager.get_part_ids_for_type(CustomizeSlot.MEDAL) or [DEFAULT_MEDAL_ID]
         part_ids_by_type = {
-            part_type: data_manager.get_part_ids_for_type(part_type) or [_FALLBACK_PART_ID[part_type]]
+            part_type: data_manager.get_part_ids_for_type(part_type) or [DEFAULT_FALLBACK_PART_IDS[part_type]]
             for part_type in ALL_PART_TYPES
         }
         return medal_ids, part_ids_by_type
