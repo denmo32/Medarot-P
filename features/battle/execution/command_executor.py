@@ -62,17 +62,11 @@ class CommandExecutor:
         initial_report = self._execute_internal(command)
         all_pre_messages = pre_messages + list(initial_report.pre_messages)
 
-        if initial_report.outcome is ExecutionOutcome.PART_STOPPED:
-            part_type = getattr(command, "part_type", "")
-            return ExecutionReport(
-                outcome=initial_report.outcome,
-                pre_messages=all_pre_messages + self.logs.part_stopped(actor, part_type),
-            )
-
         if initial_report.outcome is not ExecutionOutcome.OK:
+            fail_logs = self.logs.execution_failure(actor, command, initial_report.outcome)
             return ExecutionReport(
                 outcome=initial_report.outcome,
-                pre_messages=all_pre_messages + self.logs.execution_failure(actor, command, initial_report.outcome),
+                pre_messages=all_pre_messages + fail_logs,
             )
 
         # 成功時：効果（ダメージ・状態異常・トラップ等）を世界状態へ即時反映

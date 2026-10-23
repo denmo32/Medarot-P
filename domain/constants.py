@@ -1,6 +1,6 @@
 """ゲーム全体で共通の定数・データ型定義"""
 from enum import Enum
-from typing import Dict, Optional, Type, TypeVar
+from typing import Optional, Type, TypeVar
 
 _KT = TypeVar("_KT", bound="KeyedEnum")
 
@@ -17,10 +17,6 @@ class KeyedEnum(str, Enum):
         return False
 
     @classmethod
-    def _extra_keys(cls) -> Dict[str, "KeyedEnum"]:
-        return {}
-
-    @classmethod
     def from_key(cls: Type[_KT], key: object) -> Optional[_KT]:
         if isinstance(key, cls):
             return key
@@ -35,9 +31,6 @@ class KeyedEnum(str, Enum):
             for member in cls:
                 if member.name == upper:
                     return member
-        alias = cls._extra_keys().get(key)
-        if alias is not None:
-            return alias
         return cls._fallback()
 
 

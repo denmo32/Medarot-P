@@ -14,7 +14,7 @@ class AIController:
         self.targeting = targeting
 
     def decide_command(self, robot: Robot):
-        # 【改善】外部で iter_parts() や is_alive, is_implemented を判定せず、Robot に自己診断を命じる
+        """機体の自己診断に基づき、戦術および性格に従って次の行動コマンドを決定・予約する"""
         valid_parts = robot.get_actionable_part_types()
 
         tactics_ctx = TacticsContext(

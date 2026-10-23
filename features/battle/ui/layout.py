@@ -185,9 +185,9 @@ def calculate_command_menu_rects(
 ) -> List[pygame.Rect]:
     sw, sh = screen_size
 
-    btn_w = int(sw * UI_PARAMS.ui.btn_width_ratio)
-    btn_h = int(sh * UI_PARAMS.ui.btn_height_ratio)
-    btn_pad = int(sw * UI_PARAMS.ui.btn_padding_ratio)
+    btn_w = int(sw * UI_PARAMS.btn_width_ratio)
+    btn_h = int(sh * UI_PARAMS.btn_height_ratio)
+    btn_pad = int(sw * UI_PARAMS.btn_padding_ratio)
     wy_ratio = UI_PARAMS.message_window_y_ratio
 
     start_y = int(sh * wy_ratio) + int(sh * UI_PARAMS.command_menu_top_padding_ratio)

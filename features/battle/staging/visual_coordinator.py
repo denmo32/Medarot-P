@@ -18,16 +18,12 @@ class VisualCoordinator:
         self.visual_states: Dict['Robot', RobotVisualState] = {
             r: RobotVisualState(r) for r in robots
         }
-        self.cutin: Optional[CutinDirector] = None
+        self.cutin_director: Optional[CutinDirector] = None
         self.radar_director: Optional[TargetRadarDirector] = None
-
-    @property
-    def cutin_director(self) -> Optional[CutinDirector]:
-        return self.cutin
 
     def is_combat_active(self, robot: 'Robot') -> bool:
         """カットイン戦闘の当事者としてアクティブ表示すべきか"""
-        return self.cutin is not None and self.cutin.is_combatant(robot)
+        return self.cutin_director is not None and self.cutin_director.is_combatant(robot)
 
     # === HP アニメーション判定 ===
 
@@ -76,19 +72,19 @@ class VisualCoordinator:
         part: Optional['Part'],
         report: 'ExecutionReport',
     ) -> CutinDirector:
-        self.cutin = CutinDirector(actor=actor, target=target, part=part, report=report)
-        return self.cutin
+        self.cutin_director = CutinDirector(actor=actor, target=target, part=part, report=report)
+        return self.cutin_director
 
     def update_cutin(self, dt: float):
-        if self.cutin:
-            self.cutin.update(dt)
+        if self.cutin_director:
+            self.cutin_director.update(dt)
 
     def advance_cutin(self):
-        if self.cutin:
-            self.cutin.advance()
+        if self.cutin_director:
+            self.cutin_director.advance()
 
     def clear_cutin(self):
-        self.cutin = None
+        self.cutin_director = None
 
     # === ターゲットレーダー演出のライフサイクル ===
 

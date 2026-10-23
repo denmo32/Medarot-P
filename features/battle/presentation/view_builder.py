@@ -33,6 +33,7 @@ from .view_models import (
 
 if TYPE_CHECKING:
     from features.battle.context import BattleContext
+    from features.battle.entities.robot import Robot
 
 CUTIN_POPUP_LABELS = {
     "critical": "CRITICAL!!",
@@ -160,12 +161,18 @@ class BattleViewBuilder:
         self.visual = visual
         self.director = director
 
-        self._team_counts = {}
+        self._player_robots: List['Robot'] = []
+        self._enemy_robots: List['Robot'] = []
         for robot in ctx.robots:
-            self._team_counts[robot.team] = self._team_counts.get(robot.team, 0) + 1
+            if robot.team == TeamType.PLAYER:
+                self._player_robots.append(robot)
+            else:
+                self._enemy_robots.append(robot)
 
-        self._player_robots = [r for r in ctx.robots if r.team == TeamType.PLAYER]
-        self._enemy_robots = [r for r in ctx.robots if r.team == TeamType.ENEMY]
+        self._team_counts = {
+            TeamType.PLAYER: len(self._player_robots),
+            TeamType.ENEMY: len(self._enemy_robots),
+        }
 
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
         cutin = self._build_cutin()
@@ -233,7 +240,7 @@ class BattleViewBuilder:
             ],
         )
 
-    def _build_robot_card(self, robot_index: int, robot, is_combat_active: bool = False) -> RobotStatusCardModel:
+    def _build_robot_card(self, robot_index: int, robot: 'Robot', is_combat_active: bool = False) -> RobotStatusCardModel:
         visual_state = self.visual.visual_states[robot]
         is_alive = visual_state.is_visually_alive
         parts_hp: List[PartMiniHpModel] = []
@@ -268,7 +275,7 @@ class BattleViewBuilder:
             is_combat_active=is_combat_active,
         )
 
-    def _build_target_text(self, robot) -> Optional[str]:
+    def _build_target_text(self, robot: 'Robot') -> Optional[str]:
         if not robot.is_charging:
             return None
         command = robot.current_part_command
@@ -288,7 +295,7 @@ class BattleViewBuilder:
             return "└> 直前選定"
         return None
 
-    def _build_effect_badges(self, robot) -> List[EffectBadgeModel]:
+    def _build_effect_badges(self, robot: 'Robot') -> List[EffectBadgeModel]:
         badges: List[EffectBadgeModel] = []
         for effect in robot.active_effects:
             if effect.type == EffectType.STOP:
@@ -375,7 +382,7 @@ class BattleViewBuilder:
         return None
 
 
-def _build_cutin_actor(robot, visual_state) -> CutinActorModel:
+def _build_cutin_actor(robot: 'Robot', visual_state) -> CutinActorModel:
     is_alive = visual_state.is_visually_alive
     return CutinActorModel(
         team=robot.team,

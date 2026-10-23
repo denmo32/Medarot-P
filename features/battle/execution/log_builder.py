@@ -6,7 +6,7 @@ from domain.effect_payloads import (
     AppliedEffect, PartRepair, PartRestore, TrapInstall, ApplyStatus
 )
 from domain.models import ActionResult, StatusEffect
-from ..entities.commands import ExecutionOutcome
+from ..entities.commands import ExecutionOutcome, PartCommand
 
 if TYPE_CHECKING:
     from ..entities.commands import BattleCommand
@@ -75,14 +75,14 @@ class BattleLogBuilder:
         return [f"{actor.name}は行動をスキップ！"]
 
     @staticmethod
-    def part_stopped(actor: 'Robot', part_type: PartType) -> List[str]:
-        """停止中パーツによる行動失敗ログ"""
-        label = PART_TYPE_LABELS.get(part_type, part_type.value)
-        return [f"行動失敗！　{actor.name}の{label}は停止している！"]
-
-    @staticmethod
-    def execution_failure(actor: 'Robot', command: Optional['BattleCommand'],
-                          outcome: ExecutionOutcome) -> List[str]:
+    def execution_failure(
+        actor: 'Robot', command: Optional['BattleCommand'], outcome: ExecutionOutcome
+    ) -> List[str]:
+        """コマンド実行失敗・中止時のログを一元生成"""
+        if outcome is ExecutionOutcome.PART_STOPPED:
+            part_type = command.part_type if isinstance(command, PartCommand) else None
+            label = PART_TYPE_LABELS.get(part_type, part_type.value) if part_type else "パーツ"
+            return [f"行動失敗！　{actor.name}の{label}は停止している！"]
         if outcome is ExecutionOutcome.PART_UNUSABLE:
             return [f"{actor.name}の行動パーツは使用不能だ！"]
         if outcome is ExecutionOutcome.TRAP_DESTROYED:
@@ -133,7 +133,7 @@ class BattleLogBuilder:
     @classmethod
     def _format_applied_effect(cls, effect: AppliedEffect, target: 'Robot') -> List[str]:
         target_name = target.name
-        team_label = "味方チーム" if target.team.value == "player" else "相手チーム"
+        team_label = "味方チーム" if target.team == TeamType.PLAYER else "相手チーム"
 
         if isinstance(effect, PartRepair):
             label = PART_TYPE_LABELS.get(effect.part_type, effect.part_type.value)

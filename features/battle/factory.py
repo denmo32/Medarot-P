@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 _FALLBACK_PART_ID = {
     PartType.HEAD: "head_001",
-    PartType.RIGHT_ARM: "rarm_001",
-    PartType.LEFT_ARM: "larm_001",
+    PartType.RIGHT_ARM: "right_arm_001",
+    PartType.LEFT_ARM: "left_arm_001",
     PartType.LEGS: "legs_001",
 }
 

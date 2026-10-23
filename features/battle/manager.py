@@ -3,7 +3,7 @@ from typing import List, Dict, Optional, Tuple, Sequence
 
 from domain.constants import ACTIONABLE_PART_TYPES, PartType, TeamType, GaugeStatus
 from domain.models import GameDataProtocol, RobotSetup
-from domain.rules import check_battle_end
+from domain.rules import check_battle_end as eval_battle_end
 
 from .ai_controller import AIController
 from .atb_system import ATBSystem
@@ -81,7 +81,7 @@ class BattleManager:
     def check_battle_end(self) -> bool:
         if self.ctx.winner:
             return True
-        is_ended, winner = check_battle_end(self.ctx.robots)
+        is_ended, winner = eval_battle_end(self.ctx.robots)
         if is_ended:
             self.ctx.winner = winner
         return is_ended
