@@ -1,9 +1,10 @@
+# domain/combat.py
 """戦闘計算の純粋関数群。状態を持たず、入力から結果を導出する。"""
 
 import logging
 import random
 from typing import Callable, Dict, List, Optional
-from domain.constants import HitPolicy, PartType, PART_TYPE_LABELS
+from domain.constants import HitPolicy, PartType
 from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage
 from domain.models import BattleParticipant, ActionResult
 from domain.action_logic import get_action_definition
@@ -12,45 +13,10 @@ from domain.combat_formulas import (
     calculate_break_probability,
     calculate_damage,
     get_best_guard_part,
+    select_pierce_target,
 )
 
 logger = logging.getLogger(__name__)
-
-# 非頭部パーツの優先順位（同値時は脚部 > 左腕 > 右腕）
-_NON_HEAD_PIERCE_PRIORITY = (
-    PartType.LEGS,
-    PartType.LEFT_ARM,
-    PartType.RIGHT_ARM,
-)
-
-
-def _select_pierce_target(
-    target_parts_hp: Dict[PartType, int],
-    excluded_part: PartType,
-) -> Optional[PartType]:
-    """貫通対象となる部位を選定する。"""
-    best_part: Optional[PartType] = None
-    best_hp = -1
-
-    for part_type in _NON_HEAD_PIERCE_PRIORITY:
-        if part_type == excluded_part:
-            continue
-
-        hp = target_parts_hp.get(part_type, 0)
-        if hp <= 0:
-            continue
-
-        if hp > best_hp:
-            best_part = part_type
-            best_hp = hp
-
-    if best_part is not None:
-        return best_part
-
-    if excluded_part != PartType.HEAD and target_parts_hp.get(PartType.HEAD, 0) > 0:
-        return PartType.HEAD
-
-    return None
 
 
 def determine_hit_part(
@@ -65,8 +31,7 @@ def determine_hit_part(
         hit_part = get_best_guard_part(target_parts_hp)
 
     if target_parts_hp.get(hit_part, 0) <= 0:
-        label = PART_TYPE_LABELS.get(hit_part, hit_part.value)
-        logger.error(f"【システムエラー】被弾予定部位「{label}」が破壊済みです。")
+        logger.error(f"【システムエラー】被弾予定部位「{hit_part.label}」が破壊済みです。")
         hit_part = PartType.HEAD
 
     return hit_part
@@ -170,7 +135,7 @@ def resolve_attack(
     ):
         overflow = damage - target_hp_before
         if overflow > 0:
-            pierce_part = _select_pierce_target(target.parts_hp, hit_part)
+            pierce_part = select_pierce_target(target.parts_hp, hit_part)
             if pierce_part is not None:
                 pierce_target_hp = target.parts_hp.get(pierce_part, 0)
                 pierce_effective = min(overflow, pierce_target_hp)

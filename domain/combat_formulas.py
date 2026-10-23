@@ -1,6 +1,14 @@
-"""戦闘における確率・ダメージ等の純粋な計算式（数理モデル）。"""
-from typing import Dict
+# domain/combat_formulas.py
+"""戦闘における確率・ダメージ等の純粋な計算式（数理モデル）および部位選定ロジック。"""
+from typing import Dict, Optional, Sequence
 from domain.constants import PartType
+
+# 非頭部パーツの既定選定順位（同HP時は 脚部 > 左腕 > 右腕）
+DEFAULT_NON_HEAD_PRIORITY: Sequence[PartType] = (
+    PartType.LEGS,
+    PartType.LEFT_ARM,
+    PartType.RIGHT_ARM,
+)
 
 
 def calculate_hit_probability(success: int, mobility: int) -> float:
@@ -36,12 +44,41 @@ def calculate_damage(
     return int(attack + bonus_damage)
 
 
+def select_best_alive_part(
+    parts_hp: Dict[PartType, int],
+    priority_order: Sequence[PartType] = DEFAULT_NON_HEAD_PRIORITY,
+    exclude: Optional[PartType] = None,
+    allow_head_fallback: bool = True,
+) -> Optional[PartType]:
+    """生存している部位の中から、指定の優先順序・最大HP基準で最適な部位を選定する。"""
+    best_part: Optional[PartType] = None
+    best_hp = -1
+
+    for pt in priority_order:
+        if pt == exclude:
+            continue
+        hp = parts_hp.get(pt, 0)
+        if hp > best_hp and hp > 0:
+            best_part = pt
+            best_hp = hp
+
+    if best_part is not None:
+        return best_part
+
+    if allow_head_fallback and exclude != PartType.HEAD and parts_hp.get(PartType.HEAD, 0) > 0:
+        return PartType.HEAD
+
+    return None
+
+
 def get_best_guard_part(target_parts_hp: Dict[PartType, int]) -> PartType:
     """ガード・身代わり時の被弾部位（頭部以外の最大HP部位、すべて破壊済なら頭部）"""
-    non_head_parts = {
-        pt: hp for pt, hp in target_parts_hp.items()
-        if pt != PartType.HEAD and hp > 0
-    }
-    if non_head_parts:
-        return max(non_head_parts, key=non_head_parts.get)
-    return PartType.HEAD
+    return select_best_alive_part(target_parts_hp, allow_head_fallback=True) or PartType.HEAD
+
+
+def select_pierce_target(
+    target_parts_hp: Dict[PartType, int],
+    excluded_part: PartType,
+) -> Optional[PartType]:
+    """貫通対象となる部位を選定する（被弾部位を除き、最大HPの非頭部部位、なければ頭部）。"""
+    return select_best_alive_part(target_parts_hp, exclude=excluded_part, allow_head_fallback=True)
