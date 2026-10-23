@@ -26,8 +26,6 @@ class BattleContext:
         self.seed = seed if seed is not None else random.randrange(2**32)
         self.rng = random.Random(self.seed)
 
-        self.is_opening_done = False
-
         self._battle_log: List[str] = []
         self.current_actor: Optional[Robot] = None
         self.current_report: Optional['ExecutionReport'] = None

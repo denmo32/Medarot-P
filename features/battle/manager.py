@@ -68,18 +68,6 @@ class BattleManager:
         return self.ctx.preview_targets
 
     @property
-    def is_opening_done(self) -> bool:
-        return self.ctx.is_opening_done
-
-    @is_opening_done.setter
-    def is_opening_done(self, value: bool):
-        self.ctx.is_opening_done = value
-
-    def mark_opening_done(self):
-        """オープニング演出完了を記録する"""
-        self.ctx.is_opening_done = True
-
-    @property
     def winner(self) -> Optional[TeamType]:
         return self.ctx.winner
 

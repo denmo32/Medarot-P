@@ -136,7 +136,7 @@ class AwaitCutin(Await):
     _finished: bool = False
 
     def tick(self, dt: float, director: 'BattleDirector'):
-        events = director.visual.update_cutin(dt)
+        director.visual.update_cutin(dt)
         if not director.visual.cutin_director or director.visual.cutin_director.is_animation_finished:
             self._finished = True
 

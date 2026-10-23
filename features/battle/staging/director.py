@@ -167,7 +167,6 @@ class BattleDirector:
         yield AwaitTime(BattleTiming.OPENING_POPUP, can_skip=True)
         yield SetOpeningPopupVisible(False)
 
-        self.manager.mark_opening_done()
         self.manager.clear_log()
 
     def _run_player_input(self, actor: Robot) -> Generator:
@@ -189,8 +188,8 @@ class BattleDirector:
             yield from self._finalize_turn()
             return
 
-        # 1. 射撃系（事前予約型）のみターゲットレーダー演出
-        if part and part.target_timing == TargetTiming.ON_CHARGE and report.target:
+        # 1. ターゲットレーダー演出
+        if report.target:
             actor_idx = self.manager.find_robot_index(actor)
             target_idx = self.manager.find_robot_index(report.target)
             if actor_idx is not None and target_idx is not None:
