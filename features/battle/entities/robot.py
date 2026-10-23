@@ -170,6 +170,8 @@ class Robot:
         if not self.is_alive:
             return None
 
+        # バフ・デバフの効果時間は充填中・放熱中（ライン走行中）のみ進行し、
+        # 中央ラインでの演出中(EXECUTING)や待機中(READY)は一時停止する仕様
         if self.atb.status in (GaugeStatus.CHARGING, GaugeStatus.COOLDOWN):
             self.effects.update(dt)
 
