@@ -1,4 +1,4 @@
-"""BattleContext, VisualCoordinator および BattleFlow から表示専用モデル (BattleRenderModel) を生成する。"""
+"""BattleContext, VisualCoordinator および BattleDirector から表示専用モデルを生成する。"""
 import dataclasses
 from typing import List, Optional, Sequence, TYPE_CHECKING
 from domain.constants import (
@@ -11,15 +11,9 @@ from domain.constants import (
     TeamType,
 )
 from domain.models import ActionResult
-from features.battle.constants import (
-    BattlePhase,
-    BattleTiming,
-    CutinStep,
-    TARGET_RADAR_PHASES,
-    TARGET_RADAR_STATIC_PHASES,
-)
-from features.battle.flow import AdvanceTrigger, BattleFlow
-from features.battle.staging.cutin_director import CutinDirector
+from features.battle.constants import BattleTiming
+from features.battle.staging.cutin_director import CutinDirector, CutinStep
+from features.battle.staging.director import BattleDirector
 from features.battle.staging.visual_coordinator import VisualCoordinator
 from .command_menu_builder import build_command_menu_items
 from .view_models import (
@@ -156,44 +150,23 @@ def _resolve_accent_state(gauge_status: GaugeStatus, is_alive: bool, is_stopped:
     return AccentState.NEUTRAL
 
 
-COMMAND_MENU_PHASES = (BattlePhase.INPUT,)
-MESSAGE_WINDOW_PHASES = (
-    BattlePhase.INITIAL_SETUP,
-    BattlePhase.OPENING_LOG,
-    BattlePhase.OPENING_POPUP,
-    BattlePhase.IDLE,
-    BattlePhase.TARGET_INDICATION,
-    BattlePhase.ATTACK_DECLARATION,
-    BattlePhase.CUTIN,
-    BattlePhase.CUTIN_RESULT,
-    BattlePhase.LOG_WAIT,
-    BattlePhase.RESULT_LOG,
-    BattlePhase.GAME_OVER,
-)
-CUTIN_PHASES = (BattlePhase.CUTIN, BattlePhase.CUTIN_RESULT)
-
-
 class BattleViewBuilder:
-    """戦闘状態（Context）、演出状態（Visual）および進行状態（Flow）から描画用モデルを一括生成するプロジェクター"""
+    """戦闘状態（Context）、演出状態（Visual）および進行管理（Director）から描画モデルを一括生成する"""
 
-    def __init__(self, ctx: 'BattleContext', visual: VisualCoordinator, flow: BattleFlow):
+    def __init__(self, ctx: 'BattleContext', visual: VisualCoordinator, director: BattleDirector):
         self.ctx = ctx
         self.visual = visual
-        self.flow = flow
+        self.director = director
 
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
-        phase = self.flow.phase
-
-        robots = self._build_robots()
-        target_radar = self._build_target_radar(phase)
-        message_window = self._build_message_window(phase)
-        command_menu = self._build_command_menu(phase, selected_button_index)
-        cutin = self._build_cutin(phase)
-        overlay = self._build_overlay(phase)
-        top_status = self._build_top_status(phase)
+        cutin = self._build_cutin()
+        command_menu = self._build_command_menu(selected_button_index)
+        target_radar = self._build_target_radar()
+        message_window = self._build_message_window(command_menu is not None)
+        overlay = self._build_overlay()
+        top_status = self._build_top_status()
 
         return BattleRenderModel(
-            phase=phase,
             show_field=True,
             show_message_window=message_window is not None,
             show_command_menu=command_menu is not None,
@@ -202,7 +175,7 @@ class BattleViewBuilder:
             show_game_over=overlay is not None and overlay.game_over_winner is not None,
             show_target_radar=target_radar is not None,
             show_preview_target_markers=bool(command_menu and command_menu.preview_target_robot_indices),
-            robots=robots,
+            robots=self._build_robots(),
             target_radar=target_radar,
             message_window=message_window,
             command_menu=command_menu,
@@ -243,10 +216,11 @@ class BattleViewBuilder:
             ))
         return views
 
-    def _build_top_status(self, phase: BattlePhase) -> TopStatusPanelModel:
+    def _build_top_status(self) -> TopStatusPanelModel:
         robots = self.ctx.robots
         combat_robots = set()
-        if phase in CUTIN_PHASES:
+
+        if self.visual.cutin_director is not None:
             actor = self.ctx.current_actor
             report = self.ctx.current_report
             target = report.target if report else None
@@ -334,61 +308,39 @@ class BattleViewBuilder:
                 badges.append(EffectBadgeModel(f"命中+{effect.magnitude} ({charges}回)", BadgeKind.SUCCESS_UP))
         return badges
 
-    def _build_target_radar(self, phase: BattlePhase) -> Optional[TargetRadarModel]:
-        if phase not in TARGET_RADAR_PHASES:
-            return None
-        attacker = self.ctx.current_actor
-        if not attacker or not attacker.is_alive:
-            return None
-        part = attacker.current_part
-        if not part or not part.can_execute:
-            return None
-        report = self.ctx.current_report
-        target = report.target if report else None
-        if not target or not target.is_alive:
-            return None
-
-        attacker_index = _robot_index(self.ctx.robots, attacker)
-        target_index = _robot_index(self.ctx.robots, target)
-        if attacker_index is None or target_index is None:
-            return None
-
-        is_static = phase in TARGET_RADAR_STATIC_PHASES
+    def _build_target_radar(self) -> Optional[TargetRadarModel]:
         radar_dir = self.visual.radar_director
-        if radar_dir is not None:
-            state = radar_dir.evaluate(is_static=is_static)
-            travel_progress = state.travel_progress
-            scale = state.scale
-        else:
-            travel_progress = 1.0
-            scale = 1.0
+        if radar_dir is None:
+            return None
 
+        state = radar_dir.evaluate(is_static=False)
         return TargetRadarModel(
-            attacker_index=attacker_index,
-            target_index=target_index,
-            travel_progress=travel_progress,
-            scale=scale,
-            is_static=is_static,
+            attacker_index=radar_dir.attacker_index,
+            target_index=radar_dir.target_index,
+            travel_progress=state.travel_progress,
+            scale=state.scale,
+            is_static=False,
         )
 
-    def _build_message_window(self, phase: BattlePhase) -> Optional[MessageWindowModel]:
-        if phase not in MESSAGE_WINDOW_PHASES:
+    def _build_message_window(self, is_command_menu_open: bool) -> Optional[MessageWindowModel]:
+        if is_command_menu_open:
             return None
-        max_lines = BattleTiming.LOG_DISPLAY_MAX
 
-        # 前進マーカー表示判定：Flowがユーザー確認を受け付け可能かつHPアニメが完了しているか
-        can_advance = self.flow.can_advance_on(AdvanceTrigger.USER_CONFIRM) and not self.visual.is_hp_animating()
+        can_advance = self.director.can_user_confirm and not self.visual.is_hp_animating()
+        max_lines = BattleTiming.LOG_DISPLAY_MAX
 
         return MessageWindowModel(
             lines=list(self.ctx.battle_log[-max_lines:]),
             show_advance_marker=can_advance,
         )
 
-    def _build_command_menu(self, phase: BattlePhase, selected_button_index: int) -> Optional[CommandMenuModel]:
-        if phase not in COMMAND_MENU_PHASES or not self.ctx.current_actor:
+    def _build_command_menu(self, selected_button_index: int) -> Optional[CommandMenuModel]:
+        input_await = self.director.current_player_input_await
+        if input_await is None:
             return None
 
-        items = build_command_menu_items(self.ctx.current_actor, self.ctx.preview_targets, self.ctx.robots)
+        actor = input_await.actor
+        items = build_command_menu_items(actor, input_await.preview_targets, self.ctx.robots)
         if not items:
             return None
 
@@ -400,15 +352,15 @@ class BattleViewBuilder:
             preview_indices.append(selected_item.preview_target_robot_index)
 
         return CommandMenuModel(
-            actor_name=self.ctx.current_actor.name,
+            actor_name=actor.name,
             selected_index=selected,
             items=items,
             preview_target_robot_indices=preview_indices,
         )
 
-    def _build_cutin(self, phase: BattlePhase) -> Optional[CutinModel]:
+    def _build_cutin(self) -> Optional[CutinModel]:
         director = self.visual.cutin_director
-        if phase not in CUTIN_PHASES or director is None:
+        if director is None:
             return None
         actor = self.ctx.current_actor
         report = self.ctx.current_report
@@ -421,10 +373,10 @@ class BattleViewBuilder:
 
         return _build_cutin_model(director, actor_model, target_model)
 
-    def _build_overlay(self, phase: BattlePhase) -> Optional[OverlayModel]:
-        if phase == BattlePhase.OPENING_POPUP:
+    def _build_overlay(self) -> Optional[OverlayModel]:
+        if self.director.opening_popup_visible:
             return OverlayModel(opening_popup_visible=True)
-        if phase == BattlePhase.GAME_OVER:
+        if self.director.is_game_over:
             return OverlayModel(game_over_winner=self.ctx.winner)
         return None
 
@@ -436,10 +388,3 @@ def _build_cutin_actor(robot, visual_state) -> CutinActorModel:
         part_status=dict(visual_state.parts_break_progress),
         accent_state=_resolve_accent_state(robot.gauge_status, is_alive, robot.is_stopped),
     )
-
-
-def _robot_index(robots: Sequence, robot) -> Optional[int]:
-    for index, candidate in enumerate(robots):
-        if candidate is robot:
-            return index
-    return None

@@ -45,11 +45,10 @@ TARGET_RADAR_STATIC_PHASES = (
 
 
 class BattleTiming:
-    """演出やフェーズ遷移のタイミング（秒）および表示仕様定数"""
-    TARGET_INDICATION = 0.8
+    """演出の所要秒数および表示仕様定数"""
     OPENING_POPUP = 1.5
     LOG_DISPLAY_MAX = 3
-    # ターゲットレーダー演出
+    TARGET_INDICATION = 0.8
     TARGET_RADAR_TRAVEL = 0.3
     TARGET_RADAR_PULSE = 0.22
     TARGET_RADAR_PULSE_COUNT = 2
