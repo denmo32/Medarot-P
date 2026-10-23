@@ -1,3 +1,4 @@
+# domain/constants.py
 """ゲーム全体で共通の定数・データ型定義"""
 from enum import Enum
 from typing import Optional, Type, TypeVar
@@ -58,7 +59,6 @@ class CustomizeState(KeyedEnum):
 
 
 # コマンドメニューのスロットインデックス（features の入力規則と ui のレイアウトが共有する契約）
-# 順序: 頭部(0), 右腕(1), 左腕(2), スキップ(3)
 COMMAND_MENU_HEAD_INDEX = 0
 COMMAND_MENU_RIGHT_ARM_INDEX = 1
 COMMAND_MENU_LEFT_ARM_INDEX = 2
@@ -94,6 +94,10 @@ class PartType(KeyedEnum):
     LEFT_ARM = "left_arm"
     LEGS = "legs"
 
+    @property
+    def label(self) -> str:
+        return _PART_LABELS.get(self, self.value)
+
 
 class CustomizeSlot(KeyedEnum):
     """カスタマイズ画面のスロット識別子"""
@@ -111,6 +115,29 @@ class CustomizeSlot(KeyedEnum):
     def part_type(self) -> Optional[PartType]:
         return PartType.from_key(self.value) if not self.is_medal else None
 
+    @property
+    def label(self) -> str:
+        if self.is_medal:
+            return "メダル"
+        pt = self.part_type
+        return pt.label if pt else self.value
+
+
+_PART_LABELS = {
+    PartType.HEAD: "頭部",
+    PartType.RIGHT_ARM: "右腕",
+    PartType.LEFT_ARM: "左腕",
+    PartType.LEGS: "脚部",
+}
+
+# 互換性維持のためのエイリアス
+PART_TYPE_LABELS = {
+    CustomizeSlot.MEDAL: "メダル",
+    PartType.HEAD: "頭部",
+    PartType.RIGHT_ARM: "右腕",
+    PartType.LEFT_ARM: "左腕",
+    PartType.LEGS: "脚部",
+}
 
 CUSTOMIZE_SLOTS = (
     CustomizeSlot.MEDAL,
@@ -127,14 +154,6 @@ ALL_PART_TYPES = (
     PartType.LEFT_ARM,
     PartType.LEGS,
 )
-
-PART_TYPE_LABELS = {
-    CustomizeSlot.MEDAL: "メダル",
-    PartType.HEAD: "頭部",
-    PartType.RIGHT_ARM: "右腕",
-    PartType.LEFT_ARM: "左腕",
-    PartType.LEGS: "脚部",
-}
 
 
 class AttributeType(KeyedEnum):
