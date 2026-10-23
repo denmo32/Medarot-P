@@ -73,9 +73,7 @@ class VisualCoordinator:
     # === カットイン演出のライフサイクル ===
 
     def start_cutin(self, part: Optional['Part'], report: 'ExecutionReport') -> CutinDirector:
-        result = report.result
-        has_pierce = report.has_pierce
-        self.cutin_director = CutinDirector.create(part=part, result=result, has_pierce=has_pierce)
+        self.cutin_director = CutinDirector.create(part=part, result=report.result)
         return self.cutin_director
 
     def update_cutin(self, dt: float):

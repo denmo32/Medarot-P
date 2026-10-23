@@ -1,20 +1,4 @@
-"""単一機体のATBゲージ進行と端到達イベントの追跡メカニクス。
-
-ATBゲージの状態遷移図:
-
-         [ READY ] ──(start_charge)──> [ CHARGING ] ──(pos >= 1.0)──> [ CHARGED (イベント)]
-             ▲                               │                                │
-             │                               │ abort_charge_to_cooldown()     │ start_execution()
-             │                               │ (割り込み中断: 現在地から後退)   ▼
-             │                               ▼                         [ EXECUTING ]
-             └──(pos <= 0.0)────────── [ COOLDOWN ] <─────────────────────────┘
-                   COOLED (イベント)                     enter_cooldown_from_execution()
-                   └─> enter_ready()                     (行動完了/中止: 1.0から後退)
-
-イベント発行契機:
-  - ATBEvent.CHARGED: CHARGING 状態の進行度が 1.0 に到達した瞬間
-  - ATBEvent.COOLED:  COOLDOWN 状態の進行度が 0.0 に到達した瞬間
-"""
+"""単一機体のATBゲージ進行と端到達イベントの追跡メカニクス。"""
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
@@ -35,10 +19,10 @@ class ATBTrack:
     charge_duration: float = 1.0
     cooldown_duration: float = 1.0
 
-    def start_charge(self, duration: float):
-        """待機(0.0)から充填開始"""
-        self.charge_duration = max(0.001, duration)
-        self.cooldown_duration = max(0.001, duration)
+    def start_charge(self, charge_duration: float, cooldown_duration: Optional[float] = None):
+        """待機(0.0)から充填開始（放熱時間を個別に指定可能）"""
+        self.charge_duration = max(0.001, charge_duration)
+        self.cooldown_duration = max(0.001, cooldown_duration if cooldown_duration is not None else charge_duration)
         self.status = GaugeStatus.CHARGING
         self.position = 0.0
 

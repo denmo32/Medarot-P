@@ -1,7 +1,7 @@
 """バトルの状態を一元管理するコンテキストクラス（RNG 一元化・純粋ドメイン状態）。"""
 import random
-from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
-from domain.constants import PartType, TeamType
+from typing import List, Optional, Sequence, TYPE_CHECKING
+from domain.constants import TeamType
 from domain.traps import TrapManager
 from .entities.robot import Robot
 
@@ -27,9 +27,8 @@ class BattleContext:
         self.rng = random.Random(self.seed)
 
         self._battle_log: List[str] = []
-        self.current_actor: Optional[Robot] = None
+        self.current_actor: Optional[Robot] = None  # 行動実行中のアクター機体
         self.current_report: Optional['ExecutionReport'] = None
-        self.preview_targets: Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]] = {}
 
         self.winner: Optional[TeamType] = None
         self.traps = TrapManager()

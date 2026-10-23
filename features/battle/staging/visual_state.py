@@ -72,10 +72,6 @@ class RobotVisualState:
 
     def update(self, dt: float):
         """表示用HPの遅延減少アニメーションおよび破壊部位のフェード"""
-        if not self._pending_step_targets and not self.is_hp_animating:
-            for pt, hp in self.robot.get_parts_hp().items():
-                self.parts_target_hp[pt] = float(hp)
-
         for pt in list(self.parts_target_hp.keys()):
             target_hp = self.parts_target_hp.get(pt, 0.0)
             current_display = self.parts_display_hp.get(pt, target_hp)

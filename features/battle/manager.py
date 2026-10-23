@@ -63,10 +63,6 @@ class BattleManager:
         return self.ctx.robots
 
     @property
-    def preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
-        return self.ctx.preview_targets
-
-    @property
     def winner(self) -> Optional[TeamType]:
         return self.ctx.winner
 
@@ -143,10 +139,9 @@ class BattleManager:
             self.set_log(messages)
         return interrupts
 
-    def prepare_actor_input(self, actor: Robot):
-        """指定機体のコマンド入力状態（予習ターゲット等）を準備する"""
-        self.ctx.current_actor = actor
-        self.ctx.preview_targets = {
+    def get_preview_targets(self, actor: Robot) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
+        """指定機体の各部位における予習ターゲット（事前予約）を導出する"""
+        return {
             pt: self.targeting.resolve_preview_target(actor, pt)
             for pt in ACTIONABLE_PART_TYPES
         }
@@ -175,7 +170,6 @@ class BattleManager:
         """放熱完了時の処理：待機状態へ戻し、自軍なら入力要求、敵軍ならAIが即座に予約"""
         actor.enter_ready()
         if actor.team == TeamType.PLAYER:
-            self.prepare_actor_input(actor)
             return PlayerInputRequiredEvent(actor=actor)
         else:
             self.ai.decide_command(actor)
@@ -203,14 +197,10 @@ class BattleManager:
         self.ctx.current_report = None
         self.ctx.current_actor = None
 
-    def select_command_slot(self, slot: CommandSlot) -> bool:
+    def select_command_slot(self, actor: Robot, slot: CommandSlot) -> bool:
         """プレイヤーのコマンド選択を検証・確定する。受理できた場合は True を返す。"""
-        actor = self.ctx.current_actor
-        if not actor:
-            return False
-
         if slot.is_skip:
-            return self.submit_player_command(SkipCommand(actor))
+            return self.submit_player_command(actor, SkipCommand(actor))
 
         part_type = slot.part_type
         if part_type is None:
@@ -223,14 +213,10 @@ class BattleManager:
         if not part:
             return False
 
-        preview = self.ctx.preview_targets.get(part_type)
-        return self.submit_player_command(build_command_for_part(actor, part, preview))
+        preview = self.targeting.resolve_preview_target(actor, part_type)
+        return self.submit_player_command(actor, build_command_for_part(actor, part, preview))
 
-    def submit_player_command(self, command: BattleCommand) -> bool:
+    def submit_player_command(self, actor: Robot, command: BattleCommand) -> bool:
         """プレイヤーコマンドをアクター機体に設定する。"""
-        actor = self.ctx.current_actor
-        if actor:
-            actor.set_command(command)
-            self.ctx.current_actor = None
-            return True
-        return False
+        actor.set_command(command)
+        return True
