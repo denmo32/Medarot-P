@@ -43,11 +43,11 @@ def _is_player(team: TeamType) -> bool:
 # === フィールド系 ===
 
 def calculate_field_top_y(screen_size: Tuple[int, int]) -> int:
-    return _scale_y(UI_PARAMS['BATTLEFIELD_Y_START_RATIO'], screen_size)
+    return _scale_y(UI_PARAMS.battlefield_y_start_ratio, screen_size)
 
 
 def calculate_field_bottom_y(screen_size: Tuple[int, int]) -> int:
-    return _scale_y(UI_PARAMS['BATTLEFIELD_Y_END_RATIO'], screen_size)
+    return _scale_y(UI_PARAMS.battlefield_y_end_ratio, screen_size)
 
 
 def calculate_field_background_rect(screen_size: Tuple[int, int]) -> pygame.Rect:
@@ -98,21 +98,21 @@ def calculate_top_status_layout(screen_size: Tuple[int, int]) -> dict:
 
 def calculate_guide_line_xs(screen_size: Tuple[int, int]) -> List[int]:
     center_x = screen_size[0] // 2
-    offset = _scale_x(UI_PARAMS['GUIDE_LINE_OFFSET_RATIO'], screen_size)
+    offset = _scale_x(UI_PARAMS.guide_line_offset_ratio, screen_size)
     return [center_x - offset, center_x + offset]
 
 
 # === ロボット系 ===
 
 def calculate_robot_y_ratio(team_index: int, team_count: int) -> float:
-    start_y = UI_PARAMS['BATTLEFIELD_Y_START_RATIO']
-    end_y = UI_PARAMS['BATTLEFIELD_Y_END_RATIO']
+    start_y = UI_PARAMS.battlefield_y_start_ratio
+    end_y = UI_PARAMS.battlefield_y_end_ratio
     height = end_y - start_y
 
     if team_count <= 0:
         return start_y
 
-    return start_y + (team_index + UI_PARAMS['ROBOT_Y_PADDING']) * (height / team_count)
+    return start_y + (team_index + UI_PARAMS.robot_y_padding) * (height / team_count)
 
 
 def calculate_robot_position(
@@ -121,16 +121,16 @@ def calculate_robot_position(
 ) -> Tuple[int, int]:
     y_ratio = calculate_robot_y_ratio(robot.team_index, robot.team_count)
     is_player = _is_player(robot.team)
-    team_x_ratio = (UI_PARAMS['PLAYER_TEAM_X_RATIO'] if is_player
-                    else UI_PARAMS['ENEMY_TEAM_X_RATIO'])
-    margin = UI_PARAMS['TEAM_BOUNDARY_MARGIN_RATIO']
+    team_x_ratio = (UI_PARAMS.player_team_x_ratio if is_player
+                    else UI_PARAMS.enemy_team_x_ratio)
+    margin = UI_PARAMS.team_boundary_margin_ratio
     progress_ratio = robot.progress_ratio
 
     if is_player:
         end_x = 0.5 - margin
         icon_x_ratio = team_x_ratio + progress_ratio * (end_x - team_x_ratio)
     else:
-        start_x = team_x_ratio + UI_PARAMS['GAUGE_WIDTH_RATIO']
+        start_x = team_x_ratio + UI_PARAMS.gauge_width_ratio
         end_x = 0.5 + margin
         icon_x_ratio = start_x + progress_ratio * (end_x - start_x)
 
@@ -141,11 +141,11 @@ def calculate_home_marker_rect(
     robot: 'RobotViewModel',
     screen_size: Tuple[int, int],
 ) -> pygame.Rect:
-    marker_rx = _scaled(UI_PARAMS['HOME_MARKER_RX'], screen_size)
-    marker_ry = _scaled(UI_PARAMS['HOME_MARKER_RY'], screen_size)
+    marker_rx = _scaled(UI_PARAMS.home_marker_rx, screen_size)
+    marker_ry = _scaled(UI_PARAMS.home_marker_ry, screen_size)
 
-    team_x_ratio = (UI_PARAMS['PLAYER_TEAM_X_RATIO'] if _is_player(robot.team)
-                    else UI_PARAMS['ENEMY_TEAM_X_RATIO'] + UI_PARAMS['GAUGE_WIDTH_RATIO'])
+    team_x_ratio = (UI_PARAMS.player_team_x_ratio if _is_player(robot.team)
+                    else UI_PARAMS.enemy_team_x_ratio + UI_PARAMS.gauge_width_ratio)
     hx, hy = _to_px(
         team_x_ratio,
         calculate_robot_y_ratio(robot.team_index, robot.team_count),
@@ -164,17 +164,17 @@ def calculate_home_marker_rect(
 
 def calculate_message_window_rect(screen_size: Tuple[int, int]) -> pygame.Rect:
     sw, sh = screen_size
-    wy = _scale_y(UI_PARAMS['MESSAGE_WINDOW_Y_RATIO'], screen_size)
-    wh = _scale_y(UI_PARAMS['MESSAGE_WINDOW_HEIGHT_RATIO'], screen_size)
+    wy = _scale_y(UI_PARAMS.message_window_y_ratio, screen_size)
+    wh = _scale_y(UI_PARAMS.message_window_height_ratio, screen_size)
     return pygame.Rect(0, wy, sw, wh)
 
 
 def calculate_message_padding(screen_size: Tuple[int, int]) -> int:
-    return _scale_x(UI_PARAMS['MESSAGE_WINDOW_PADDING_RATIO'], screen_size)
+    return _scale_x(UI_PARAMS.message_window_padding_ratio, screen_size)
 
 
 def calculate_log_line_height(screen_size: Tuple[int, int]) -> int:
-    return _scaled(UI_PARAMS['LOG_LINE_HEIGHT'], screen_size)
+    return _scaled(UI_PARAMS.log_line_height, screen_size)
 
 
 # === コマンドメニュー系 ===
@@ -185,12 +185,12 @@ def calculate_command_menu_rects(
 ) -> List[pygame.Rect]:
     sw, sh = screen_size
 
-    btn_w = int(sw * UI_PARAMS['UI']['BTN_WIDTH_RATIO'])
-    btn_h = int(sh * UI_PARAMS['UI']['BTN_HEIGHT_RATIO'])
-    btn_pad = int(sw * UI_PARAMS['UI']['BTN_PADDING_RATIO'])
-    wy_ratio = UI_PARAMS['MESSAGE_WINDOW_Y_RATIO']
+    btn_w = int(sw * UI_PARAMS.ui.btn_width_ratio)
+    btn_h = int(sh * UI_PARAMS.ui.btn_height_ratio)
+    btn_pad = int(sw * UI_PARAMS.ui.btn_padding_ratio)
+    wy_ratio = UI_PARAMS.message_window_y_ratio
 
-    start_y = int(sh * wy_ratio) + int(sh * UI_PARAMS['COMMAND_MENU_TOP_PADDING_RATIO'])
+    start_y = int(sh * wy_ratio) + int(sh * UI_PARAMS.command_menu_top_padding_ratio)
     center_x = sw // 2
 
     layout: List[pygame.Rect] = []
@@ -215,8 +215,8 @@ def calculate_command_menu_rects(
 
 def calculate_action_label_position(screen_size: Tuple[int, int]) -> Tuple[int, int]:
     pad = calculate_message_padding(screen_size)
-    wy = _scale_y(UI_PARAMS['MESSAGE_WINDOW_Y_RATIO'], screen_size)
-    return pad, wy + pad + int(screen_size[1] * UI_PARAMS['ACTION_NAME_Y_RATIO'])
+    wy = _scale_y(UI_PARAMS.message_window_y_ratio, screen_size)
+    return pad, wy + pad + int(screen_size[1] * UI_PARAMS.action_name_y_ratio)
 
 
 # === カットイン系 ===
@@ -228,8 +228,8 @@ def calculate_cutin_layout(screen_size: Tuple[int, int]) -> dict:
     return {
         'panel_rect': pygame.Rect(0, top_y, sw, bottom_y - top_y),
         'center_y': (top_y + bottom_y) // 2,
-        'left_x': int(sw * UI_PARAMS['CUTIN_LEFT_RATIO']),
-        'right_x': int(sw * UI_PARAMS['CUTIN_RIGHT_RATIO']),
+        'left_x': int(sw * UI_PARAMS.cutin_left_ratio),
+        'right_x': int(sw * UI_PARAMS.cutin_right_ratio),
     }
 
 
@@ -253,8 +253,8 @@ def calculate_cutin_actor_x(
         return actor_x
 
     sw, _ = screen_size
-    contact_offset = _scaled(UI_PARAMS.get('CUTIN_MELEE_CONTACT_OFFSET', 50), screen_size)
-    exit_margin = _scaled(UI_PARAMS.get('CUTIN_MELEE_EXIT_MARGIN', 80), screen_size)
+    contact_offset = _scaled(UI_PARAMS.cutin_melee_contact_offset, screen_size)
+    exit_margin = _scaled(UI_PARAMS.cutin_melee_exit_margin, screen_size)
 
     if _is_player(actor_model.team):
         contact_x = target_x - contact_offset

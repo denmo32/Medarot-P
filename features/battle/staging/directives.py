@@ -27,16 +27,6 @@ class ShowLog(Directive):
 
 
 @dataclass(frozen=True)
-class ShowDeclaration(Directive):
-    actor: 'Robot'
-
-
-@dataclass(frozen=True)
-class ShowBattleEnd(Directive):
-    pass
-
-
-@dataclass(frozen=True)
 class StartRadar(Directive):
     attacker_index: int
     target_index: int

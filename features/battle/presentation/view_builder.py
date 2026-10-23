@@ -158,6 +158,14 @@ class BattleViewBuilder:
         self.visual = visual
         self.director = director
 
+        # 不変なチーム別機体数・グループ分けのキャッシュ（毎フレームの反復ループ抑制）
+        self._team_counts = {}
+        for robot in ctx.robots:
+            self._team_counts[robot.team] = self._team_counts.get(robot.team, 0) + 1
+
+        self._player_robots = [r for r in ctx.robots if r.team == TeamType.PLAYER]
+        self._enemy_robots = [r for r in ctx.robots if r.team == TeamType.ENEMY]
+
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
         cutin = self._build_cutin()
         command_menu = self._build_command_menu(selected_button_index)
@@ -187,10 +195,6 @@ class BattleViewBuilder:
     def _build_robots(self) -> List[RobotViewModel]:
         robots = self.ctx.robots
         visual_states = self.visual.visual_states
-        team_counts = {}
-        for robot in robots:
-            team_counts[robot.team] = team_counts.get(robot.team, 0) + 1
-
         team_indexes = {}
         views: List[RobotViewModel] = []
 
@@ -212,24 +216,19 @@ class BattleViewBuilder:
                 part_stopped={pt: robot.is_part_stopped(pt) for pt in ALL_PART_TYPES},
                 progress_ratio=robot.position,
                 team_index=team_index,
-                team_count=team_counts[robot.team],
+                team_count=self._team_counts[robot.team],
             ))
         return views
 
     def _build_top_status(self) -> TopStatusPanelModel:
-        robots = self.ctx.robots
         combat_robots = set()
 
-        # VisualCoordinator の active_actor / active_target からハイライト対象を直接特定
         if self.visual.active_actor is not None and self.visual.active_target is not None:
             combat_robots = {id(self.visual.active_actor), id(self.visual.active_target)}
 
-        player_robots = [r for r in robots if r.team == TeamType.PLAYER]
-        enemy_robots = [r for r in robots if r.team == TeamType.ENEMY]
-
         return TopStatusPanelModel(
-            player_cards=[self._build_robot_card(i, r, id(r) in combat_robots) for i, r in enumerate(player_robots)],
-            enemy_cards=[self._build_robot_card(i, r, id(r) in combat_robots) for i, r in enumerate(enemy_robots)],
+            player_cards=[self._build_robot_card(i, r, id(r) in combat_robots) for i, r in enumerate(self._player_robots)],
+            enemy_cards=[self._build_robot_card(i, r, id(r) in combat_robots) for i, r in enumerate(self._enemy_robots)],
         )
 
     def _build_robot_card(self, robot_index: int, robot, is_combat_active: bool = False) -> RobotStatusCardModel:

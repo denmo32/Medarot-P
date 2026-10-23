@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Callable, Dict, Optional, Type
 from domain.effect_payloads import (
     AppliedEffect,
     ApplyStatus,
+    DamageEffect,
     PartDamage,
     PartRepair,
     PartRestore,
@@ -29,16 +30,8 @@ class ApplyContext:
 EffectHandler = Callable[[AppliedEffect, ApplyContext], Optional[AppliedEffect]]
 
 
-def _apply_part_damage(effect: PartDamage, ctx: ApplyContext) -> Optional[AppliedEffect]:
-    """主攻撃ダメージの確定反映。apply_damage の戻り値から破壊状況を直接取得する。"""
-    if ctx.target is None:
-        return None
-    actual_dmg, destroyed = ctx.target.apply_damage(effect.part_type, effect.amount)
-    return dataclasses.replace(effect, effective_damage=actual_dmg, destroyed=destroyed)
-
-
-def _apply_pierce_damage(effect: PierceDamage, ctx: ApplyContext) -> Optional[AppliedEffect]:
-    """貫通ダメージの確定反映。主攻撃と同一の経路で適用する。"""
+def _apply_damage_effect(effect: DamageEffect, ctx: ApplyContext) -> Optional[AppliedEffect]:
+    """主攻撃および貫通ダメージの確定反映。apply_damage の戻り値から破壊状況を直接取得する。"""
     if ctx.target is None:
         return None
     actual_dmg, destroyed = ctx.target.apply_damage(effect.part_type, effect.amount)
@@ -83,8 +76,8 @@ def _apply_status_effect(effect: ApplyStatus, ctx: ApplyContext) -> Optional[App
 
 
 EFFECT_HANDLERS: Dict[Type[AppliedEffect], EffectHandler] = {
-    PartDamage: _apply_part_damage,
-    PierceDamage: _apply_pierce_damage,
+    PartDamage: _apply_damage_effect,
+    PierceDamage: _apply_damage_effect,
     PartRepair: _apply_part_repair,
     PartRestore: _apply_part_restore,
     TrapInstall: _apply_trap_install,

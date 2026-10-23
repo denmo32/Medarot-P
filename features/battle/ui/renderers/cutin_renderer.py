@@ -23,7 +23,7 @@ ImpactDrawFn = Callable[['CutinRenderer', int, int, ImpactEffectModel], None]
 def _draw_bullet_projectile(
     renderer: 'CutinRenderer', current_x: int, y: int, proj: ProjectileEffectModel, is_left_to_right: bool
 ):
-    r = max(3, renderer.scaled(UI_PARAMS.get('CUTIN_PROJECTILE_RADIUS', 7)))
+    r = max(3, renderer.scaled(UI_PARAMS.cutin_projectile_radius))
     pygame.draw.circle(renderer.screen, renderer.theme.bullet, (current_x, y), r)
     pygame.draw.circle(renderer.screen, renderer.theme.bullet_core, (current_x, y), max(1, r // 2))
 
@@ -154,13 +154,13 @@ class CutinRenderer(BaseRenderer):
         handler(self, target_x, y, impact)
 
     def _draw_popup(self, target_x, center_y, popup: CutinPopupModel):
-        damage_y = center_y - self.scaled(UI_PARAMS['CUTIN_DAMAGE_OFFSET'])
+        damage_y = center_y - self.scaled(UI_PARAMS.cutin_damage_offset)
         if popup.is_miss:
             self.draw_text_with_outline(popup.damage_label, target_x, damage_y, self.theme.text, 'large', 'center')
             return
 
         self.draw_text_with_outline(
-            popup.primary_label, target_x, center_y - self.scaled(UI_PARAMS['CUTIN_LABEL_OFFSET']),
+            popup.primary_label, target_x, center_y - self.scaled(UI_PARAMS.cutin_label_offset),
             self.theme.text, 'normal', 'center'
         )
         self.draw_text_with_outline(popup.damage_label, target_x, damage_y, self.theme.text, 'large', 'center')

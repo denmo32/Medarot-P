@@ -15,7 +15,6 @@ from domain.models import (
     DefensiveInfo,
     MedalData,
     PartCombatStats,
-    RobotSnapshot,
     StatusEffect,
     TargetPartInfo,
 )
@@ -152,16 +151,6 @@ class Robot:
         """現在予約されているコマンドの実行対象パーツを取得"""
         cmd = self.current_part_command
         return self._parts.get(cmd.part_type) if cmd else None
-
-    def get_snapshot(self, index: int) -> RobotSnapshot:
-        return RobotSnapshot(
-            index=index,
-            team=self.team,
-            is_alive=self.is_alive,
-            gauge_status=self.gauge_status,
-            progress=self.position,
-            is_leader=self.is_leader,
-        )
 
     # === ATB ライフサイクル (Tell, Don't Ask) ===
 

@@ -6,7 +6,7 @@ from domain.constants import (
     AttributeType, CustomizeSlot, EffectStackPolicy, EffectType, GaugeStatus, HitPolicy,
     PartType, ActionType, PersonalityType, TeamType, SkillType,
 )
-from domain.effect_payloads import AppliedEffect, PierceDamage
+from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage
 
 if TYPE_CHECKING:
     from domain.action_logic import ActionDefinition
@@ -218,16 +218,67 @@ class StatusEffect:
 
 @dataclass(frozen=True)
 class ActionResult:
+    """戦闘行動の判定・計算結果 DTO。
+
+    主攻撃のダメージ量および被弾部位は、二重管理を防ぐため applied_effects 内の
+    PartDamage オブジェクトから動的に導出されます。
+    """
     success: bool
-    damage: int = 0
-    effective_damage: int = 0
-    hit_part: Optional[PartType] = None
     is_guarded: bool = False
     is_critical: bool = False
     skill: Optional[SkillType] = None
     applied_effects: List[AppliedEffect] = field(default_factory=list)
     adjusted_success: int = 0
     adjusted_mobility: int = 0
+    _damage: int = 0
+    _effective_damage: int = 0
+    _hit_part: Optional[PartType] = None
+
+    def __init__(
+        self,
+        success: bool,
+        damage: int = 0,
+        effective_damage: int = 0,
+        hit_part: Optional[PartType] = None,
+        is_guarded: bool = False,
+        is_critical: bool = False,
+        skill: Optional[SkillType] = None,
+        applied_effects: Optional[List[AppliedEffect]] = None,
+        adjusted_success: int = 0,
+        adjusted_mobility: int = 0,
+    ):
+        object.__setattr__(self, 'success', success)
+        object.__setattr__(self, 'is_guarded', is_guarded)
+        object.__setattr__(self, 'is_critical', is_critical)
+        object.__setattr__(self, 'skill', skill)
+        object.__setattr__(self, 'applied_effects', list(applied_effects) if applied_effects else [])
+        object.__setattr__(self, 'adjusted_success', adjusted_success)
+        object.__setattr__(self, 'adjusted_mobility', adjusted_mobility)
+        object.__setattr__(self, '_damage', damage)
+        object.__setattr__(self, '_effective_damage', effective_damage)
+        object.__setattr__(self, '_hit_part', hit_part)
+
+    @property
+    def primary_damage(self) -> Optional[PartDamage]:
+        return next((e for e in self.applied_effects if isinstance(e, PartDamage)), None)
+
+    @property
+    def damage(self) -> int:
+        if primary := self.primary_damage:
+            return primary.amount
+        return self._damage
+
+    @property
+    def effective_damage(self) -> int:
+        if primary := self.primary_damage:
+            return primary.effective_damage
+        return self._effective_damage
+
+    @property
+    def hit_part(self) -> Optional[PartType]:
+        if primary := self.primary_damage:
+            return primary.part_type
+        return self._hit_part
 
     @property
     def pierce_effect(self) -> Optional[PierceDamage]:
@@ -236,16 +287,6 @@ class ActionResult:
     @property
     def has_pierce(self) -> bool:
         return self.success and (self.pierce_effect is not None)
-
-
-@dataclass(frozen=True)
-class RobotSnapshot:
-    index: int
-    team: TeamType
-    is_alive: bool
-    gauge_status: GaugeStatus
-    progress: float
-    is_leader: bool = False
 
 
 @dataclass(frozen=True)

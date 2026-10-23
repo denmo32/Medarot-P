@@ -25,7 +25,7 @@ class RobotRenderer(BaseRenderer):
         cx, cy = layout.calculate_robot_position(robot, screen_size)
         accent_color = resolve_accent_color(robot.accent_state, self.theme)
         self.widgets.draw_robot_icon(
-            cx, cy, accent_color, robot.part_status, scale=UI_PARAMS['ROBOT_ICON_SCALE']
+            cx, cy, accent_color, robot.part_status, scale=UI_PARAMS.robot_icon_scale
         )
 
     def _render_home_marker(self, robot: RobotViewModel, screen_size):
@@ -36,7 +36,7 @@ class RobotRenderer(BaseRenderer):
     def _render_stop_marker(self, robot: RobotViewModel, screen_size):
         if not any(robot.part_stopped.values()):
             return
-        icon_scale = UI_PARAMS['ROBOT_ICON_SCALE']
+        icon_scale = UI_PARAMS.robot_icon_scale
         cx, cy = layout.calculate_robot_position(robot, screen_size)
         lightning_size = 20 * icon_scale * self.ui_scale
         part_centers = self.widgets.get_part_centers(cx, cy, scale=icon_scale)
@@ -53,10 +53,10 @@ class RobotRenderer(BaseRenderer):
                 self._render_target_marker(model.robots[index], screen_size)
 
     def _render_target_marker(self, robot: RobotViewModel, screen_size):
-        icon_scale = UI_PARAMS['ROBOT_ICON_SCALE']
+        icon_scale = UI_PARAMS.robot_icon_scale
         cx, cy = layout.calculate_robot_position(robot, screen_size)
         bbox = self.widgets.get_icon_bounding_box(cy, scale=icon_scale)
         self.draw_text(
-            "▼", (cx, bbox["top_y"] - self.scaled(UI_PARAMS['TARGET_MARKER_OFFSET'])),
+            "▼", (cx, bbox["top_y"] - self.scaled(UI_PARAMS.target_marker_offset)),
             self.theme.target_marker, 'medium', 'center'
         )

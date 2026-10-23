@@ -20,8 +20,6 @@ from features.battle.staging.directives import (
     ClearRadar,
     Directive,
     SetOpeningPopupVisible,
-    ShowBattleEnd,
-    ShowDeclaration,
     ShowLog,
     StageDamage,
     StartCutin,
@@ -118,10 +116,6 @@ class BattleDirector:
     def _execute_directive(self, d: Directive):
         if isinstance(d, ShowLog):
             self.manager.set_log(d.messages)
-        elif isinstance(d, ShowDeclaration):
-            self.manager.set_declaration_log(d.actor)
-        elif isinstance(d, ShowBattleEnd):
-            self.manager.set_battle_end_log()
         elif isinstance(d, StartRadar):
             self.visual.start_radar(d.attacker_index, d.target_index)
         elif isinstance(d, ClearRadar):
@@ -165,7 +159,7 @@ class BattleDirector:
         while ready_robot := self.manager.find_ready_player_robot():
             yield from self._run_player_input(ready_robot)
 
-        yield ShowLog(self.manager._logs.opening())
+        yield ShowLog(self.manager.logs.opening())
         yield AwaitUserConfirm()
 
         yield SetOpeningPopupVisible(True)
@@ -200,8 +194,9 @@ class BattleDirector:
                 yield AwaitTime(BattleTiming.TARGET_INDICATION)
 
         # 2. 技・行動の宣言ログ
-        yield ShowDeclaration(actor)
-        yield AwaitUserConfirm()
+        if part:
+            yield ShowLog(self.manager.logs.declaration(actor, part))
+            yield AwaitUserConfirm()
 
         # 3. 演出とダメージ適用
         if part and part.presentation == SkillPresentation.CUTIN and report.target:
@@ -215,7 +210,7 @@ class BattleDirector:
             yield AwaitUserConfirm()
 
             if updated_report.has_pierce and updated_report.target:
-                yield ShowLog(self.manager._logs.pierce())
+                yield ShowLog(self.manager.logs.pierce())
                 yield AdvanceCutinPierce(updated_report.target)
                 yield AwaitHpAnimation()
                 yield AwaitUserConfirm()
@@ -257,5 +252,6 @@ class BattleDirector:
         self.manager.clear_log()
 
     def _run_battle_end(self) -> Generator:
-        yield ShowBattleEnd()
-        yield AwaitUserConfirm()
+        if self.manager.winner:
+            yield ShowLog(self.manager.logs.battle_end(self.manager.winner))
+            yield AwaitUserConfirm()

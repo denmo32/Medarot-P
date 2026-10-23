@@ -28,10 +28,10 @@ class MessageRenderer(BaseRenderer):
             self._render_advance_marker(rect, pad)
 
     def _render_advance_marker(self, rect, pad: int):
-        if (pygame.time.get_ticks() // UI_PARAMS['BLINK_INTERVAL_MS']) % 2 != 0:
+        if (pygame.time.get_ticks() // UI_PARAMS.blink_interval_ms) % 2 != 0:
             return
 
-        marker_size = self.scaled(UI_PARAMS['ADVANCE_MARKER_SIZE'])
+        marker_size = self.scaled(UI_PARAMS.advance_marker_size)
         mx = rect.right - pad * 2
         my = rect.bottom - pad * 1.5
         pygame.draw.polygon(self.screen, self.theme.msg_text, [

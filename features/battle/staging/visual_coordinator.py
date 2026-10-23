@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from domain.constants import PartType
+from domain.effect_payloads import DamageEffect
 from .cutin_director import CutinDirector
 from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
@@ -22,17 +23,12 @@ def _build_damage_visual_steps(
     steps: List[Dict[PartType, float]] = []
     current_targets = dict(visual_state.parts_target_hp)
 
-    hit_part = report.result.hit_part
-    if hit_part and report.result.effective_damage > 0:
-        new_hp = max(0.0, current_targets.get(hit_part, 0.0) - report.result.effective_damage)
-        steps.append({hit_part: new_hp})
-        current_targets[hit_part] = new_hp
-
-    pierce = report.pierce_effect
-    if pierce and pierce.effective_damage > 0:
-        new_hp = max(0.0, current_targets.get(pierce.part_type, 0.0) - pierce.effective_damage)
-        steps.append({pierce.part_type: new_hp})
-        current_targets[pierce.part_type] = new_hp
+    for effect in report.result.applied_effects:
+        if isinstance(effect, DamageEffect) and effect.effective_damage > 0:
+            pt = effect.part_type
+            new_hp = max(0.0, current_targets.get(pt, 0.0) - effect.effective_damage)
+            steps.append({pt: new_hp})
+            current_targets[pt] = new_hp
 
     return steps
 

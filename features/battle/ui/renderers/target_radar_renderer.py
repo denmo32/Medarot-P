@@ -32,13 +32,13 @@ class TargetRadarRenderer(BaseRenderer):
     def _draw_radar(self, center: Tuple[float, float], scale: float):
         cx, cy = int(round(center[0])), int(round(center[1]))
 
-        base_size = self.scaled(UI_PARAMS['TARGET_RADAR_SIZE'])
+        base_size = self.scaled(UI_PARAMS.target_radar_size)
         size = int(round(base_size * scale))
         if size % 2 != 0:
             size += 1
         half = size // 2
 
-        corner_len = min(half, self.scaled(UI_PARAMS['TARGET_RADAR_CORNER_LEN']))
+        corner_len = min(half, self.scaled(UI_PARAMS.target_radar_corner_len))
         thickness = max(2, self.scaled(2))
         color = self.theme.target_radar
 

@@ -54,6 +54,9 @@ class BattleLogBuilder:
     @staticmethod
     def declaration(actor: 'Robot', part: 'Part') -> List[str]:
         """行動形式・技の宣言ログ（例: 「メタビーの撃つ　ライフル！」）"""
+        if not part.is_implemented:
+            action_label = part.action.value if part.action else "未定義"
+            return [f"err: 未実装の行動形式「{action_label}」"]
         action_label = part.action.value if part.action else "未定義"
         skill_label = part.skill.value if part.skill else ""
         skill_text = f"　{skill_label}！" if skill_label else "！"

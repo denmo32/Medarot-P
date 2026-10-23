@@ -39,9 +39,9 @@ class BattleManager:
 
         self.targeting = TargetingResolver(self.ctx)
         self.ai = AIController(self.ctx, self.targeting)
-        self._logs = BattleLogBuilder()
+        self.logs = BattleLogBuilder()
         self.atb = ATBSystem(self.ctx.robots)
-        self.executor = CommandExecutor(self.ctx, self.targeting, self._logs)
+        self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
 
         # 敵AIの初期行動予約
         for robot in robots:
@@ -72,22 +72,6 @@ class BattleManager:
     def set_log(self, messages: Sequence[str]):
         self.ctx.set_log(messages)
 
-    def set_declaration_log(self, actor: Robot):
-        """アクターの行動・技宣言ログを設定する"""
-        part = actor.current_part
-        if not part:
-            return
-        if not part.is_implemented:
-            action_label = part.action.value if part.action else "未定義"
-            self.set_log([f"err: 未実装の行動形式「{action_label}」"])
-        else:
-            self.set_log(self._logs.declaration(actor, part))
-
-    def set_battle_end_log(self):
-        """バトル決着ログを設定する"""
-        if self.ctx.winner:
-            self.set_log(self._logs.battle_end(self.ctx.winner))
-
     # === シミュレーション制御 ===
 
     def find_ready_player_robot(self) -> Optional[Robot]:
@@ -100,7 +84,6 @@ class BattleManager:
     def check_battle_end(self) -> bool:
         if self.ctx.winner:
             return True
-        # スナップショットを生成せず、直接 robots を渡す
         is_ended, winner = check_battle_end(self.ctx.robots)
         if is_ended:
             self.ctx.winner = winner
@@ -126,7 +109,7 @@ class BattleManager:
         if interrupts:
             messages: List[str] = []
             for robot, reason in interrupts:
-                messages.extend(self._logs.interruption(robot, reason))
+                messages.extend(self.logs.interruption(robot, reason))
             self.set_log(messages)
         return interrupts
 
