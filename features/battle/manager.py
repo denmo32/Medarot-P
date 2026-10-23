@@ -1,3 +1,4 @@
+# features/battle/manager.py
 """バトルのシミュレーション・計算・ルール適用を統括するマネージャ（シーンフェーズ非依存）。"""
 from typing import List, Dict, Optional, Tuple, Sequence
 
@@ -101,17 +102,24 @@ class BattleManager:
         return messages
 
     def get_preview_targets(self, actor: Robot) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
+        """アクターの各パーツのプレビュー対象を一括取得"""
         return {
             pt: self.targeting.resolve_preview_target(actor, pt)
             for pt in ACTIONABLE_PART_TYPES
         }
 
     def update_atb(self, dt: float) -> Optional[ATBTurnEvent]:
+        """バトルの時間進行（効果タイマー更新 + ATB進行）を一元管理"""
         if self.check_battle_end():
             if self.winner:
                 return BattleEndedEvent(winner=self.winner)
             return None
 
+        # 状態異常・バフの時間進行（充填中・放熱中の機体のみ）
+        for robot in self.ctx.robots:
+            robot.tick_effects(dt)
+
+        # ATB ゲージ進行
         self.atb.update(dt)
         turn = self.atb.pop_next_turn()
         if turn is None:
@@ -140,20 +148,22 @@ class BattleManager:
     def complete_turn(self, actor: Robot):
         actor.finish_execution_to_cooldown()
 
-    def select_command(self, actor: Robot, part_type: Optional[PartType]) -> bool:
+    def select_command(
+        self,
+        actor: Robot,
+        part_type: Optional[PartType],
+        precomputed_target: Optional[Tuple[Robot, Optional[PartType]]] = None,
+    ) -> bool:
         """プレイヤーのコマンド選択（部位指定、またはスキップ=None）を検証・確定する"""
         if part_type is None:
             return self.submit_player_command(actor, SkipCommand(actor))
 
-        if not actor.can_execute_part(part_type):
-            return False
-
         part = actor.get_part(part_type)
-        if not part:
+        if not part or not part.can_execute:
             return False
 
-        preview = self.targeting.resolve_preview_target(actor, part_type)
-        return self.submit_player_command(actor, build_command_for_part(actor, part, preview))
+        target = precomputed_target or self.targeting.resolve_preview_target(actor, part_type)
+        return self.submit_player_command(actor, build_command_for_part(actor, part, target))
 
     def submit_player_command(self, actor: Robot, command: BattleCommand) -> bool:
         actor.set_command(command)

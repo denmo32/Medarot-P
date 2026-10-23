@@ -1,3 +1,4 @@
+# features/battle/ai_controller.py
 """敵AIの行動選択を担当するコントローラ。"""
 from domain.ai_logic import get_tactics
 from domain.constants import TacticsType
@@ -33,7 +34,6 @@ class AIController:
             return
 
         preview_target = self.targeting.resolve_preview_target(robot, chosen)
-
         if part.locks_target and not preview_target:
             robot.set_command(SkipCommand(robot))
             return
