@@ -1,9 +1,9 @@
+# features/battle/presentation/view_builder.py
 """BattleContext, VisualCoordinator および BattleDirector から表示専用モデルを生成する。"""
 import dataclasses
-from typing import List, Optional, Sequence, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 from domain.constants import (
     ALL_PART_TYPES,
-    PART_TYPE_LABELS,
     AccentState,
     BadgeKind,
     EffectType,
@@ -44,6 +44,29 @@ CUTIN_POPUP_LABELS = {
 }
 
 
+@dataclasses.dataclass(frozen=True)
+class _RobotVisualSnapshot:
+    """フレーム単位で導出されたロボットの視覚情報キャッシュ"""
+    is_alive: bool
+    accent_state: AccentState
+    part_break_progress: Dict
+    parts_display_hp: Dict
+
+
+def _resolve_accent_state(gauge_status: GaugeStatus, is_alive: bool, is_stopped: bool) -> AccentState:
+    if is_stopped:
+        return AccentState.STOPPED
+    if not is_alive:
+        return AccentState.NEUTRAL
+    if gauge_status == GaugeStatus.CHARGING:
+        return AccentState.CHARGING
+    if gauge_status == GaugeStatus.COOLDOWN:
+        return AccentState.COOLDOWN
+    if gauge_status in (GaugeStatus.READY, GaugeStatus.EXECUTING):
+        return AccentState.READY
+    return AccentState.NEUTRAL
+
+
 def _resolve_cutin_popup(result: Optional[ActionResult], step: CutinStep) -> Optional[CutinPopupModel]:
     if result is None:
         return None
@@ -78,81 +101,6 @@ def _resolve_cutin_popup(result: Optional[ActionResult], step: CutinStep) -> Opt
     )
 
 
-def _build_cutin_model(
-    director: CutinDirector,
-    actor_model: CutinActorModel,
-    target_model: CutinActorModel,
-) -> CutinModel:
-    profile = director.profile
-    elapsed = director.elapsed
-    step = director.step
-    result = director.result
-
-    camera_progress: Optional[float] = None
-    if profile.camera_track is not None:
-        camera_progress = profile.camera_track.evaluate(elapsed)
-
-    if step == CutinStep.PIERCE or director.is_result_shown:
-        if profile.actor_movement is not None:
-            actor_model = dataclasses.replace(actor_model, is_visible=False, motion=None)
-        elif profile.camera_track is not None:
-            camera_progress = 1.0
-            actor_model = dataclasses.replace(actor_model, is_visible=False)
-
-        return CutinModel(
-            actor=actor_model,
-            target=target_model,
-            popup=_resolve_cutin_popup(result, step),
-            projectiles=[],
-            impacts=[],
-            camera_progress=camera_progress,
-        )
-
-    is_hit = result.success if result else False
-
-    if profile.actor_movement is not None:
-        is_visible, motion = profile.actor_movement.evaluate(elapsed)
-        actor_model = dataclasses.replace(actor_model, is_visible=is_visible, motion=motion)
-    elif camera_progress is not None:
-        is_visible = camera_progress < 1.0
-        actor_model = dataclasses.replace(actor_model, is_visible=is_visible)
-
-    projectiles = [
-        p for track in profile.projectiles
-        if (p := track.evaluate(elapsed, is_hit)) is not None
-    ]
-    impacts = [
-        i for track in profile.impacts
-        if (i := track.evaluate(elapsed, is_hit)) is not None
-    ]
-
-    show_popup = director.is_animation_finished or profile.popup.is_active(elapsed, is_hit)
-    popup = _resolve_cutin_popup(result, step) if show_popup else None
-
-    return CutinModel(
-        actor=actor_model,
-        target=target_model,
-        popup=popup,
-        projectiles=projectiles,
-        impacts=impacts,
-        camera_progress=camera_progress,
-    )
-
-
-def _resolve_accent_state(gauge_status: GaugeStatus, is_alive: bool, is_stopped: bool) -> AccentState:
-    if is_stopped:
-        return AccentState.STOPPED
-    if not is_alive:
-        return AccentState.NEUTRAL
-    if gauge_status == GaugeStatus.CHARGING:
-        return AccentState.CHARGING
-    if gauge_status == GaugeStatus.COOLDOWN:
-        return AccentState.COOLDOWN
-    if gauge_status in (GaugeStatus.READY, GaugeStatus.EXECUTING):
-        return AccentState.READY
-    return AccentState.NEUTRAL
-
-
 class BattleViewBuilder:
     """戦闘状態（Context）、演出状態（Visual）および進行管理（Director）から描画モデルを一括生成する"""
 
@@ -174,13 +122,30 @@ class BattleViewBuilder:
             TeamType.ENEMY: len(self._enemy_robots),
         }
 
+    def _build_snapshot_map(self) -> Dict['Robot', _RobotVisualSnapshot]:
+        """全機体の視覚情報を1回だけ導出して辞書化"""
+        snapshots = {}
+        for robot in self.ctx.robots:
+            vs = self.visual.visual_states[robot]
+            is_alive = vs.is_visually_alive
+            accent = _resolve_accent_state(robot.gauge_status, is_alive, robot.is_stopped)
+            snapshots[robot] = _RobotVisualSnapshot(
+                is_alive=is_alive,
+                accent_state=accent,
+                part_break_progress=dict(vs.parts_break_progress),
+                parts_display_hp=dict(vs.parts_display_hp),
+            )
+        return snapshots
+
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
-        cutin = self._build_cutin()
+        snapshots = self._build_snapshot_map()
+
+        cutin = self._build_cutin(snapshots)
         command_menu = self._build_command_menu(selected_button_index)
         target_radar = self._build_target_radar()
         message_window = self._build_message_window(command_menu is not None)
         overlay = self._build_overlay()
-        top_status = self._build_top_status()
+        top_status = self._build_top_status(snapshots)
 
         return BattleRenderModel(
             show_field=True,
@@ -191,7 +156,7 @@ class BattleViewBuilder:
             show_game_over=overlay is not None and overlay.game_over_winner is not None,
             show_target_radar=target_radar is not None,
             show_preview_target_markers=bool(command_menu and command_menu.preview_target_robot_indices),
-            robots=self._build_robots(),
+            robots=self._build_robots(snapshots),
             target_radar=target_radar,
             message_window=message_window,
             command_menu=command_menu,
@@ -200,27 +165,23 @@ class BattleViewBuilder:
             top_status=top_status,
         )
 
-    def _build_robots(self) -> List[RobotViewModel]:
-        robots = self.ctx.robots
-        visual_states = self.visual.visual_states
+    def _build_robots(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> List[RobotViewModel]:
         team_indexes = {}
         views: List[RobotViewModel] = []
 
-        for index, robot in enumerate(robots):
+        for index, robot in enumerate(self.ctx.robots):
             team_index = team_indexes.get(robot.team, 0)
             team_indexes[robot.team] = team_index + 1
-            visual_state = visual_states[robot]
-            is_stopped = robot.is_stopped
-            is_alive = visual_state.is_visually_alive
+            snap = snapshots[robot]
 
             views.append(RobotViewModel(
                 index=index,
                 team=robot.team,
-                is_alive=is_alive,
+                is_alive=snap.is_alive,
                 gauge_status=robot.gauge_status,
-                is_stopped=is_stopped,
-                accent_state=_resolve_accent_state(robot.gauge_status, is_alive, is_stopped),
-                part_status=dict(visual_state.parts_break_progress),
+                is_stopped=robot.is_stopped,
+                accent_state=snap.accent_state,
+                part_status=snap.part_break_progress,
                 part_stopped={pt: robot.is_part_stopped(pt) for pt in ALL_PART_TYPES},
                 progress_ratio=robot.position,
                 team_index=team_index,
@@ -228,32 +189,32 @@ class BattleViewBuilder:
             ))
         return views
 
-    def _build_top_status(self) -> TopStatusPanelModel:
+    def _build_top_status(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> TopStatusPanelModel:
         return TopStatusPanelModel(
             player_cards=[
-                self._build_robot_card(i, r, self.visual.is_combat_active(r))
+                self._build_robot_card(i, r, snapshots[r], self.visual.is_combat_active(r))
                 for i, r in enumerate(self._player_robots)
             ],
             enemy_cards=[
-                self._build_robot_card(i, r, self.visual.is_combat_active(r))
+                self._build_robot_card(i, r, snapshots[r], self.visual.is_combat_active(r))
                 for i, r in enumerate(self._enemy_robots)
             ],
         )
 
-    def _build_robot_card(self, robot_index: int, robot: 'Robot', is_combat_active: bool = False) -> RobotStatusCardModel:
-        visual_state = self.visual.visual_states[robot]
-        is_alive = visual_state.is_visually_alive
+    def _build_robot_card(
+        self, robot_index: int, robot: 'Robot', snap: _RobotVisualSnapshot, is_combat_active: bool = False
+    ) -> RobotStatusCardModel:
         parts_hp: List[PartMiniHpModel] = []
 
         for part_type in ALL_PART_TYPES:
             part = robot.get_part(part_type)
             if not part:
                 continue
-            display_hp = float(visual_state.parts_display_hp.get(part_type, part.hp))
+            display_hp = float(snap.parts_display_hp.get(part_type, part.hp))
             max_hp = max(1, part.max_hp)
             parts_hp.append(PartMiniHpModel(
                 part_type=part_type,
-                label=PART_TYPE_LABELS.get(part_type, ""),
+                label=part_type.label,
                 current_hp=int(display_hp),
                 max_hp=part.max_hp,
                 ratio=max(0.0, min(1.0, display_hp / max_hp)),
@@ -267,8 +228,8 @@ class BattleViewBuilder:
             name=display_name,
             team=robot.team,
             is_leader=robot.is_leader,
-            is_alive=is_alive,
-            accent_state=_resolve_accent_state(robot.gauge_status, is_alive, robot.is_stopped),
+            is_alive=snap.is_alive,
+            accent_state=snap.accent_state,
             target_text=self._build_target_text(robot),
             badges=self._build_effect_badges(robot),
             parts_hp=parts_hp,
@@ -288,7 +249,7 @@ class BattleViewBuilder:
         if command.target_robot:
             target_label = command.target_robot.name
             if command.target_part:
-                target_label += f" [{PART_TYPE_LABELS.get(command.target_part, '')}]"
+                target_label += f" [{command.target_part.label}]"
             return f"└> {target_label}"
 
         if not part.locks_target:
@@ -301,7 +262,7 @@ class BattleViewBuilder:
             if effect.type == EffectType.STOP:
                 text = "停止"
                 if effect.part_type:
-                    text += f" {PART_TYPE_LABELS.get(effect.part_type, '')}"
+                    text += f" {effect.part_type.label}"
                 text += f" {effect.duration:.1f}s"
                 badges.append(EffectBadgeModel(text, BadgeKind.STOP))
             elif effect.type == EffectType.BLOCK:
@@ -363,16 +324,87 @@ class BattleViewBuilder:
             preview_target_robot_indices=preview_indices,
         )
 
-    def _build_cutin(self) -> Optional[CutinModel]:
+    def _build_cutin(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> Optional[CutinModel]:
         director = self.visual.cutin_director
         if director is None:
             return None
 
-        visual_states = self.visual.visual_states
-        actor_model = _build_cutin_actor(director.actor, visual_states[director.actor])
-        target_model = _build_cutin_actor(director.target, visual_states[director.target])
+        actor_snap = snapshots[director.actor]
+        target_snap = snapshots[director.target]
 
-        return _build_cutin_model(director, actor_model, target_model)
+        actor_model = CutinActorModel(
+            team=director.actor.team,
+            part_status=actor_snap.part_break_progress,
+            accent_state=actor_snap.accent_state,
+        )
+        target_model = CutinActorModel(
+            team=director.target.team,
+            part_status=target_snap.part_break_progress,
+            accent_state=target_snap.accent_state,
+        )
+
+        return self._build_cutin_timeline(director, actor_model, target_model)
+
+    def _build_cutin_timeline(
+        self,
+        director: CutinDirector,
+        actor_model: CutinActorModel,
+        target_model: CutinActorModel,
+    ) -> CutinModel:
+        profile = director.profile
+        elapsed = director.elapsed
+        step = director.step
+        result = director.result
+
+        camera_progress: Optional[float] = None
+        if profile.camera_track is not None:
+            camera_progress = profile.camera_track.evaluate(elapsed)
+
+        if step == CutinStep.PIERCE or director.is_result_shown:
+            if profile.actor_movement is not None:
+                actor_model = dataclasses.replace(actor_model, is_visible=False, motion=None)
+            elif profile.camera_track is not None:
+                camera_progress = 1.0
+                actor_model = dataclasses.replace(actor_model, is_visible=False)
+
+            return CutinModel(
+                actor=actor_model,
+                target=target_model,
+                popup=_resolve_cutin_popup(result, step),
+                projectiles=[],
+                impacts=[],
+                camera_progress=camera_progress,
+            )
+
+        is_hit = result.success if result else False
+
+        if profile.actor_movement is not None:
+            is_visible, motion = profile.actor_movement.evaluate(elapsed)
+            actor_model = dataclasses.replace(actor_model, is_visible=is_visible, motion=motion)
+        elif camera_progress is not None:
+            is_visible = camera_progress < 1.0
+            actor_model = dataclasses.replace(actor_model, is_visible=is_visible)
+
+        projectiles = [
+            p for track in profile.projectiles
+            if (p := track.evaluate(elapsed, is_hit)) is not None
+        ]
+        impacts = [
+            i for track in profile.impacts
+            if (i := track.evaluate(elapsed, is_hit)) is not None
+        ]
+
+        show_popup = director.is_animation_finished or profile.popup.is_active(elapsed, is_hit)
+        popup = _resolve_cutin_popup(result, step) if show_popup else None
+
+        return CutinModel(
+            actor=actor_model,
+            target=target_model,
+            popup=popup,
+            projectiles=projectiles,
+            impacts=impacts,
+            camera_progress=camera_progress,
+        )
 
     def _build_overlay(self) -> Optional[OverlayModel]:
         if self.director.opening_popup_visible:
@@ -380,12 +412,3 @@ class BattleViewBuilder:
         if self.director.is_game_over:
             return OverlayModel(game_over_winner=self.ctx.winner)
         return None
-
-
-def _build_cutin_actor(robot: 'Robot', visual_state) -> CutinActorModel:
-    is_alive = visual_state.is_visually_alive
-    return CutinActorModel(
-        team=robot.team,
-        part_status=dict(visual_state.parts_break_progress),
-        accent_state=_resolve_accent_state(robot.gauge_status, is_alive, robot.is_stopped),
-    )
