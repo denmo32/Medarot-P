@@ -1,10 +1,11 @@
+# core/save_data_manager.py
 """プレイヤーの保存データ（編成など）を管理するクラス（アトミック保存・検証）"""
 
 import json
 import logging
 import os
 import tempfile
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from domain.config import PLAYER_COUNT
 from domain.constants import ALL_PART_TYPES, CustomizeSlot, PartType
 from domain.models import RobotSetup, GameDataProtocol
@@ -37,7 +38,6 @@ class SaveDataManager:
         validated = [self._validate_or_fallback_setup(i, raw_list[i] if i < len(raw_list) else {})
                      for i in range(PLAYER_COUNT)]
 
-        # 既存の内容と差分がある場合、または初回作成時のみ書き込む
         current_dict_list = [s.to_dict() for s in validated]
         if not file_existed or raw_list != current_dict_list:
             self._save_data(validated)
@@ -47,13 +47,11 @@ class SaveDataManager:
     def _validate_or_fallback_setup(self, idx: int, raw: dict) -> RobotSetup:
         name = raw.get("name") or f"機体{idx + 1}"
 
-        # メダルの検証
         medal_id = raw.get("medal", "")
         if not self.data_manager.get_medal_data(medal_id):
             avail_medals = self.data_manager.get_part_ids_for_type(CustomizeSlot.MEDAL)
             medal_id = avail_medals[idx % len(avail_medals)] if avail_medals else "medal_001"
 
-        # 各部位の検証（存在しないIDはデフォルトへ置換）
         raw_parts = raw.get("parts", {})
         part_ids: Dict[PartType, str] = {}
         for pt in ALL_PART_TYPES:
@@ -79,7 +77,7 @@ class SaveDataManager:
         except IOError as e:
             logger.error(f"セーブデータのアトミック保存に失敗しました: {e}")
 
-    def update_part(self, robot_idx: int, slot_type: CustomizeSlot, part_id: str):
+    def update_part(self, robot_idx: int, slot_type: Union[CustomizeSlot, str], part_id: str):
         """指定した機体のパーツ（またはメダル）を更新して保存"""
         if not (0 <= robot_idx < len(self.player_team)):
             return
@@ -102,7 +100,7 @@ class SaveDataManager:
             return self.player_team[robot_idx]
         return None
 
-    def get_part_id(self, robot_idx: int, slot_type: CustomizeSlot) -> str:
+    def get_part_id(self, robot_idx: int, slot_type: Union[CustomizeSlot, str]) -> str:
         setup = self.get_robot_setup(robot_idx)
         slot = CustomizeSlot.from_key(slot_type)
         if not setup or slot is None:

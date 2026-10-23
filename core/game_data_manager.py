@@ -1,3 +1,4 @@
+# core/game_data_manager.py
 """パーツ・メダルデータ管理クラス
 
 JSON 側では部位キー配下の局所ID（例: "001"）で記述し、
@@ -23,28 +24,23 @@ class GameDataManager:
         self.parts_json_path = parts_json_path or resource_path('assets/data/parts_data.json')
         self.medals_json_path = medals_json_path or resource_path('assets/data/medals_data.json')
 
-        raw_data = self._load_all_data()
+        medals_raw = self._load_json(self.medals_json_path)
+        parts_raw = self._load_json(self.parts_json_path)
 
         # メダル: 局所ID ("001") に "medal_" 接頭語を付与して内部ID化
         self._medal_instances: Dict[str, MedalData] = {
             f"{_MEDAL_ID_PREFIX}{local_id}": MedalData.from_dict(raw)
-            for local_id, raw in raw_data.get('medals', {}).items()
+            for local_id, raw in medals_raw.get('medals', {}).items()
         }
 
         # パーツ: 部位キー + 局所ID を内部ID化 ("head" + "001" -> "head_001")
-        self._parts_by_type: Dict[PartType, Dict[str, PartData]] = self._build_typed_parts(raw_data)
+        self._parts_by_type: Dict[PartType, Dict[str, PartData]] = self._build_typed_parts(parts_raw)
 
         self._part_instances: Dict[str, PartData] = {
             pid: part
             for parts in self._parts_by_type.values()
             for pid, part in parts.items()
         }
-
-    def _load_all_data(self) -> Dict:
-        data = {}
-        data.update(self._load_json(self.parts_json_path))
-        data.update(self._load_json(self.medals_json_path))
-        return data
 
     def _build_typed_parts(self, data: Dict) -> Dict[PartType, Dict[str, PartData]]:
         typed_parts: Dict[PartType, Dict[str, PartData]] = {}

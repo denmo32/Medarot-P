@@ -3,8 +3,6 @@
 
 技の対象（TargetRule）、選定時期（TargetTiming）、命中方式（HitPolicy）、
 演出（SkillPresentation）、および効果（Resolver）を一元管理する。
-攻撃系の技はターゲット指定不要（射撃・格闘のターゲットは行動形式側（domain/action_logic.py）で確定済み）。
-非攻撃系の技のみ target_timing / target_rule を定義する。
 """
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Union
@@ -32,8 +30,6 @@ from domain.models import ActionResult, EffectResolutionContext
 @dataclass(frozen=True)
 class SkillDefinition:
     """3層 Skill：技の仕様を定義するデータクラス"""
-    # 未定義の技フォールバックでは None になるため Optional
-    name: Optional[SkillType]
     skill_kind: SkillKind = SkillKind.ATTACK
     # 射撃・格闘は行動形式側で確定するため None。非攻撃系の技のみ定義する。
     target_timing: Optional[TargetTiming] = None
@@ -55,39 +51,35 @@ class SkillDefinition:
 # 全技カタログ（SkillType 全メンバーを網羅。新技はここに追記するだけ）
 SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
     # === 射撃・格闘系の技（ターゲットは行動形式側で確定済み → 指定不要） ===
-    SkillType.RIFLE: SkillDefinition(name=SkillType.RIFLE),
-    SkillType.GATLING: SkillDefinition(name=SkillType.GATLING),
+    SkillType.RIFLE: SkillDefinition(),
+    SkillType.GATLING: SkillDefinition(),
     SkillType.MISSILE: SkillDefinition(
-        name=SkillType.MISSILE,
-        hit_policy=HitPolicy.NEVER_MISS,  # 必中タグ
-        can_pierce=True,  # 非頭部破壊時の余剰ダメージが隣接部位へ貫通する
+        hit_policy=HitPolicy.NEVER_MISS,
+        can_pierce=True,
     ),
-    SkillType.SWORD: SkillDefinition(name=SkillType.SWORD),
-    SkillType.HAMMER: SkillDefinition(name=SkillType.HAMMER),
+    SkillType.SWORD: SkillDefinition(),
+    SkillType.HAMMER: SkillDefinition(),
 
     # === 制御系の技（妨害・支援） ===
     SkillType.THUNDER: SkillDefinition(
-        name=SkillType.THUNDER,
         skill_kind=SkillKind.EFFECT,
-        target_timing=TargetTiming.ON_CHARGE,  # サンダーは事前予約
+        target_timing=TargetTiming.ON_CHARGE,
         target_rule=TargetRule.ENEMY_BY_PERSONALITY,
         targets_part=True,
         presentation=SkillPresentation.LOG_ONLY,
         effect_resolver=resolve_stop_effect,
     ),
     SkillType.STUN: SkillDefinition(
-        name=SkillType.STUN,
         skill_kind=SkillKind.EFFECT,
-        target_timing=TargetTiming.ON_EXECUTE,  # スタンは直前決定
+        target_timing=TargetTiming.ON_EXECUTE,
         target_rule=TargetRule.CLOSEST_ENEMY,
         targets_part=True,
         presentation=SkillPresentation.LOG_ONLY,
         effect_resolver=resolve_stop_effect,
     ),
     SkillType.SCAN: SkillDefinition(
-        name=SkillType.SCAN,
         skill_kind=SkillKind.EFFECT,
-        target_timing=TargetTiming.NONE,  # 自身対象なので選択不要
+        target_timing=TargetTiming.NONE,
         target_rule=TargetRule.SELF,
         targets_part=False,
         hit_policy=HitPolicy.AUTO_HIT,
@@ -97,7 +89,6 @@ SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
 
     # === 防護系の技（護衛・自衛） ===
     SkillType.BLOCK: SkillDefinition(
-        name=SkillType.BLOCK,
         skill_kind=SkillKind.EFFECT,
         target_timing=TargetTiming.NONE,
         target_rule=TargetRule.SELF,
@@ -107,7 +98,6 @@ SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
         effect_resolver=resolve_block_effect,
     ),
     SkillType.PROTECT: SkillDefinition(
-        name=SkillType.PROTECT,
         skill_kind=SkillKind.EFFECT,
         target_timing=TargetTiming.NONE,
         target_rule=TargetRule.SELF,
@@ -119,7 +109,6 @@ SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
 
     # === 設置系の技（掛罠・供給） ===
     SkillType.SHOOTING_TRAP: SkillDefinition(
-        name=SkillType.SHOOTING_TRAP,
         skill_kind=SkillKind.EFFECT,
         target_timing=TargetTiming.NONE,
         target_rule=TargetRule.ENEMY_RANDOM,
@@ -129,15 +118,13 @@ SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
         effect_resolver=resolve_trap_effect,
     ),
     SkillType.COOL_PLANT: SkillDefinition(
-        name=SkillType.COOL_PLANT,
         is_implemented=False,
     ),
 
     # === 救護系の技（修復・復元） ===
     SkillType.REPAIR: SkillDefinition(
-        name=SkillType.REPAIR,
         skill_kind=SkillKind.EFFECT,
-        target_timing=TargetTiming.ON_CHARGE,  # 充填開始時に予約
+        target_timing=TargetTiming.ON_CHARGE,
         target_rule=TargetRule.FRIEND_LEAST_HP,
         targets_part=False,
         hit_policy=HitPolicy.AUTO_HIT,
@@ -145,9 +132,8 @@ SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
         effect_resolver=resolve_repair_effect,
     ),
     SkillType.RESTORE: SkillDefinition(
-        name=SkillType.RESTORE,
         skill_kind=SkillKind.EFFECT,
-        target_timing=TargetTiming.ON_CHARGE,  # 充填開始時に予約
+        target_timing=TargetTiming.ON_CHARGE,
         target_rule=TargetRule.FRIEND_ANY_BROKEN,
         targets_part=False,
         hit_policy=HitPolicy.AUTO_HIT,
@@ -156,9 +142,7 @@ SKILL_DEFINITIONS: Dict[SkillType, SkillDefinition] = {
     ),
 }
 
-# 未定義の技: 未実装扱いにすることで実行経路を遮断する
-# name は None（ログ側で「未定義の技」と表記される）。カタログのキーとしては使わない
-_UNKNOWN_SKILL = SkillDefinition(name=None, is_implemented=False)
+_UNKNOWN_SKILL = SkillDefinition(is_implemented=False)
 
 
 def get_skill_definition(skill: Union[SkillType, str, None]) -> SkillDefinition:

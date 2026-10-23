@@ -193,7 +193,7 @@ def calculate_command_menu_rects(
     start_y = int(sh * wy_ratio) + int(sh * UI_PARAMS.command_menu_top_padding_ratio)
     center_x = sw // 2
 
-    layout: List[pygame.Rect] = []
+    rects: List[pygame.Rect] = []
     for i in range(button_count):
         rect = pygame.Rect(0, 0, btn_w, btn_h)
         if i == COMMAND_MENU_HEAD_INDEX:
@@ -208,9 +208,9 @@ def calculate_command_menu_rects(
         else:
             rect.left = center_x + btn_w + btn_pad * 2
             rect.centery = start_y + btn_h + (btn_pad // 2)
-        layout.append(rect)
+        rects.append(rect)
 
-    return layout
+    return rects
 
 
 def calculate_action_label_position(screen_size: Tuple[int, int]) -> Tuple[int, int]:

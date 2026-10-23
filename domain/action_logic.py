@@ -1,3 +1,4 @@
+# domain/action_logic.py
 """2層「Action（行動形式）」のデータ駆動型振る舞いロジック。
 
 Action は「動作フォーム・リスク・リターン」のみを担う。
@@ -5,6 +6,7 @@ Action は「動作フォーム・リスク・リターン」のみを担う。
 - 格闘（殴る/我武者羅）: 直前選定 & 最前線の敵部位選定を確定
 - 非攻撃（支援/妨害等）: ターゲットは技側（domain/skills.py）に委譲
 """
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Optional, Tuple, Union
 
@@ -21,7 +23,7 @@ class OffensiveBonuses:
 @dataclass(frozen=True)
 class ActionDefinition:
     """行動形式（撃つ・殴る 等）の振る舞いを保持するデータクラス"""
-    name: str
+    name: str = ""
     time_modifier: float = 1.0
     # 射撃・格闘はここで確定。非攻撃系の行動形式は None（技側へ委ねる）
     fixed_target_timing: Optional[TargetTiming] = None
@@ -36,17 +38,15 @@ class ActionDefinition:
     is_implemented: bool = True
 
 
-# 各行動形式（Action）の定義テーブル（動作フォーム・リスク/リターンのみ。ターゲットは技に委譲）
-ACTION_DEFINITIONS: Dict[ActionType, ActionDefinition] = {
+# 各行動形式（Action）の定義テーブル（手書きでの name 二重定義を排除）
+_RAW_ACTION_DEFINITIONS: Dict[ActionType, ActionDefinition] = {
     # 射撃系: 事前予約 & 性格による敵部位選定を確定
     ActionType.SHOOT: ActionDefinition(
-        name="撃つ",
         time_modifier=0.8,
         fixed_target_timing=TargetTiming.ON_CHARGE,
         fixed_target_rule=TargetRule.ENEMY_BY_PERSONALITY,
     ),
     ActionType.AIMED_SHOT: ActionDefinition(
-        name="狙い撃ち",
         fixed_target_timing=TargetTiming.ON_CHARGE,
         fixed_target_rule=TargetRule.ENEMY_BY_PERSONALITY,
         offensive_bonus_fn=lambda mobility, defense: OffensiveBonuses(success=int(defense * 0.50)),
@@ -54,14 +54,12 @@ ACTION_DEFINITIONS: Dict[ActionType, ActionDefinition] = {
     ),
     # 格闘系: 直前選定 & 最前線の敵部位選定を確定
     ActionType.STRIKE: ActionDefinition(
-        name="殴る",
         fixed_target_timing=TargetTiming.ON_EXECUTE,
         fixed_target_rule=TargetRule.CLOSEST_ENEMY,
         offensive_bonus_fn=lambda mobility, defense: OffensiveBonuses(success=int(mobility * 0.25)),
         defensive_penalty_fn=lambda gauge_status: (True, False, False) if gauge_status == GaugeStatus.CHARGING else (False, False, False),
     ),
     ActionType.RECKLESS: ActionDefinition(
-        name="我武者羅",
         fixed_target_timing=TargetTiming.ON_EXECUTE,
         fixed_target_rule=TargetRule.CLOSEST_ENEMY,
         offensive_bonus_fn=lambda mobility, defense: OffensiveBonuses(
@@ -70,14 +68,20 @@ ACTION_DEFINITIONS: Dict[ActionType, ActionDefinition] = {
         defensive_penalty_fn=lambda gauge_status: (True, True, True) if gauge_status in (GaugeStatus.CHARGING, GaugeStatus.COOLDOWN) else (False, False, False),
     ),
     # 非攻撃系: ターゲットは技側へ委譲（fixed_* = None）
-    ActionType.DISRUPT: ActionDefinition(name="妨害"),
-    ActionType.SUPPORT: ActionDefinition(name="支援"),
-    ActionType.COVER: ActionDefinition(name="護衛"),
-    ActionType.SELF_DEFENSE: ActionDefinition(name="自衛"),
-    ActionType.HEAL: ActionDefinition(name="修復"),
-    ActionType.RECOVER: ActionDefinition(name="復元"),
-    ActionType.TRAP: ActionDefinition(name="掛罠"),
-    ActionType.PLANT: ActionDefinition(name="供給", is_implemented=False),
+    ActionType.DISRUPT: ActionDefinition(),
+    ActionType.SUPPORT: ActionDefinition(),
+    ActionType.COVER: ActionDefinition(),
+    ActionType.SELF_DEFENSE: ActionDefinition(),
+    ActionType.HEAL: ActionDefinition(),
+    ActionType.RECOVER: ActionDefinition(),
+    ActionType.TRAP: ActionDefinition(),
+    ActionType.PLANT: ActionDefinition(is_implemented=False),
+}
+
+# name は ActionType.value（日本語名）から自動注入（二重管理を排除しつつ外部からの .name 参照も保護）
+ACTION_DEFINITIONS: Dict[ActionType, ActionDefinition] = {
+    at: dataclasses.replace(defn, name=at.value)
+    for at, defn in _RAW_ACTION_DEFINITIONS.items()
 }
 
 _DEFAULT_UNKNOWN = ActionDefinition(name="未定義", is_implemented=False)

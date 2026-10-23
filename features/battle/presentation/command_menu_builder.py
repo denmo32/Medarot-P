@@ -1,8 +1,8 @@
+# features/battle/presentation/command_menu_builder.py
 """コマンドメニューの項目情報（CommandMenuItemModel）を組み立てるビルダーロジック。"""
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from domain.constants import ACTIONABLE_PART_TYPES, PartType
-from domain.action_logic import get_action_definition
 from features.battle.context import find_robot_index
 from .view_models import CommandMenuItemModel
 
@@ -45,7 +45,7 @@ def build_command_menu_items(
         items.append(CommandMenuItemModel(
             part_type=part_type,
             label=part.name,
-            action_label=get_action_definition(part.action).name,
+            action_label=part.action.value if part.action else "",
             visual_enabled=visual_enabled,
             selectable=selectable,
             preview_target_robot_index=preview_index,

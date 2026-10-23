@@ -1,3 +1,4 @@
+# features/battle/entities/commands.py
 """バトルコマンド（指示・予約）のデータクラス (Command Pattern / DTO) および実行レポート。
 
 機体の意志（予約状態）を表すため、エンティティ層に属します。
@@ -6,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
-from domain.constants import PartType, SkillKind
+from domain.constants import PartType
 from domain.models import ActionResult
 
 if TYPE_CHECKING:
@@ -36,9 +37,7 @@ class BattleCommand:
 
 @dataclass(frozen=True)
 class ExecutionReport:
-    """コマンド実行の結果を統一的に表すイミュータブルなレポート。
-    効果の適用（HP減少や状態付与）および各種ログメッセージまで完全に確定した状態で生成されます。
-    """
+    """コマンド実行の結果を統一的に表すイミュータブルなレポート。"""
     outcome: ExecutionOutcome
     result: Optional[ActionResult] = None
     target: Optional['Robot'] = None
@@ -82,8 +81,4 @@ def build_command_for_part(
     target_robot = preview_target[0] if preview_target else None
     target_part = preview_target[1] if preview_target else None
 
-    kind = part.skill_kind
-    if kind in (SkillKind.ATTACK, SkillKind.EFFECT):
-        return PartCommand(actor, part.part_type, target_robot, target_part)
-    else:
-        return SkipCommand(actor)
+    return PartCommand(actor, part.part_type, target_robot, target_part)

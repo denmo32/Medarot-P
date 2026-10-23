@@ -115,11 +115,10 @@ class Part:
     def to_combat_stats(self) -> PartCombatStats:
         return PartCombatStats(
             name=self.name,
+            medal_attr=self.medal_data.attribute,
             action=self.action,
             skill=self.skill,
             attribute=self.attribute,
-            medal_attr=self.medal_data.attribute,
-            hp=self.max_hp,
             attack=self.attack,
             base_attack=self.base_attack,
             success=self.success,

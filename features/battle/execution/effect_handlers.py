@@ -9,10 +9,8 @@ from domain.effect_payloads import (
     AppliedEffect,
     ApplyStatus,
     DamageEffect,
-    PartDamage,
     PartRepair,
     PartRestore,
-    PierceDamage,
     TrapInstall,
 )
 
@@ -125,11 +123,10 @@ def _no_log(effect: AppliedEffect, target: 'Robot') -> List[str]:
     return []
 
 
-# === 単一管理テーブル（新しい効果はここに1行追加するだけ） ===
+# === 単一管理テーブル（DamageEffect は基底で PartDamage/PierceDamage を共通解決） ===
 
 EFFECT_SPECS: Dict[Type[AppliedEffect], EffectSpec] = {
-    PartDamage: EffectSpec(apply=_apply_damage, format_log=_no_log),
-    PierceDamage: EffectSpec(apply=_apply_damage, format_log=_no_log),
+    DamageEffect: EffectSpec(apply=_apply_damage, format_log=_no_log),
     PartRepair: EffectSpec(apply=_apply_part_repair, format_log=_log_repair),
     PartRestore: EffectSpec(apply=_apply_part_restore, format_log=_log_restore),
     TrapInstall: EffectSpec(apply=_apply_trap_install, format_log=_log_trap_install),
@@ -137,9 +134,19 @@ EFFECT_SPECS: Dict[Type[AppliedEffect], EffectSpec] = {
 }
 
 
+def _resolve_spec(effect: AppliedEffect) -> Optional[EffectSpec]:
+    eff_type = type(effect)
+    if spec := EFFECT_SPECS.get(eff_type):
+        return spec
+    for registered_type, spec in EFFECT_SPECS.items():
+        if isinstance(effect, registered_type):
+            return spec
+    return None
+
+
 def dispatch_apply(effect: AppliedEffect, ctx: ApplyContext) -> Optional[AppliedEffect]:
     """効果の適用を実行する"""
-    spec = EFFECT_SPECS.get(type(effect))
+    spec = _resolve_spec(effect)
     if spec:
         return spec.apply(effect, ctx)
     return effect
@@ -147,7 +154,7 @@ def dispatch_apply(effect: AppliedEffect, ctx: ApplyContext) -> Optional[Applied
 
 def dispatch_format_log(effect: AppliedEffect, target: 'Robot') -> List[str]:
     """効果に対するログ文言を生成する"""
-    spec = EFFECT_SPECS.get(type(effect))
+    spec = _resolve_spec(effect)
     if spec:
         return spec.format_log(effect, target)
     return []

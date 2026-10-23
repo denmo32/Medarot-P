@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from domain.action_logic import ActionDefinition
 from domain.constants import (
     ACTIONABLE_PART_TYPES,
-    AttributeType,
     GaugeStatus,
     PartType,
     SkillKind,
@@ -234,16 +233,10 @@ class Robot:
     # === 戦闘スナップショットの生成 ===
 
     def to_participant(self, active_part: Optional[Part] = None) -> BattleParticipant:
-        if active_part:
-            stats = active_part.to_combat_stats()
-        else:
-            stats = PartCombatStats(
-                name=self.name,
-                action=None,
-                skill=None,
-                attribute=AttributeType.UNDEFINED,
-                medal_attr=self.medal_data.attribute,
-            )
+        stats = active_part.to_combat_stats() if active_part else PartCombatStats(
+            name=self.name,
+            medal_attr=self.medal_data.attribute,
+        )
 
         return BattleParticipant(
             stats=stats,

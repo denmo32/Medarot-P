@@ -1,3 +1,4 @@
+# domain/models.py
 """ドメインモデルのデータクラス定義"""
 import random
 from dataclasses import dataclass, field
@@ -37,8 +38,8 @@ class GameDataProtocol(Protocol):
 class SaveDataProtocol(Protocol):
     """SaveDataManager の公開インターフェースプロトコル"""
     def get_robot_setup(self, robot_idx: int) -> Optional["RobotSetup"]: ...
-    def get_part_id(self, robot_idx: int, slot_type: CustomizeSlot) -> str: ...
-    def update_part(self, robot_idx: int, slot_type: CustomizeSlot, part_id: str) -> None: ...
+    def get_part_id(self, robot_idx: int, slot_type: Union[CustomizeSlot, str]) -> str: ...
+    def update_part(self, robot_idx: int, slot_type: Union[CustomizeSlot, str], part_id: str) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -137,11 +138,10 @@ class MedalData:
 @dataclass(frozen=True)
 class PartCombatStats:
     name: str
-    action: Optional[ActionType]
-    skill: Optional[SkillType]
-    attribute: AttributeType
     medal_attr: AttributeType
-    hp: int = 0
+    action: Optional[ActionType] = None
+    skill: Optional[SkillType] = None
+    attribute: AttributeType = AttributeType.UNDEFINED
     attack: int = 0
     base_attack: int = 0
     success: int = 0
@@ -220,8 +220,7 @@ class StatusEffect:
 class ActionResult:
     """戦闘行動の判定・計算結果 DTO。
 
-    主攻撃のダメージ量や被弾部位は applied_effects 内の PartDamage オブジェクトから動的に導出されます。
-    二重管理や内部フィールドへのハック的代入を完全排除した純粋イミュータブルモデルです。
+    主攻撃のダメージ量や被弾部位は applied_effects 内の PartDamage オブジェクトから導出されます。
     """
     success: bool
     is_guarded: bool = False
@@ -231,19 +230,25 @@ class ActionResult:
     adjusted_success: int = 0
     adjusted_mobility: int = 0
     target_part: Optional[PartType] = None
+    _primary_damage: Optional[PartDamage] = field(init=False, repr=False, default=None)
+    _pierce_effect: Optional[PierceDamage] = field(init=False, repr=False, default=None)
 
     def __post_init__(self):
         if not isinstance(self.applied_effects, tuple):
             object.__setattr__(self, 'applied_effects', tuple(self.applied_effects))
+        primary = next((e for e in self.applied_effects if isinstance(e, PartDamage)), None)
+        pierce = next((e for e in self.applied_effects if isinstance(e, PierceDamage)), None)
+        object.__setattr__(self, '_primary_damage', primary)
+        object.__setattr__(self, '_pierce_effect', pierce)
 
     @property
     def primary_damage(self) -> Optional[PartDamage]:
-        return next((e for e in self.applied_effects if isinstance(e, PartDamage)), None)
+        return self._primary_damage
 
     @property
     def damage(self) -> int:
-        if primary := self.primary_damage:
-            return primary.amount
+        if self._primary_damage:
+            return self._primary_damage.amount
         trap_effect = next((e for e in self.applied_effects if isinstance(e, TrapInstall)), None)
         if trap_effect:
             return trap_effect.trap.damage
@@ -251,21 +256,21 @@ class ActionResult:
 
     @property
     def effective_damage(self) -> int:
-        return self.primary_damage.effective_damage if self.primary_damage else 0
+        return self._primary_damage.effective_damage if self._primary_damage else 0
 
     @property
     def hit_part(self) -> Optional[PartType]:
-        if self.primary_damage:
-            return self.primary_damage.part_type
+        if self._primary_damage:
+            return self._primary_damage.part_type
         return self.target_part
 
     @property
     def pierce_effect(self) -> Optional[PierceDamage]:
-        return next((e for e in self.applied_effects if isinstance(e, PierceDamage)), None)
+        return self._pierce_effect
 
     @property
     def has_pierce(self) -> bool:
-        return self.success and (self.pierce_effect is not None)
+        return self.success and (self._pierce_effect is not None)
 
 
 @dataclass(frozen=True)

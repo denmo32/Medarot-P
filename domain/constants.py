@@ -98,6 +98,10 @@ class PartType(KeyedEnum):
     def label(self) -> str:
         return _PART_LABELS.get(self, self.value)
 
+    @property
+    def display_name(self) -> str:
+        return self.label
+
 
 class CustomizeSlot(KeyedEnum):
     """カスタマイズ画面のスロット識別子"""
@@ -122,6 +126,10 @@ class CustomizeSlot(KeyedEnum):
         pt = self.part_type
         return pt.label if pt else self.value
 
+    @property
+    def display_name(self) -> str:
+        return self.label
+
 
 _PART_LABELS = {
     PartType.HEAD: "頭部",
@@ -130,13 +138,22 @@ _PART_LABELS = {
     PartType.LEGS: "脚部",
 }
 
-# 互換性維持のためのエイリアス
+# 互換性維持のためのエイリアス（CustomizeViewBuilder 等が参照）
 PART_TYPE_LABELS = {
     CustomizeSlot.MEDAL: "メダル",
+    CustomizeSlot.HEAD: "頭部",
+    CustomizeSlot.RIGHT_ARM: "右腕",
+    CustomizeSlot.LEFT_ARM: "左腕",
+    CustomizeSlot.LEGS: "脚部",
     PartType.HEAD: "頭部",
     PartType.RIGHT_ARM: "右腕",
     PartType.LEFT_ARM: "左腕",
     PartType.LEGS: "脚部",
+    "medal": "メダル",
+    "head": "頭部",
+    "right_arm": "右腕",
+    "left_arm": "左腕",
+    "legs": "脚部",
 }
 
 CUSTOMIZE_SLOTS = (
@@ -195,6 +212,10 @@ class TacticsType(_RandomFallbackEnum):
 
 
 class SkillType(KeyedEnum):
+    @classmethod
+    def _match_by_name(cls) -> bool:
+        return True
+
     RIFLE = "ライフル"
     GATLING = "ガトリング"
     MISSILE = "ミサイル"
