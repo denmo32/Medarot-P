@@ -1,4 +1,5 @@
-"""バトルのターゲティングロジックを集約するクラス（RNG 注入）。"""
+# features/battle/execution/targeting_resolver.py
+"""バトルのターゲティングロジックを集約するクラス（RNG 注入・選定と検証の一元化）。"""
 from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
 from domain.ai_logic import get_personality
@@ -8,6 +9,7 @@ from domain.targeting import select_closest_enemy
 if TYPE_CHECKING:
     from ..context import BattleContext
     from ..entities.commands import PartCommand
+    from ..entities.part import Part
     from ..entities.robot import Robot
 
 TargetSelection = Tuple[Optional["Robot"], Optional[PartType]]
@@ -15,6 +17,8 @@ Selector = Callable[["Robot", PartType], TargetSelection]
 
 
 class TargetingResolver:
+    """ターゲット選定および事前予約ターゲットの有効性検証を一元管理する"""
+
     def __init__(self, ctx: 'BattleContext'):
         self.ctx = ctx
         self._selectors: Dict[TargetRule, Selector] = {
@@ -26,40 +30,50 @@ class TargetingResolver:
             TargetRule.SELF: lambda actor, _: (actor, None),
         }
 
-    def resolve_preview_target(self, actor: 'Robot', part_type: PartType) -> Optional[TargetSelection]:
-        part = actor.get_part(part_type)
-        if not part or not part.can_execute or not part.locks_target:
-            return None
+    def resolve_target(
+        self,
+        actor: 'Robot',
+        part: 'Part',
+        existing_target: Optional['Robot'] = None,
+        existing_part: Optional[PartType] = None,
+    ) -> TargetSelection:
+        """パーツのターゲットルールに従い、ターゲットを解決または既存ターゲットを検証して返す。"""
+        if not part.can_execute:
+            return None, None
 
+        # 事前固定技で既存ターゲットが指定されている場合は、生存状態を検証
+        if part.locks_target and existing_target is not None:
+            if actor.is_target_lost(existing_target, existing_part, part.targets_part):
+                return None, None
+            return existing_target, existing_part
+
+        # 新規選定（プレビューまたは直前選定）
         selector = self._selectors.get(part.target_rule)
         if not selector:
-            return None
+            return None, None
+        return selector(actor, part.part_type)
 
-        robot, target_part = selector(actor, part_type)
-        if robot is None:
+    def resolve_preview_target(self, actor: 'Robot', part_type: PartType) -> Optional[TargetSelection]:
+        """コマンド選択画面でのプレビュー対象を導出する（事前固定技のみプレビュー表示）"""
+        part = actor.get_part(part_type)
+        if not part or not part.locks_target:
             return None
-        return robot, target_part
+        target_robot, target_part = self.resolve_target(actor, part)
+        if target_robot is None:
+            return None
+        return target_robot, target_part
 
     def resolve_execution_target(self, command: 'PartCommand') -> TargetSelection:
+        """コマンド実行時の最終的な対象（固定ターゲットの検証、または直前選定の実行）を行う"""
         actor = command.actor
         part = actor.get_part(command.part_type)
         if not part:
             return None, None
+        return self.resolve_target(
+            actor, part, existing_target=command.target_robot, existing_part=command.target_part
+        )
 
-        if not part.locks_target:
-            selector = self._selectors.get(part.target_rule)
-            return selector(actor, command.part_type) if selector else (None, None)
-
-        target_robot = command.target_robot
-        if not target_robot or not target_robot.is_alive:
-            return None, None
-
-        target_part = command.target_part
-        if part.targets_part:
-            if not target_part or not target_robot.is_part_alive(target_part):
-                return None, None
-
-        return target_robot, target_part
+    # === 各ルール別セレクター ===
 
     def select_melee_target(self, actor: 'Robot') -> TargetSelection:
         t_idx = select_closest_enemy(actor.team, self.ctx.robots)
