@@ -12,7 +12,6 @@ from .entities.atb_track import ATBEvent
 from .entities.commands import (
     BattleCommand,
     ExecutionOutcome,
-    ExecutionReport,
     SkipCommand,
     build_command_for_part,
 )
@@ -87,23 +86,19 @@ class BattleManager:
             self.ctx.winner = winner
         return is_ended
 
-    def detect_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
+    def detect_and_handle_interrupts(self) -> List[str]:
+        """充填中の割り込み（予約パーツ破壊・ターゲット喪失）を検出し、放熱へ移行させログを返す"""
         interrupts: List[Tuple[Robot, ExecutionOutcome]] = []
         for robot in self.ctx.robots:
             reason = robot.evaluate_interruption()
             if reason:
                 robot.abort_charging_to_cooldown()
                 interrupts.append((robot, reason))
-        return interrupts
 
-    def handle_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
-        interrupts = self.detect_charging_interrupts()
-        if interrupts:
-            messages: List[str] = []
-            for robot, reason in interrupts:
-                messages.extend(self.logs.interruption(robot, reason))
-            self.set_log(messages)
-        return interrupts
+        messages: List[str] = []
+        for robot, reason in interrupts:
+            messages.extend(self.logs.interruption(robot, reason))
+        return messages
 
     def get_preview_targets(self, actor: Robot) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
         return {
@@ -139,17 +134,8 @@ class BattleManager:
             return None
 
     def _handle_charged(self, actor: Robot) -> Optional[ATBTurnEvent]:
-        self.ctx.clear_log()
         report = self.executor.execute_charged(actor)
-        if report.pre_messages:
-            self.ctx.set_log(report.pre_messages)
-
         return ActionExecutedEvent(actor=actor, report=report)
-
-    def apply_execution_result(
-        self, actor: Robot, report: ExecutionReport
-    ) -> Tuple[ExecutionReport, List[str]]:
-        return self.executor.apply_execution_result(actor, report)
 
     def complete_turn(self, actor: Robot):
         actor.finish_execution_to_cooldown()

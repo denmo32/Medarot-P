@@ -18,12 +18,16 @@ class VisualCoordinator:
         self.visual_states: Dict['Robot', RobotVisualState] = {
             r: RobotVisualState(r) for r in robots
         }
-        self.cutin_director: Optional[CutinDirector] = None
+        self.cutin: Optional[CutinDirector] = None
         self.radar_director: Optional[TargetRadarDirector] = None
 
-        self.active_actor: Optional['Robot'] = None
-        self.active_target: Optional['Robot'] = None
-        self.active_report: Optional['ExecutionReport'] = None
+    @property
+    def cutin_director(self) -> Optional[CutinDirector]:
+        return self.cutin
+
+    def is_combat_active(self, robot: 'Robot') -> bool:
+        """カットイン戦闘の当事者としてアクティブ表示すべきか"""
+        return self.cutin is not None and self.cutin.is_combatant(robot)
 
     # === HP アニメーション判定 ===
 
@@ -50,10 +54,12 @@ class VisualCoordinator:
         if target_vs and primary and primary.effective_damage > 0:
             target_vs.apply_damage_target(primary.part_type, primary.effective_damage)
 
-    def stage_pierce_damage(self, target: 'Robot', report: 'ExecutionReport'):
+    def stage_pierce_damage(self, report: 'ExecutionReport'):
         """貫通ダメージの目標HPを反映する"""
-        target_vs = self.visual_states.get(target)
-        pierce = report.result.pierce_effect if report.result else None
+        if not report.target or not report.result:
+            return
+        target_vs = self.visual_states.get(report.target)
+        pierce = report.result.pierce_effect
         if target_vs and pierce and pierce.effective_damage > 0:
             target_vs.apply_damage_target(pierce.part_type, pierce.effective_damage)
 
@@ -70,31 +76,19 @@ class VisualCoordinator:
         part: Optional['Part'],
         report: 'ExecutionReport',
     ) -> CutinDirector:
-        self.active_actor = actor
-        self.active_target = target
-        self.active_report = report
-        self.cutin_director = CutinDirector.create(part=part, result=report.result)
-        return self.cutin_director
+        self.cutin = CutinDirector(actor=actor, target=target, part=part, report=report)
+        return self.cutin
 
     def update_cutin(self, dt: float):
-        if self.cutin_director:
-            self.cutin_director.update(dt)
+        if self.cutin:
+            self.cutin.update(dt)
 
     def advance_cutin(self):
-        if self.cutin_director:
-            self.cutin_director.advance()
-
-    def update_cutin_report(self, report: 'ExecutionReport'):
-        self.active_report = report
-        if self.cutin_director and report.result:
-            self.cutin_director.show_result()
-            self.cutin_director.update_final_result(report.result)
+        if self.cutin:
+            self.cutin.advance()
 
     def clear_cutin(self):
-        self.cutin_director = None
-        self.active_actor = None
-        self.active_target = None
-        self.active_report = None
+        self.cutin = None
 
     # === ターゲットレーダー演出のライフサイクル ===
 

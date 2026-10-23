@@ -15,7 +15,6 @@ from features.battle.constants import BattleTiming
 from features.battle.staging.cutin_director import CutinDirector, CutinStep
 from features.battle.staging.director import BattleDirector
 from features.battle.staging.visual_coordinator import VisualCoordinator
-from .command_menu_builder import build_command_menu_items
 from .view_models import (
     CommandMenuModel,
     BattleRenderModel,
@@ -44,7 +43,10 @@ CUTIN_POPUP_LABELS = {
 }
 
 
-def _resolve_cutin_popup(result: ActionResult, step: CutinStep) -> CutinPopupModel:
+def _resolve_cutin_popup(result: Optional[ActionResult], step: CutinStep) -> Optional[CutinPopupModel]:
+    if result is None:
+        return None
+
     if step == CutinStep.PIERCE:
         pierce = result.pierce_effect
         dmg = pierce.effective_damage if pierce else 0
@@ -105,7 +107,7 @@ def _build_cutin_model(
             camera_progress=camera_progress,
         )
 
-    is_hit = result.success
+    is_hit = result.success if result else False
 
     if profile.actor_movement is not None:
         is_visible, motion = profile.actor_movement.evaluate(elapsed)
@@ -158,7 +160,6 @@ class BattleViewBuilder:
         self.visual = visual
         self.director = director
 
-        # 不変なチーム別機体数・グループ分けのキャッシュ（毎フレームの反復ループ抑制）
         self._team_counts = {}
         for robot in ctx.robots:
             self._team_counts[robot.team] = self._team_counts.get(robot.team, 0) + 1
@@ -221,14 +222,15 @@ class BattleViewBuilder:
         return views
 
     def _build_top_status(self) -> TopStatusPanelModel:
-        combat_robots = set()
-
-        if self.visual.active_actor is not None and self.visual.active_target is not None:
-            combat_robots = {id(self.visual.active_actor), id(self.visual.active_target)}
-
         return TopStatusPanelModel(
-            player_cards=[self._build_robot_card(i, r, id(r) in combat_robots) for i, r in enumerate(self._player_robots)],
-            enemy_cards=[self._build_robot_card(i, r, id(r) in combat_robots) for i, r in enumerate(self._enemy_robots)],
+            player_cards=[
+                self._build_robot_card(i, r, self.visual.is_combat_active(r))
+                for i, r in enumerate(self._player_robots)
+            ],
+            enemy_cards=[
+                self._build_robot_card(i, r, self.visual.is_combat_active(r))
+                for i, r in enumerate(self._enemy_robots)
+            ],
         )
 
     def _build_robot_card(self, robot_index: int, robot, is_combat_active: bool = False) -> RobotStatusCardModel:
@@ -336,7 +338,7 @@ class BattleViewBuilder:
             return None
 
         actor = input_await.actor
-        items = build_command_menu_items(actor, input_await.preview_targets, self.ctx.robots)
+        items = input_await.items
         if not items:
             return None
 
@@ -356,14 +358,12 @@ class BattleViewBuilder:
 
     def _build_cutin(self) -> Optional[CutinModel]:
         director = self.visual.cutin_director
-        actor = self.visual.active_actor
-        target = self.visual.active_target
-        if director is None or actor is None or target is None:
+        if director is None:
             return None
 
         visual_states = self.visual.visual_states
-        actor_model = _build_cutin_actor(actor, visual_states[actor])
-        target_model = _build_cutin_actor(target, visual_states[target])
+        actor_model = _build_cutin_actor(director.actor, visual_states[director.actor])
+        target_model = _build_cutin_actor(director.target, visual_states[director.target])
 
         return _build_cutin_model(director, actor_model, target_model)
 

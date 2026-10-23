@@ -1,4 +1,4 @@
-"""予約済みコマンドの実行・解決を担当するエグゼキュータ（シーンフェーズ非依存）。"""
+"""予約済みコマンドの実行・確定解決を担当するエグゼキュータ（シーンフェーズ非依存）。"""
 from typing import Callable, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.combat import resolve_attack
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class CommandExecutor:
-    """戦闘コマンドの実行解決エンジン。BattlePhase に依存せず純粋な実行結果を返す。"""
+    """戦闘コマンドの実行解決エンジン。計算と世界状態（Robot/Trap）への適用を一貫して行います。"""
 
     def __init__(
         self,
@@ -38,7 +38,7 @@ class CommandExecutor:
         self.rng = rng or self.ctx.rng.random
 
     def execute_charged(self, actor: Robot) -> ExecutionReport:
-        """充填完了した機体のコマンドを実行し、結果レポートを作成する。"""
+        """充填完了した機体のコマンドを実行・適用し、完全確定した結果レポートを作成する。"""
         actor.start_execution()
 
         command = actor.current_command
@@ -59,28 +59,42 @@ class CommandExecutor:
                     pre_messages=trap_logs + fail_logs,
                 )
 
-        report = self._execute_internal(command)
-        all_pre_messages = pre_messages + list(report.pre_messages)
+        initial_report = self._execute_internal(command)
+        all_pre_messages = pre_messages + list(initial_report.pre_messages)
 
-        if report.outcome is ExecutionOutcome.PART_STOPPED:
+        if initial_report.outcome is ExecutionOutcome.PART_STOPPED:
             part_type = getattr(command, "part_type", "")
             return ExecutionReport(
-                outcome=report.outcome,
+                outcome=initial_report.outcome,
                 pre_messages=all_pre_messages + self.logs.part_stopped(actor, part_type),
             )
 
-        if report.outcome is not ExecutionOutcome.OK:
+        if initial_report.outcome is not ExecutionOutcome.OK:
             return ExecutionReport(
-                outcome=report.outcome,
-                pre_messages=all_pre_messages + self.logs.execution_failure(actor, command, report.outcome),
+                outcome=initial_report.outcome,
+                pre_messages=all_pre_messages + self.logs.execution_failure(actor, command, initial_report.outcome),
             )
 
+        # 成功時：効果（ダメージ・状態異常・トラップ等）を世界状態へ即時反映
+        applied_report = apply_action_effects(initial_report, actor, ctx=self.ctx)
+        expired_effects = actor.on_action_completed()
+
+        # 結果メッセージの生成
+        result_messages: List[str] = []
+        messages = self.logs.effect_resolution(applied_report.result, applied_report.target)
+        if messages:
+            result_messages.extend(messages)
+        for eff in expired_effects:
+            if expire_msg := self.logs.effect_expired(actor, eff):
+                result_messages.append(expire_msg)
+
         return ExecutionReport(
-            outcome=report.outcome,
-            result=report.result,
-            target=report.target,
-            intercepted_by=report.intercepted_by,
+            outcome=applied_report.outcome,
+            result=applied_report.result,
+            target=applied_report.target,
+            intercepted_by=applied_report.intercepted_by,
             pre_messages=all_pre_messages,
+            result_messages=result_messages,
         )
 
     def _check_trap(self, actor: Robot, part_type: PartType) -> Tuple[List[str], bool]:
@@ -97,25 +111,6 @@ class CommandExecutor:
             actor, part_type, triggered_trap.skill, triggered_trap.damage, is_destroyed
         )
         return logs, is_destroyed
-
-    def apply_execution_result(
-        self, actor: Robot, report: ExecutionReport
-    ) -> Tuple[ExecutionReport, List[str]]:
-        """予約されている行動効果を確定適用し、更新されたレポートとメッセージ一覧を返す"""
-        updated_report = apply_action_effects(report, actor, ctx=self.ctx)
-        expired_effects = actor.on_action_completed()
-
-        all_messages: List[str] = []
-        messages = self.logs.effect_resolution(updated_report.result, updated_report.target)
-        if messages:
-            all_messages.extend(messages)
-
-        for eff in expired_effects:
-            msg = self.logs.effect_expired(actor, eff)
-            if msg:
-                all_messages.append(msg)
-
-        return updated_report, all_messages
 
     def _execute_internal(self, command: Optional[BattleCommand]) -> ExecutionReport:
         if isinstance(command, SkipCommand):

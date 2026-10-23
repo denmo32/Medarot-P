@@ -36,12 +36,15 @@ class BattleCommand:
 
 @dataclass(frozen=True)
 class ExecutionReport:
-    """コマンド実行の結果を統一的に表すイミュータブルなレポート"""
+    """コマンド実行の結果を統一的に表すイミュータブルなレポート。
+    効果の適用（HP減少や状態付与）および各種ログメッセージまで完全に確定した状態で生成されます。
+    """
     outcome: ExecutionOutcome
     result: Optional[ActionResult] = None
     target: Optional['Robot'] = None
     intercepted_by: Optional['Robot'] = None
     pre_messages: List[str] = field(default_factory=list)
+    result_messages: List[str] = field(default_factory=list)
 
     @property
     def has_pierce(self) -> bool:
@@ -73,7 +76,6 @@ def build_command_for_part(
     preview_target: Optional[Tuple['Robot', Optional[PartType]]] = None
 ) -> BattleCommand:
     """パーツの行動形式とプレビュー対象に基づいて適切なバトルコマンドを生成する。"""
-    # 【改善】part.can_execute を使用
     if not part.can_execute:
         return SkipCommand(actor)
 

@@ -1,5 +1,5 @@
 """戦闘シーケンスの指示（Directive）および待機条件（Await）の定義。"""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Optional, TYPE_CHECKING
 from domain.constants import PartType
 from core.inputs import InputState
@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from features.battle.entities.part import Part
     from features.battle.entities.robot import Robot
     from features.battle.events import ATBTurnEvent
+    from features.battle.presentation.view_models import CommandMenuItemModel
     from features.battle.staging.director import BattleDirector
 
 
@@ -52,7 +53,6 @@ class StageDamage(Directive):
 
 @dataclass(frozen=True)
 class AdvanceCutinPierce(Directive):
-    target: 'Robot'
     report: 'ExecutionReport'
 
 
@@ -148,6 +148,7 @@ class AwaitCutin(Await):
 class AwaitPlayerInput(Await):
     actor: 'Robot'
     preview_targets: dict
+    items: List['CommandMenuItemModel'] = field(default_factory=list)
     _selected_part: Optional[PartType] = None
     _is_submitted: bool = False
 

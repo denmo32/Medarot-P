@@ -6,10 +6,7 @@ from core.constants import SceneId
 from features.battle.factory import BattleFactory
 from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 from features.battle.manager import BattleManager
-from features.battle.presentation.command_menu_builder import (
-    build_command_menu_items,
-    to_selectable_mask,
-)
+from features.battle.presentation.command_menu_builder import to_selectable_mask
 from features.battle.presentation.view_builder import BattleViewBuilder
 from features.battle.staging.director import BattleDirector
 from features.battle.staging.visual_coordinator import VisualCoordinator
@@ -59,9 +56,7 @@ class BattleScene(Scene):
         return SceneTransition.stay()
 
     def _handle_command_input(self, input_state, input_await):
-        items = build_command_menu_items(
-            input_await.actor, input_await.preview_targets, self.manager.robots
-        )
+        items = input_await.items
         if not items:
             return
 

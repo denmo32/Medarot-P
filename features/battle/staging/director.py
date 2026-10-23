@@ -7,6 +7,7 @@ from features.battle.entities.commands import ExecutionOutcome, ExecutionReport
 from features.battle.entities.robot import Robot
 from features.battle.events import ActionExecutedEvent, BattleEndedEvent, PlayerInputRequiredEvent
 from features.battle.manager import BattleManager
+from features.battle.presentation.command_menu_builder import build_command_menu_items
 from features.battle.staging.directives import (
     AdvanceCutinPierce,
     Await,
@@ -116,9 +117,8 @@ class BattleDirector:
             self.visual.start_cutin(d.actor, d.target, d.part, d.report)
         elif isinstance(d, StageDamage):
             self.visual.stage_primary_damage(d.report)
-            self.visual.update_cutin_report(d.report)
         elif isinstance(d, AdvanceCutinPierce):
-            self.visual.stage_pierce_damage(d.target, d.report)
+            self.visual.stage_pierce_damage(d.report)
             self.visual.advance_cutin()
         elif isinstance(d, ClearCutin):
             self.visual.clear_cutin()
@@ -155,12 +155,14 @@ class BattleDirector:
 
     def _run_player_input(self, actor: Robot) -> Generator:
         preview_targets = self.manager.get_preview_targets(actor)
-        selected_part = yield AwaitPlayerInput(actor=actor, preview_targets=preview_targets)
+        items = build_command_menu_items(actor, preview_targets, self.manager.robots)
+        selected_part = yield AwaitPlayerInput(actor=actor, preview_targets=preview_targets, items=items)
         self.manager.select_command(actor, selected_part)
 
     def _run_action(self, actor: Robot, report: ExecutionReport) -> Generator:
         part = actor.current_part
 
+        # 失敗・不発時
         if report.outcome is not ExecutionOutcome.OK:
             if report.pre_messages:
                 yield ShowLog(report.pre_messages)
@@ -170,8 +172,8 @@ class BattleDirector:
 
         # 1. ターゲットレーダー演出
         if report.target:
-            actor_idx = self.manager.find_robot_index(actor)  # 攻撃側機体のインデックス
-            target_idx = self.manager.find_robot_index(report.target)  # 対象機体のインデックス
+            actor_idx = self.manager.find_robot_index(actor)
+            target_idx = self.manager.find_robot_index(report.target)
             if actor_idx is not None and target_idx is not None:
                 yield StartRadar(actor_idx, target_idx)
                 yield AwaitTime(BattleTiming.TARGET_INDICATION)
@@ -181,35 +183,32 @@ class BattleDirector:
             yield ShowLog(self.manager.logs.declaration(actor, part))
             yield AwaitUserConfirm()
 
-        # 3. 演出とダメージ適用
+        # 3. 演出とダメージ適用（report は既に確定済み）
         if part and part.presentation == SkillPresentation.CUTIN and report.target:
             yield StartCutin(actor, report.target, part, report)
             yield AwaitCutin()
 
-            updated_report, messages = self.manager.apply_execution_result(actor, report)
-            yield StageDamage(updated_report)
-            if messages:
-                yield ShowLog(messages)
+            yield StageDamage(report)
+            if report.result_messages:
+                yield ShowLog(report.result_messages)
             yield AwaitUserConfirm()
 
-            if updated_report.has_pierce and updated_report.target:
+            if report.has_pierce and report.target:
                 yield ShowLog(self.manager.logs.pierce())
-                yield AdvanceCutinPierce(updated_report.target, updated_report)
+                yield AdvanceCutinPierce(report)
                 yield AwaitHpAnimation()
                 yield AwaitUserConfirm()
 
             yield ClearCutin()
 
         elif part and part.presentation == SkillPresentation.LOG_ONLY:
-            updated_report, messages = self.manager.apply_execution_result(actor, report)
-            yield StageDamage(updated_report)
-            if messages:
-                yield ShowLog(messages)
+            yield StageDamage(report)
+            if report.result_messages:
+                yield ShowLog(report.result_messages)
             yield AwaitHpAnimation()
             yield AwaitUserConfirm()
         else:
-            updated_report, _ = self.manager.apply_execution_result(actor, report)
-            yield StageDamage(updated_report)
+            yield StageDamage(report)
             yield AwaitHpAnimation()
 
         # レーダー終了とターンの総合後処理
@@ -223,8 +222,9 @@ class BattleDirector:
         if self.manager.check_battle_end():
             return
 
-        interrupts = self.manager.handle_charging_interrupts()
-        if interrupts:
+        interrupt_logs = self.manager.detect_and_handle_interrupts()
+        if interrupt_logs:
+            yield ShowLog(interrupt_logs)
             yield AwaitUserConfirm()
 
         self.manager.clear_log()
