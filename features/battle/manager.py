@@ -51,14 +51,6 @@ class BattleManager:
     # === 外部公開プロパティ（カプセル化） ===
 
     @property
-    def current_actor(self) -> Optional[Robot]:
-        return self.ctx.current_actor
-
-    @property
-    def current_report(self) -> Optional[ExecutionReport]:
-        return self.ctx.current_report
-
-    @property
     def robots(self) -> List[Robot]:
         return self.ctx.robots
 
@@ -80,11 +72,10 @@ class BattleManager:
     def set_log(self, messages: Sequence[str]):
         self.ctx.set_log(messages)
 
-    def set_declaration_log(self):
-        """現在のアクターの行動・技宣言ログを設定する"""
-        actor = self.ctx.current_actor
-        part = actor.current_part if actor else None
-        if not actor or not part:
+    def set_declaration_log(self, actor: Robot):
+        """アクターの行動・技宣言ログを設定する"""
+        part = actor.current_part
+        if not part:
             return
         if not part.is_implemented:
             action_label = part.action.value if part.action else "未定義"
@@ -109,8 +100,8 @@ class BattleManager:
     def check_battle_end(self) -> bool:
         if self.ctx.winner:
             return True
-        snapshots = [r.get_snapshot(i) for i, r in enumerate(self.ctx.robots)]
-        is_ended, winner = check_battle_end(snapshots)
+        # スナップショットを生成せず、直接 robots を渡す
+        is_ended, winner = check_battle_end(self.ctx.robots)
         if is_ended:
             self.ctx.winner = winner
         return is_ended
@@ -177,25 +168,22 @@ class BattleManager:
 
     def _handle_charged(self, actor: Robot) -> Optional[ATBTurnEvent]:
         """充填完了時の処理：コマンド実行を行い、結果イベントを返す"""
-        self.ctx.current_actor = actor
         self.ctx.clear_log()
-        self.ctx.current_report = None
-
         report = self.executor.execute_charged(actor)
         if report.pre_messages:
             self.ctx.set_log(report.pre_messages)
 
-        self.ctx.current_report = report
         return ActionExecutedEvent(actor=actor, report=report)
 
-    def apply_execution_result(self) -> List[str]:
-        """保留中の行動効果を確定適用し、表示すべきログメッセージ一覧を返す"""
-        return self.executor.apply_execution_result()
+    def apply_execution_result(
+        self, actor: Robot, report: ExecutionReport
+    ) -> Tuple[ExecutionReport, List[str]]:
+        """保留中の行動効果を確定適用し、更新されたレポートとメッセージ一覧を返す"""
+        return self.executor.apply_execution_result(actor, report)
 
-    def complete_execution(self):
-        """行動完了時のクリーンアップ。レポートおよび現在アクターの参照を解除する。"""
-        self.ctx.current_report = None
-        self.ctx.current_actor = None
+    def complete_turn(self, actor: Robot):
+        """ターンの総合完了処理。機体を放熱（クールダウン）へ移行させる。"""
+        actor.finish_execution_to_cooldown()
 
     def select_command_slot(self, actor: Robot, slot: CommandSlot) -> bool:
         """プレイヤーのコマンド選択を検証・確定する。受理できた場合は True を返す。"""

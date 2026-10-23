@@ -38,12 +38,13 @@ class CommandExecutor:
         self.rng = rng or self.ctx.rng.random
 
     def execute_charged(self, actor: Robot) -> ExecutionReport:
-        """充填完了した機体のコマンドを実行し、結果レポートを作成する。"""
+        """充填完了した機体のコマンドを実行し、結果レポートを作成する。
+        （ATBの放熱移行はターン完了フェーズで一括管理するため、ここでは行わない）
+        """
         actor.start_execution()
 
         command = actor.current_command
         if isinstance(command, SkipCommand):
-            actor.finish_execution_to_cooldown()
             return ExecutionReport(
                 outcome=ExecutionOutcome.SKIPPED,
                 pre_messages=self.logs.skipped(actor),
@@ -54,7 +55,6 @@ class CommandExecutor:
             trap_logs, is_destroyed = self._check_trap(actor, command.part_type)
             pre_messages.extend(trap_logs)
             if is_destroyed:
-                actor.finish_execution_to_cooldown()
                 fail_logs = self.logs.execution_failure(actor, command, ExecutionOutcome.TRAP_DESTROYED)
                 return ExecutionReport(
                     outcome=ExecutionOutcome.TRAP_DESTROYED,
@@ -66,20 +66,17 @@ class CommandExecutor:
 
         if report.outcome is ExecutionOutcome.PART_STOPPED:
             part_type = getattr(command, "part_type", "")
-            actor.finish_execution_to_cooldown()
             return ExecutionReport(
                 outcome=report.outcome,
                 pre_messages=all_pre_messages + self.logs.part_stopped(actor, part_type),
             )
 
         if report.outcome is not ExecutionOutcome.OK:
-            actor.finish_execution_to_cooldown()
             return ExecutionReport(
                 outcome=report.outcome,
                 pre_messages=all_pre_messages + self.logs.execution_failure(actor, command, report.outcome),
             )
 
-        # 成功時: レポートをそのまま返す（フェーズ遷移は Flow が判断）
         return ExecutionReport(
             outcome=report.outcome,
             result=report.result,
@@ -97,24 +94,17 @@ class CommandExecutor:
         )
         return logs, is_destroyed
 
-    def apply_execution_result(self) -> List[str]:
-        """予約されている行動効果を確定適用し、後処理を行い、表示すべきログメッセージ一覧を返す"""
-        report = self.ctx.current_report
-        actor = self.ctx.current_actor
-        if report is None or actor is None:
-            return []
-
+    def apply_execution_result(
+        self, actor: Robot, report: ExecutionReport
+    ) -> Tuple[ExecutionReport, List[str]]:
+        """予約されている行動効果を確定適用し、更新されたレポートとメッセージ一覧を返す"""
         # Step 1: 行動効果の確定適用（世界状態の更新）
         updated_report = apply_action_effects(report, actor, ctx=self.ctx)
-        self.ctx.current_report = updated_report
 
         # Step 2: アクター機体の事後処理（回数制バフ消費など）
         expired_effects = actor.on_action_completed()
 
-        # Step 3: 放熱（クールダウン）への遷移
-        actor.finish_execution_to_cooldown()
-
-        # Step 4: 結果ログの構築
+        # Step 3: 結果ログの構築
         all_messages: List[str] = []
         messages = self.logs.effect_resolution(updated_report.result, updated_report.target)
         if messages:
@@ -125,7 +115,7 @@ class CommandExecutor:
             if msg:
                 all_messages.append(msg)
 
-        return all_messages
+        return updated_report, all_messages
 
     def _execute_internal(self, command: Optional[BattleCommand]) -> ExecutionReport:
         if isinstance(command, SkipCommand):

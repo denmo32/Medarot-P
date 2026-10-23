@@ -7,25 +7,32 @@ from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
-    from domain.models import ActionResult
     from ..entities.commands import ExecutionReport
     from ..entities.part import Part
     from ..entities.robot import Robot
 
 
-def _build_damage_visual_steps(report: 'ExecutionReport') -> List[Dict[PartType, float]]:
-    """ExecutionReport から視覚演出（多段階HP変動など）のステップリストを生成する純粋関数"""
+def _build_damage_visual_steps(
+    report: 'ExecutionReport', visual_state: RobotVisualState
+) -> List[Dict[PartType, float]]:
+    """ExecutionReport の効果量から論理モデルの現在値に依存しない視覚ステップを生成する"""
     if not report.target or not report.result or not report.result.success:
         return []
 
     steps: List[Dict[PartType, float]] = []
+    current_targets = dict(visual_state.parts_target_hp)
+
     hit_part = report.result.hit_part
-    if hit_part:
-        steps.append({hit_part: float(report.target.get_part_hp(hit_part))})
+    if hit_part and report.result.effective_damage > 0:
+        new_hp = max(0.0, current_targets.get(hit_part, 0.0) - report.result.effective_damage)
+        steps.append({hit_part: new_hp})
+        current_targets[hit_part] = new_hp
 
     pierce = report.pierce_effect
-    if pierce:
-        steps.append({pierce.part_type: float(report.target.get_part_hp(pierce.part_type))})
+    if pierce and pierce.effective_damage > 0:
+        new_hp = max(0.0, current_targets.get(pierce.part_type, 0.0) - pierce.effective_damage)
+        steps.append({pierce.part_type: new_hp})
+        current_targets[pierce.part_type] = new_hp
 
     return steps
 
@@ -39,6 +46,11 @@ class VisualCoordinator:
         }
         self.cutin_director: Optional[CutinDirector] = None
         self.radar_director: Optional[TargetRadarDirector] = None
+
+        # 現在演出中の戦闘ペアとレポート（Presentation層への提供用）
+        self.active_actor: Optional['Robot'] = None
+        self.active_target: Optional['Robot'] = None
+        self.active_report: Optional['ExecutionReport'] = None
 
     # === HP アニメーション判定 ===
 
@@ -58,9 +70,11 @@ class VisualCoordinator:
 
     def stage_damage(self, report: 'ExecutionReport'):
         if report and report.target:
-            steps = _build_damage_visual_steps(report)
-            if steps:
-                self.visual_states[report.target].stage_damage_steps(steps)
+            target_vs = self.visual_states.get(report.target)
+            if target_vs:
+                steps = _build_damage_visual_steps(report, target_vs)
+                if steps:
+                    target_vs.stage_damage_steps(steps)
 
     def advance_damage_step(self, target: 'Robot'):
         if target in self.visual_states:
@@ -72,7 +86,16 @@ class VisualCoordinator:
 
     # === カットイン演出のライフサイクル ===
 
-    def start_cutin(self, part: Optional['Part'], report: 'ExecutionReport') -> CutinDirector:
+    def start_cutin(
+        self,
+        actor: 'Robot',
+        target: 'Robot',
+        part: Optional['Part'],
+        report: 'ExecutionReport',
+    ) -> CutinDirector:
+        self.active_actor = actor
+        self.active_target = target
+        self.active_report = report
         self.cutin_director = CutinDirector.create(part=part, result=report.result)
         return self.cutin_director
 
@@ -84,13 +107,17 @@ class VisualCoordinator:
         if self.cutin_director:
             self.cutin_director.advance()
 
-    def update_cutin_result(self, result: 'ActionResult'):
-        if self.cutin_director:
+    def update_cutin_report(self, report: 'ExecutionReport'):
+        self.active_report = report
+        if self.cutin_director and report.result:
             self.cutin_director.show_result()
-            self.cutin_director.update_final_result(result)
+            self.cutin_director.update_final_result(report.result)
 
     def clear_cutin(self):
         self.cutin_director = None
+        self.active_actor = None
+        self.active_target = None
+        self.active_report = None
 
     # === ターゲットレーダー演出のライフサイクル ===
 

@@ -220,12 +220,9 @@ class BattleViewBuilder:
         robots = self.ctx.robots
         combat_robots = set()
 
-        if self.visual.cutin_director is not None:
-            actor = self.ctx.current_actor
-            report = self.ctx.current_report
-            target = report.target if report else None
-            if actor is not None and target is not None:
-                combat_robots = {id(actor), id(target)}
+        # VisualCoordinator の active_actor / active_target からハイライト対象を直接特定
+        if self.visual.active_actor is not None and self.visual.active_target is not None:
+            combat_robots = {id(self.visual.active_actor), id(self.visual.active_target)}
 
         player_robots = [r for r in robots if r.team == TeamType.PLAYER]
         enemy_robots = [r for r in robots if r.team == TeamType.ENEMY]
@@ -360,16 +357,14 @@ class BattleViewBuilder:
 
     def _build_cutin(self) -> Optional[CutinModel]:
         director = self.visual.cutin_director
-        if director is None:
-            return None
-        actor = self.ctx.current_actor
-        report = self.ctx.current_report
-        if not (actor and report and report.target):
+        actor = self.visual.active_actor
+        target = self.visual.active_target
+        if director is None or actor is None or target is None:
             return None
 
         visual_states = self.visual.visual_states
         actor_model = _build_cutin_actor(actor, visual_states[actor])
-        target_model = _build_cutin_actor(report.target, visual_states[report.target])
+        target_model = _build_cutin_actor(target, visual_states[target])
 
         return _build_cutin_model(director, actor_model, target_model)
 

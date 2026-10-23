@@ -28,7 +28,7 @@ class ShowLog(Directive):
 
 @dataclass(frozen=True)
 class ShowDeclaration(Directive):
-    pass
+    actor: 'Robot'
 
 
 @dataclass(frozen=True)
@@ -49,14 +49,15 @@ class ClearRadar(Directive):
 
 @dataclass(frozen=True)
 class StartCutin(Directive):
+    actor: 'Robot'
+    target: 'Robot'
     part: Optional['Part']
     report: 'ExecutionReport'
 
 
 @dataclass(frozen=True)
 class StageDamage(Directive):
-    """最新の行動結果（確定後レポート）に基づいて演出へダメージを反映する指示"""
-    pass
+    report: 'ExecutionReport'
 
 
 @dataclass(frozen=True)

@@ -2,14 +2,14 @@
 
 from typing import Optional, Sequence, Tuple
 from domain.constants import TeamType
-from domain.models import RobotSnapshot
+from domain.models import CombatantLeaderProtocol
 
 
-def check_battle_end(robots_status: Sequence[RobotSnapshot]) -> Tuple[bool, Optional[TeamType]]:
+def check_battle_end(combatants: Sequence[CombatantLeaderProtocol]) -> Tuple[bool, Optional[TeamType]]:
     """
-    現在の機体状況（RobotSnapshot一覧）からバトルの終了判定を行う。
+    現在の機体状況（リーダー判定が可能なオブジェクト一覧）からバトルの終了判定を行う。
     """
-    alive_leaders = {r.team for r in robots_status if r.is_leader and r.is_alive}
+    alive_leaders = {c.team for c in combatants if c.is_leader and c.is_alive}
 
     if TeamType.PLAYER not in alive_leaders:
         return True, TeamType.ENEMY

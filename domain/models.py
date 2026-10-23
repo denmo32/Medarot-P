@@ -12,6 +12,20 @@ if TYPE_CHECKING:
     from domain.action_logic import ActionDefinition
 
 
+class CombatantLeaderProtocol(Protocol):
+    """勝敗判定に必要な機体情報の最小プロトコル"""
+    team: TeamType
+    is_leader: bool
+    is_alive: bool
+
+
+class CombatantTargetProtocol(Protocol):
+    """距離ベースのターゲット選定に必要な機体情報の最小プロトコル"""
+    team: TeamType
+    is_alive: bool
+    position: float
+
+
 class GameDataProtocol(Protocol):
     """GameDataManager の公開インターフェースプロトコル"""
     def get_part_data(self, part_id: str) -> Optional["PartData"]: ...
@@ -107,7 +121,6 @@ class MedalData:
     nickname: str
     personality: PersonalityType = PersonalityType.RANDOM
     attribute: AttributeType = AttributeType.UNDEFINED
-    # 熟練度データ（※第4層定義。現状の戦闘計算では未配線のため将来の拡張タスク）
     proficiency: Dict[str, int] = field(default_factory=dict)
 
     @classmethod
@@ -161,7 +174,6 @@ class EffectResolutionContext:
     attacker_success: int
     target_mobility: int
     skill: Optional[SkillType] = None
-    # 熟練度ボーナス（※現状は未配線のため 0 固定）
     proficiency_bonus: int = 0
     target_parts_hp: Dict[PartType, int] = field(default_factory=dict)
     target_parts_max_hp: Dict[PartType, int] = field(default_factory=dict)

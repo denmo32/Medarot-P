@@ -1,12 +1,9 @@
 """バトルの状態を一元管理するコンテキストクラス（RNG 一元化・純粋ドメイン状態）。"""
 import random
-from typing import List, Optional, Sequence, TYPE_CHECKING
+from typing import List, Optional, Sequence
 from domain.constants import TeamType
 from domain.traps import TrapManager
 from .entities.robot import Robot
-
-if TYPE_CHECKING:
-    from .entities.commands import ExecutionReport
 
 
 def find_robot_index(robots: Sequence[Robot], target: Optional[Robot]) -> Optional[int]:
@@ -20,6 +17,8 @@ def find_robot_index(robots: Sequence[Robot], target: Optional[Robot]) -> Option
 
 
 class BattleContext:
+    """戦闘全体のセッション状態を保持するコンテキスト"""
+
     def __init__(self, robots: List[Robot], seed: Optional[int] = None):
         self.robots = robots
 
@@ -27,9 +26,6 @@ class BattleContext:
         self.rng = random.Random(self.seed)
 
         self._battle_log: List[str] = []
-        self.current_actor: Optional[Robot] = None  # 行動実行中のアクター機体
-        self.current_report: Optional['ExecutionReport'] = None
-
         self.winner: Optional[TeamType] = None
         self.traps = TrapManager()
 

@@ -64,8 +64,8 @@ class TargetingResolver:
         return target_robot, target_part
 
     def select_melee_target(self, actor: 'Robot') -> TargetSelection:
-        robots_data = [r.get_snapshot(i) for i, r in enumerate(self.ctx.robots)]
-        t_idx = select_closest_enemy(actor.team, robots_data)
+        # スナップショットを生成せず、プロトコルを満たす self.ctx.robots を直接渡す
+        t_idx = select_closest_enemy(actor.team, self.ctx.robots)
         if t_idx is None:
             return None, None
 
