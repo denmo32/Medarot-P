@@ -1,3 +1,4 @@
+# features/battle/entities/robot.py
 """機体 (Robot) の集約ルートエンティティ定義。"""
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
@@ -29,11 +30,7 @@ if TYPE_CHECKING:
 
 
 class Robot:
-    """機体（メダロット）の集約ルート。
-
-    配下のパーツ・状態異常・ATBゲージの整合性をカプセル化し、
-    外部に環境データを要求せず、純粋に機体の振る舞いを通じて状態を管理する。
-    """
+    """機体（メダロット）の集約ルート。"""
 
     def __init__(
         self,
@@ -62,13 +59,14 @@ class Robot:
     @property
     def is_charging(self) -> bool: return self.atb.status == GaugeStatus.CHARGING
     @property
+    def is_cooling(self) -> bool: return self.atb.status == GaugeStatus.COOLDOWN
+    @property
     def head(self) -> Optional[Part]: return self._parts.get(PartType.HEAD)
     @property
     def legs(self) -> Optional[Part]: return self._parts.get(PartType.LEGS)
 
     @property
     def is_alive(self) -> bool:
-        """頭部パーツが存在し、生存しているか"""
         return self.head is not None and self.head.is_alive
 
     @property
@@ -124,7 +122,7 @@ class Robot:
 
     def get_target_parts_info(self) -> Dict[PartType, TargetPartInfo]:
         return {
-            pt: TargetPartInfo(hp=p.hp, attack=p.attack or 0, mobility=p.mobility)
+            pt: TargetPartInfo(hp=p.hp, attack=p.attack, mobility=p.mobility)
             for pt, p in self._parts.items()
             if p.is_alive
         }
@@ -140,16 +138,18 @@ class Robot:
         cmd = self.current_part_command
         return self._parts.get(cmd.part_type) if cmd else None
 
-    # === ATB ライフサイクル ===
+    # === ライフサイクル（ATB進行とEffect進行を明確に分離） ===
 
-    def tick(self, dt: float) -> Optional[ATBEvent]:
+    def tick_atb(self, dt: float) -> Optional[ATBEvent]:
+        """ATBゲージ時間を進行させ、端到達イベントを返す"""
         if not self.is_alive:
             return None
-
-        if self.atb.status in (GaugeStatus.CHARGING, GaugeStatus.COOLDOWN):
-            self.effects.update(dt)
-
         return self.atb.advance(dt, is_paused=self.is_stopped)
+
+    def tick_effects(self, dt: float):
+        """充填または放熱中の効果時間を進行させる"""
+        if self.is_alive and (self.is_charging or self.is_cooling):
+            self.effects.update(dt)
 
     def set_command(self, command: 'BattleCommand'):
         self.current_command = command
@@ -195,7 +195,17 @@ class Robot:
             return None, ExecutionOutcome.PART_STOPPED
         return part, ExecutionOutcome.OK
 
+    def is_target_lost(self, target_robot: Optional['Robot'], target_part: Optional[PartType], targets_part: bool) -> bool:
+        """指定されたターゲットが喪失（撃沈または指定部位破壊）しているかを判定"""
+        if not target_robot or not target_robot.is_alive:
+            return True
+        if targets_part and target_part:
+            if not target_robot.is_part_alive(target_part):
+                return True
+        return False
+
     def evaluate_interruption(self) -> Optional[ExecutionOutcome]:
+        """充填中の割り込み（予約パーツ破壊または予約ターゲット喪失）を評価"""
         if not self.is_alive or not self.is_charging:
             return None
 
@@ -208,12 +218,8 @@ class Robot:
             return ExecutionOutcome.RESERVED_PART_DESTROYED
 
         if part.locks_target:
-            target = cmd.target_robot
-            if target and not target.is_alive:
+            if self.is_target_lost(cmd.target_robot, cmd.target_part, part.targets_part):
                 return ExecutionOutcome.TARGET_LOST
-            if part.targets_part and cmd.target_part:
-                if not target or not target.is_part_alive(cmd.target_part):
-                    return ExecutionOutcome.TARGET_LOST
 
         return None
 

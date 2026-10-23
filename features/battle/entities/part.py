@@ -1,3 +1,4 @@
+# features/battle/entities/part.py
 """パーツ個別の性能計算、状態管理、HP変動を自律して担うエンティティ。"""
 from typing import Optional
 from domain.action_logic import ActionDefinition, get_action_definition
@@ -42,9 +43,11 @@ class Part:
         self.max_hp: int = data.hp + self.bonuses.hp_add
         self.hp: int = self.max_hp
 
-    # === プロパティ ===
+    # === 基本プロパティ ===
     @property
     def name(self) -> str: return self.data.name
+    @property
+    def label(self) -> str: return self.part_type.label
     @property
     def action(self) -> Optional[ActionType]: return self.data.action
     @property
@@ -87,21 +90,18 @@ class Part:
     def can_execute(self) -> bool:
         return self.is_alive and self.is_implemented
 
+    # === ターゲティング規則の統合導出 ===
     @property
     def target_timing(self) -> TargetTiming:
         if self.action_def.fixed_target_timing is not None:
             return self.action_def.fixed_target_timing
-        if self.skill_def.target_timing is not None:
-            return self.skill_def.target_timing
-        return TargetTiming.NONE
+        return self.skill_def.target_timing or TargetTiming.NONE
 
     @property
     def target_rule(self) -> TargetRule:
         if self.action_def.fixed_target_rule is not None:
             return self.action_def.fixed_target_rule
-        if self.skill_def.target_rule is not None:
-            return self.skill_def.target_rule
-        return TargetRule.SELF
+        return self.skill_def.target_rule or TargetRule.SELF
 
     @property
     def locks_target(self) -> bool:
@@ -113,7 +113,6 @@ class Part:
         return max(0.001, base_t * self.time_modifier)
 
     def to_combat_stats(self) -> PartCombatStats:
-        """現在のパーツとメダルから計算層へ渡す戦闘ステータス集約を生成する"""
         return PartCombatStats(
             name=self.name,
             action=self.action,
@@ -132,20 +131,17 @@ class Part:
         )
 
     def resolve_effect(self, context: EffectResolutionContext) -> ActionResult:
-        """技の効果を解決する（SkillDefinition への委譲）"""
         return self.skill_def.resolve_effect(context)
 
-    # === HP操作（自律的な状態変更） ===
+    # === HP操作 ===
 
     def take_damage(self, amount: int) -> bool:
-        """ダメージを受け、この攻撃で破壊されたかを返す"""
         if not self.is_alive:
             return False
         self.hp = max(0, self.hp - amount)
         return self.hp == 0
 
     def repair(self, amount: int) -> int:
-        """パーツのHPを回復し、実際の回復量を返す"""
         if not self.is_alive:
             return 0
         actual = min(amount, self.max_hp - self.hp)
@@ -153,7 +149,6 @@ class Part:
         return actual
 
     def restore(self, initial_hp: int = 1) -> bool:
-        """破壊されたパーツを復活させる"""
         if self.is_alive:
             return False
         self.hp = max(1, min(initial_hp, self.max_hp))
