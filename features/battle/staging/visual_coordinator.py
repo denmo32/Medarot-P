@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
 
 from domain.constants import PartType
-from .cutin_director import CutinDirector, CutinEvent
+from .cutin_director import CutinDirector
 from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
 
@@ -78,15 +78,13 @@ class VisualCoordinator:
         self.cutin_director = CutinDirector.create(part=part, result=result, has_pierce=has_pierce)
         return self.cutin_director
 
-    def update_cutin(self, dt: float) -> List[CutinEvent]:
+    def update_cutin(self, dt: float):
         if self.cutin_director:
-            return self.cutin_director.update(dt)
-        return []
+            self.cutin_director.update(dt)
 
-    def advance_cutin(self) -> List[CutinEvent]:
+    def advance_cutin(self):
         if self.cutin_director:
-            return self.cutin_director.advance()
-        return [CutinEvent.COMPLETED]
+            self.cutin_director.advance()
 
     def update_cutin_result(self, result: 'ActionResult'):
         if self.cutin_director:

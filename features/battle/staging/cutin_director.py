@@ -1,20 +1,18 @@
 """カットイン演出の時間軸・ステップ進行を一元管理するディレクター。"""
-from enum import Enum, auto
-from typing import List, Optional, TYPE_CHECKING
+from enum import Enum
+from typing import Optional, TYPE_CHECKING
 
 from domain.models import ActionResult
-from ..constants import CutinStep
 from .cutin_timeline import CutinProfile, resolve_cutin_profile
 
 if TYPE_CHECKING:
     from ..entities.part import Part
 
 
-class CutinEvent(Enum):
-    """カットイン演出のライフサイクルイベント"""
-    ANIMATION_FINISHED = auto()
-    PIERCE_ADVANCED = auto()
-    COMPLETED = auto()
+class CutinStep(str, Enum):
+    """カットイン演出のステップ（第1段階：主攻撃、第2段階：貫通）"""
+    PRIMARY = "primary"
+    PIERCE = "pierce"
 
 
 class CutinDirector:
@@ -35,7 +33,6 @@ class CutinDirector:
         self._step = CutinStep.PRIMARY
         self._elapsed = 0.0
         self._is_result_shown = False
-        self._anim_finished_dispatched = False
 
     @classmethod
     def create(
@@ -75,31 +72,24 @@ class CutinDirector:
     def is_animation_finished(self) -> bool:
         return self._elapsed >= self._duration
 
-    def update(self, dt: float) -> List[CutinEvent]:
-        events: List[CutinEvent] = []
+    def update(self, dt: float):
+        """アニメーション時間を進行させる"""
         if not self._is_result_shown and not self.is_animation_finished:
             self._elapsed = min(self._duration, self._elapsed + dt)
 
-        if self.is_animation_finished and not self._anim_finished_dispatched:
-            self._anim_finished_dispatched = True
+        if self.is_animation_finished:
             self.show_result()
-            events.append(CutinEvent.ANIMATION_FINISHED)
 
-        return events
-
-    def advance(self) -> List[CutinEvent]:
+    def advance(self):
+        """演出を次の段階へ早送り・前進させる"""
         if not self.is_animation_finished:
             self._elapsed = self._duration
-            self._anim_finished_dispatched = True
             self.show_result()
-            return [CutinEvent.ANIMATION_FINISHED]
+            return
 
         if self._step == CutinStep.PRIMARY and self._has_pierce:
             self._step = CutinStep.PIERCE
-            self._is_result_shown = True
-            return [CutinEvent.PIERCE_ADVANCED]
-
-        return [CutinEvent.COMPLETED]
+            self.show_result()
 
     def show_result(self):
         self._is_result_shown = True

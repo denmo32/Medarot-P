@@ -16,9 +16,8 @@ from .entities.commands import (
     SkipCommand,
     build_command_for_part,
 )
-from .entities.part import Part
 from .entities.robot import Robot
-from .events import ATBTurnEvent, PlayerInputRequiredEvent, ActionExecutedEvent
+from .events import ATBTurnEvent, PlayerInputRequiredEvent, ActionExecutedEvent, BattleEndedEvent
 from .execution.command_executor import CommandExecutor
 from .execution.log_builder import BattleLogBuilder
 from .execution.targeting_resolver import TargetingResolver
@@ -26,7 +25,7 @@ from .factory import BattleFactory
 
 
 class BattleManager:
-    """戦闘の純粋シミュレーションエンジン。フェーズ進行は BattleFlow が管轄します。"""
+    """戦闘の純粋シミュレーションエンジン。フェーズ進行は BattleDirector が管轄します。"""
 
     def __init__(
         self,
@@ -68,18 +67,6 @@ class BattleManager:
         return self.ctx.preview_targets
 
     @property
-    def is_opening_done(self) -> bool:
-        return self.ctx.is_opening_done
-
-    @is_opening_done.setter
-    def is_opening_done(self, value: bool):
-        self.ctx.is_opening_done = value
-
-    def mark_opening_done(self):
-        """オープニング演出完了を記録する"""
-        self.ctx.is_opening_done = True
-
-    @property
     def winner(self) -> Optional[TeamType]:
         return self.ctx.winner
 
@@ -97,10 +84,6 @@ class BattleManager:
     def set_log(self, messages: Sequence[str]):
         self.ctx.set_log(messages)
 
-    def set_opening_log(self):
-        """開戦口上ログを設定する"""
-        self.set_log(self._logs.opening())
-
     def set_declaration_log(self):
         """現在のアクターの行動・技宣言ログを設定する"""
         actor = self.ctx.current_actor
@@ -113,17 +96,10 @@ class BattleManager:
         else:
             self.set_log(self._logs.declaration(actor, part))
 
-    def set_pierce_log(self):
-        """貫通ダメージ発生ログを設定する"""
-        self.set_log(self._logs.pierce())
-
     def set_battle_end_log(self):
         """バトル決着ログを設定する"""
         if self.ctx.winner:
             self.set_log(self._logs.battle_end(self.ctx.winner))
-
-    def get_command_menu_preview_targets(self) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
-        return self.preview_targets
 
     # === シミュレーション制御 ===
 
@@ -178,6 +154,8 @@ class BattleManager:
     def update_atb(self, dt: float) -> Optional[ATBTurnEvent]:
         """ATB時間を進行させ、手番発生があればドメインイベントを返す（フェーズ非依存）"""
         if self.check_battle_end():
+            if self.winner:
+                return BattleEndedEvent(winner=self.winner)
             return None
 
         self.atb.update(dt)

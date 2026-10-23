@@ -138,7 +138,6 @@ class TopStatusPanelModel:
 
 @dataclass(frozen=True)
 class BattleRenderModel:
-    phase: BattlePhase
     show_field: bool
     show_message_window: bool
     show_command_menu: bool

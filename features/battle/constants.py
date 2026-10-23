@@ -2,7 +2,6 @@ from enum import Enum
 
 __all__ = [
     "BattlePhase",
-    "CutinStep",
     "TARGET_RADAR_PHASES",
     "TARGET_RADAR_STATIC_PHASES",
     "BattleTiming",
@@ -25,12 +24,6 @@ class BattlePhase(str, Enum):
     OPENING_POPUP = "opening_popup"              # 開戦演出（ロボトルファイト！）
 
 
-class CutinStep(str, Enum):
-    """カットイン演出のステップ（第1段階：主攻撃、第2段階：貫通）"""
-    PRIMARY = "primary"
-    PIERCE = "pierce"
-
-
 TARGET_RADAR_PHASES = (
     BattlePhase.TARGET_INDICATION,
     BattlePhase.ATTACK_DECLARATION,
@@ -45,11 +38,10 @@ TARGET_RADAR_STATIC_PHASES = (
 
 
 class BattleTiming:
-    """演出やフェーズ遷移のタイミング（秒）および表示仕様定数"""
-    TARGET_INDICATION = 0.8
+    """演出の所要秒数および表示仕様定数"""
     OPENING_POPUP = 1.5
     LOG_DISPLAY_MAX = 3
-    # ターゲットレーダー演出
+    TARGET_INDICATION = 0.8
     TARGET_RADAR_TRAVEL = 0.3
     TARGET_RADAR_PULSE = 0.22
     TARGET_RADAR_PULSE_COUNT = 2
