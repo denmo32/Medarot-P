@@ -78,8 +78,8 @@ class BattleScene(Scene):
             if 0 <= new_index < len(selectable_mask) and selectable_mask[new_index]:
                 self.selected_button_index = new_index
             if confirmed and items[self.selected_button_index].selectable:
-                input_await.submit(items[self.selected_button_index].slot_type)
-                self.director.advance()  # 完了した Await を即座に消費して前進
+                input_await.submit(items[self.selected_button_index].part_type)
+                self.director.advance()
             return
 
         self.selected_button_index = resolve_command_menu_navigation(
@@ -87,13 +87,11 @@ class BattleScene(Scene):
         )
 
         if input_state.btn_ok and items[self.selected_button_index].selectable:
-            input_await.submit(items[self.selected_button_index].slot_type)
+            input_await.submit(items[self.selected_button_index].part_type)
             self.director.advance()
 
     def update(self, dt: float):
-        # 演出（HPアニメーション・レーダー等）の更新
         self.visual.update(dt)
-        # 戦闘シーケンスの進行
         self.director.tick(dt)
 
     def render(self):

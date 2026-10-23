@@ -1,5 +1,5 @@
 """ロボットの視覚的な状態（HPアニメーション・破壊フェードなど）を管理するクラス"""
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING
 from domain.constants import PartType
 
 if TYPE_CHECKING:
@@ -25,26 +25,14 @@ class RobotVisualState:
         self.parts_break_progress: Dict[PartType, float] = {
             pt: 0.0 if hp > 0 else 1.0 for pt, hp in parts_hp.items()
         }
-        # 多段階演出用（貫通など）の目標HPキュー: [{部位: 目標HP}, ...]
-        self._pending_step_targets: List[Dict[PartType, float]] = []
 
-    def stage_damage_steps(self, steps: List[Dict[PartType, float]]):
-        """ダメージ演出ステップを登録し、第1段階を開始する"""
-        self._pending_step_targets = list(steps)
-        self.advance_damage_step()
-
-    def advance_damage_step(self):
-        """次の演出ステップの目標HPを反映する"""
-        if self._pending_step_targets:
-            next_targets = self._pending_step_targets.pop(0)
-            for pt, target_hp in next_targets.items():
-                self.parts_target_hp[pt] = target_hp
-        else:
-            self.sync_all_targets()
+    def apply_damage_target(self, part_type: PartType, damage_amount: int):
+        """指定部位の目標HPを減算し、HPゲージの遅延アニメーションを開始させる"""
+        current_target = self.parts_target_hp.get(part_type, 0.0)
+        self.parts_target_hp[part_type] = max(0.0, current_target - damage_amount)
 
     def sync_all_targets(self):
-        """全パーツの目標HPをモデルの現在値に同期する（演出完了時・スキップ時）"""
-        self._pending_step_targets.clear()
+        """全パーツの目標HPをモデルの現在値に強制同期する（演出完了時・スキップ時）"""
         for pt, hp in self.robot.get_parts_hp().items():
             self.parts_target_hp[pt] = float(hp)
 
@@ -61,8 +49,7 @@ class RobotVisualState:
     @property
     def is_hp_animating(self) -> bool:
         """いずれかのパーツの表示用HPが目標HPに追いついていないか、またはグレーアウト進行中か"""
-        for pt in self.parts_target_hp:
-            target_hp = self.parts_target_hp.get(pt, 0.0)
+        for pt, target_hp in self.parts_target_hp.items():
             if self.parts_display_hp.get(pt, 0.0) != target_hp:
                 return True
             target_progress = 1.0 if target_hp <= 0 else 0.0
@@ -94,7 +81,7 @@ class RobotVisualState:
             current_progress = self.parts_break_progress.get(pt, target_progress)
 
             if current_progress != target_progress:
-                fade_speed = 3.5  # 約0.28秒でフェード完了
+                fade_speed = 3.5
                 if current_progress < target_progress:
                     self.parts_break_progress[pt] = min(
                         target_progress, current_progress + fade_speed * dt

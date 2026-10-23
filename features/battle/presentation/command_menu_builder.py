@@ -1,7 +1,7 @@
 """コマンドメニューの項目情報（CommandMenuItemModel）を組み立てるビルダーロジック。"""
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
-from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType
+from domain.constants import ACTIONABLE_PART_TYPES, PartType
 from domain.action_logic import get_action_definition
 from features.battle.context import find_robot_index
 from .view_models import CommandMenuItemModel
@@ -23,12 +23,11 @@ def build_command_menu_items(
     items: List[CommandMenuItemModel] = []
 
     for part_type in ACTIONABLE_PART_TYPES:
-        slot = CommandSlot.from_key(part_type.value)
         part = actor.get_part(part_type) if actor else None
 
-        if part is None or slot is None:
+        if part is None:
             items.append(CommandMenuItemModel(
-                slot_type=slot or CommandSlot.SKIP,
+                part_type=part_type,
                 label=EMPTY_LABEL,
                 action_label="",
                 visual_enabled=False,
@@ -44,7 +43,7 @@ def build_command_menu_items(
             selectable = False
 
         items.append(CommandMenuItemModel(
-            slot_type=slot,
+            part_type=part_type,
             label=part.name,
             action_label=get_action_definition(part.action).name,
             visual_enabled=visual_enabled,
@@ -53,7 +52,7 @@ def build_command_menu_items(
         ))
 
     items.append(CommandMenuItemModel(
-        slot_type=CommandSlot.SKIP,
+        part_type=None,
         label=SKIP_LABEL,
         action_label=SKIP_ACTION_LABEL,
         visual_enabled=True,
@@ -64,7 +63,6 @@ def build_command_menu_items(
 
 
 def to_selectable_mask(items: Sequence[CommandMenuItemModel]) -> List[bool]:
-    """項目一覧から選択可能フラグのリストを抽出する"""
     return [item.selectable for item in items]
 
 

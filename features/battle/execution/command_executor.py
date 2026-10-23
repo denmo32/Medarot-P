@@ -38,9 +38,7 @@ class CommandExecutor:
         self.rng = rng or self.ctx.rng.random
 
     def execute_charged(self, actor: Robot) -> ExecutionReport:
-        """充填完了した機体のコマンドを実行し、結果レポートを作成する。
-        （ATBの放熱移行はターン完了フェーズで一括管理するため、ここでは行わない）
-        """
+        """充填完了した機体のコマンドを実行し、結果レポートを作成する。"""
         actor.start_execution()
 
         command = actor.current_command
@@ -86,9 +84,15 @@ class CommandExecutor:
         )
 
     def _check_trap(self, actor: Robot, part_type: PartType) -> Tuple[List[str], bool]:
-        triggered_trap, is_destroyed = actor.trigger_trap_if_applicable(self.ctx.traps)
+        part = actor.get_part(part_type)
+        if not part or not part.is_alive:
+            return [], False
+
+        triggered_trap = self.ctx.traps.trigger(actor.team, part.action)
         if not triggered_trap:
             return [], False
+
+        _, is_destroyed = actor.apply_damage(part_type, triggered_trap.damage)
         logs = self.logs.trap_triggered(
             actor, part_type, triggered_trap.skill, triggered_trap.damage, is_destroyed
         )
@@ -98,13 +102,9 @@ class CommandExecutor:
         self, actor: Robot, report: ExecutionReport
     ) -> Tuple[ExecutionReport, List[str]]:
         """予約されている行動効果を確定適用し、更新されたレポートとメッセージ一覧を返す"""
-        # Step 1: 行動効果の確定適用（世界状態の更新）
         updated_report = apply_action_effects(report, actor, ctx=self.ctx)
-
-        # Step 2: アクター機体の事後処理（回数制バフ消費など）
         expired_effects = actor.on_action_completed()
 
-        # Step 3: 結果ログの構築
         all_messages: List[str] = []
         messages = self.logs.effect_resolution(updated_report.result, updated_report.target)
         if messages:
@@ -130,7 +130,7 @@ class CommandExecutor:
         if part is None:
             return ExecutionReport(outcome=outcome)
 
-        target_robot, target_part_type = self.targeting.resolve_execution_target(actor, command.part_type)
+        target_robot, target_part_type = self.targeting.resolve_execution_target(command)
         if not target_robot:
             return ExecutionReport(outcome=ExecutionOutcome.TARGET_LOST)
 

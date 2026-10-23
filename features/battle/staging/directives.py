@@ -1,7 +1,7 @@
 """戦闘シーケンスの指示（Directive）および待機条件（Await）の定義。"""
 from dataclasses import dataclass
 from typing import Any, List, Optional, TYPE_CHECKING
-from domain.constants import CommandSlot
+from domain.constants import PartType
 from core.inputs import InputState
 
 if TYPE_CHECKING:
@@ -53,6 +53,7 @@ class StageDamage(Directive):
 @dataclass(frozen=True)
 class AdvanceCutinPierce(Directive):
     target: 'Robot'
+    report: 'ExecutionReport'
 
 
 @dataclass(frozen=True)
@@ -125,7 +126,6 @@ class AwaitHpAnimation(Await):
 
 @dataclass
 class AwaitCutin(Await):
-    """カットイン演出の完了待ち（アニメーション終了、またはユーザースキップ）"""
     _finished: bool = False
 
     def tick(self, dt: float, director: 'BattleDirector'):
@@ -148,21 +148,23 @@ class AwaitCutin(Await):
 class AwaitPlayerInput(Await):
     actor: 'Robot'
     preview_targets: dict
-    _selected_slot: Optional[CommandSlot] = None
+    _selected_part: Optional[PartType] = None
+    _is_submitted: bool = False
 
-    def submit(self, slot: CommandSlot):
-        self._selected_slot = slot
+    def submit(self, part_type: Optional[PartType]):
+        """コマンドを決定する（None はスキップ）"""
+        self._selected_part = part_type
+        self._is_submitted = True
 
     def is_done(self, director: 'BattleDirector') -> bool:
-        return self._selected_slot is not None
+        return self._is_submitted
 
-    def take_result(self) -> Optional[CommandSlot]:
-        return self._selected_slot
+    def take_result(self) -> Optional[PartType]:
+        return self._selected_part
 
 
 @dataclass
 class AwaitNextTurn(Await):
-    """ATBゲージ進行による手番発生待ち"""
     _event: Optional['ATBTurnEvent'] = None
 
     def tick(self, dt: float, director: 'BattleDirector'):

@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 from domain.constants import (
     AccentState,
     BadgeKind,
-    CommandSlot,
     GaugeStatus,
     PartType,
     TeamType,
@@ -19,8 +18,8 @@ from features.battle.staging.cutin_timeline import (
 
 @dataclass(frozen=True)
 class CommandMenuItemModel:
-    """コマンドメニュー項目の表示用モデル"""
-    slot_type: CommandSlot
+    """コマンドメニュー項目の表示用モデル（part_type=None はスキップを表す）"""
+    part_type: Optional[PartType]
     label: str
     action_label: str
     visual_enabled: bool
@@ -47,8 +46,8 @@ class RobotViewModel:
 class TargetRadarModel:
     attacker_index: int
     target_index: int
-    travel_progress: float = 1.0  # 0.0 (攻撃側) 〜 1.0 (対象側)
-    scale: float = 1.0            # 拡縮倍率
+    travel_progress: float = 1.0
+    scale: float = 1.0
     is_static: bool = False
 
 

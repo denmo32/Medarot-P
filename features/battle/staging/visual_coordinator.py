@@ -1,8 +1,6 @@
 """バトルの演出進行（HPアニメーション、カットイン、レーダー）を一元管理するコーディネーター。"""
-from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
+from typing import Dict, Optional, Sequence, TYPE_CHECKING
 
-from domain.constants import PartType
-from domain.effect_payloads import DamageEffect
 from .cutin_director import CutinDirector
 from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
@@ -11,26 +9,6 @@ if TYPE_CHECKING:
     from ..entities.commands import ExecutionReport
     from ..entities.part import Part
     from ..entities.robot import Robot
-
-
-def _build_damage_visual_steps(
-    report: 'ExecutionReport', visual_state: RobotVisualState
-) -> List[Dict[PartType, float]]:
-    """ExecutionReport の効果量から論理モデルの現在値に依存しない視覚ステップを生成する"""
-    if not report.target or not report.result or not report.result.success:
-        return []
-
-    steps: List[Dict[PartType, float]] = []
-    current_targets = dict(visual_state.parts_target_hp)
-
-    for effect in report.result.applied_effects:
-        if isinstance(effect, DamageEffect) and effect.effective_damage > 0:
-            pt = effect.part_type
-            new_hp = max(0.0, current_targets.get(pt, 0.0) - effect.effective_damage)
-            steps.append({pt: new_hp})
-            current_targets[pt] = new_hp
-
-    return steps
 
 
 class VisualCoordinator:
@@ -43,7 +21,6 @@ class VisualCoordinator:
         self.cutin_director: Optional[CutinDirector] = None
         self.radar_director: Optional[TargetRadarDirector] = None
 
-        # 現在演出中の戦闘ペアとレポート（Presentation層への提供用）
         self.active_actor: Optional['Robot'] = None
         self.active_target: Optional['Robot'] = None
         self.active_report: Optional['ExecutionReport'] = None
@@ -64,17 +41,21 @@ class VisualCoordinator:
 
     # === ダメージ演出のステージング ===
 
-    def stage_damage(self, report: 'ExecutionReport'):
-        if report and report.target:
-            target_vs = self.visual_states.get(report.target)
-            if target_vs:
-                steps = _build_damage_visual_steps(report, target_vs)
-                if steps:
-                    target_vs.stage_damage_steps(steps)
+    def stage_primary_damage(self, report: 'ExecutionReport'):
+        """主攻撃のダメージ目標HPを反映する"""
+        if not report.target or not report.result or not report.result.success:
+            return
+        target_vs = self.visual_states.get(report.target)
+        primary = report.result.primary_damage
+        if target_vs and primary and primary.effective_damage > 0:
+            target_vs.apply_damage_target(primary.part_type, primary.effective_damage)
 
-    def advance_damage_step(self, target: 'Robot'):
-        if target in self.visual_states:
-            self.visual_states[target].advance_damage_step()
+    def stage_pierce_damage(self, target: 'Robot', report: 'ExecutionReport'):
+        """貫通ダメージの目標HPを反映する"""
+        target_vs = self.visual_states.get(target)
+        pierce = report.result.pierce_effect if report.result else None
+        if target_vs and pierce and pierce.effective_damage > 0:
+            target_vs.apply_damage_target(pierce.part_type, pierce.effective_damage)
 
     def sync_all_targets(self):
         for vs in self.visual_states.values():

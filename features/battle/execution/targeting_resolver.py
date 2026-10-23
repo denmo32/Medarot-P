@@ -7,6 +7,7 @@ from domain.targeting import select_closest_enemy
 
 if TYPE_CHECKING:
     from ..context import BattleContext
+    from ..entities.commands import PartCommand
     from ..entities.robot import Robot
 
 TargetSelection = Tuple[Optional["Robot"], Optional[PartType]]
@@ -39,18 +40,15 @@ class TargetingResolver:
             return None
         return robot, target_part
 
-    def resolve_execution_target(self, actor: 'Robot', part_type: PartType) -> TargetSelection:
-        command = actor.current_part_command
-        if command is None:
-            return None, None
-
-        part = actor.get_part(part_type)
+    def resolve_execution_target(self, command: 'PartCommand') -> TargetSelection:
+        actor = command.actor
+        part = actor.get_part(command.part_type)
         if not part:
             return None, None
 
         if not part.locks_target:
             selector = self._selectors.get(part.target_rule)
-            return selector(actor, part_type) if selector else (None, None)
+            return selector(actor, command.part_type) if selector else (None, None)
 
         target_robot = command.target_robot
         if not target_robot or not target_robot.is_alive:
@@ -64,7 +62,6 @@ class TargetingResolver:
         return target_robot, target_part
 
     def select_melee_target(self, actor: 'Robot') -> TargetSelection:
-        # スナップショットを生成せず、プロトコルを満たす self.ctx.robots を直接渡す
         t_idx = select_closest_enemy(actor.team, self.ctx.robots)
         if t_idx is None:
             return None, None

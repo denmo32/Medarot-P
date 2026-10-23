@@ -64,24 +64,8 @@ class CustomizeState(KeyedEnum):
     PART_LIST_SELECT = "part_list_select"
 
 
-class CommandSlot(KeyedEnum):
-    """コマンドメニューの選択スロット（部位 + 特殊アクション）"""
-    HEAD = "head"
-    RIGHT_ARM = "right_arm"
-    LEFT_ARM = "left_arm"
-    SKIP = "skip"
-
-    @property
-    def is_skip(self) -> bool:
-        return self is CommandSlot.SKIP
-
-    @property
-    def part_type(self) -> Optional["PartType"]:
-        return PartType.from_key(self.value) if not self.is_skip else None
-
-
 # コマンドメニューのスロットインデックス（features の入力規則と ui のレイアウトが共有する契約）
-# 順序は ACTIONABLE_PART_TYPES + SKIP と一致させること
+# 順序: 頭部(0), 右腕(1), 左腕(2), スキップ(3)
 COMMAND_MENU_HEAD_INDEX = 0
 COMMAND_MENU_RIGHT_ARM_INDEX = 1
 COMMAND_MENU_LEFT_ARM_INDEX = 2

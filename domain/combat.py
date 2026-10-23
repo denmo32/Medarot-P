@@ -6,7 +6,6 @@ from typing import Callable, Dict, List, Optional
 from domain.constants import HitPolicy, PartType, PART_TYPE_LABELS
 from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage
 from domain.models import BattleParticipant, ActionResult
-from domain.attribute import get_passive_bonuses
 from domain.action_logic import get_action_definition
 from domain.combat_formulas import (
     calculate_hit_probability,
@@ -17,7 +16,7 @@ from domain.combat_formulas import (
 
 logger = logging.getLogger(__name__)
 
-# 非頭部パーツの優先順位（同値時は脚部 > 左腕 > 右腕。復元(_RESTORE_PRIORITY)とは左右が逆で意図的）
+# 非頭部パーツの優先順位（同値時は脚部 > 左腕 > 右腕）
 _NON_HEAD_PIERCE_PRIORITY = (
     PartType.LEGS,
     PartType.LEFT_ARM,
@@ -29,11 +28,7 @@ def _select_pierce_target(
     target_parts_hp: Dict[PartType, int],
     excluded_part: PartType,
 ) -> Optional[PartType]:
-    """貫通対象となる部位を選定する。
-
-    1. 右腕・左腕・脚部のうち、最も残りHPが多いパーツを優先（同値時は脚部 > 左腕 > 右腕）。
-    2. 上記が全滅している場合のみ、最も低優先として頭部を選定。
-    """
+    """貫通対象となる部位を選定する。"""
     best_part: Optional[PartType] = None
     best_hp = -1
 
@@ -52,7 +47,6 @@ def _select_pierce_target(
     if best_part is not None:
         return best_part
 
-    # 非頭部パーツが全滅している場合、最も低優先として頭部を選定
     if excluded_part != PartType.HEAD and target_parts_hp.get(PartType.HEAD, 0) > 0:
         return PartType.HEAD
 
@@ -84,11 +78,7 @@ def resolve_attack(
     target_part_type: PartType,
     rng: Optional[Callable[[], float]] = None,
 ) -> ActionResult:
-    """攻撃解決の統合ロジック。命中率・防御突破・部位決定・ダメージ・貫通を純粋に算出する。
-
-    いかなるエンティティの状態も変更せず、適用ペイロードをまとめた `ActionResult` を返す。
-    `rng` を注入することで乱数要素を外部化し、テスト時に決定論的な検証が可能になる。
-    """
+    """攻撃解決の統合ロジック。命中率・防御突破・部位決定・ダメージ・貫通を純粋に算出する。"""
     _random = rng or random.random
 
     # 1. 行動形式の実装取得
@@ -162,9 +152,7 @@ def resolve_attack(
     effective_damage = min(damage, target_hp_before)
     is_destroyed = damage >= target_hp_before
 
-    # 8. 適用ペイロードの構築（主攻撃 + 貫通）
-    #    主攻撃も貫通と同じ「適用オブジェクト」に載せることで、状態確定を
-    #    適用層（effect_applier）の単一パイプラインへ集約する。
+    # 8. 適用ペイロードの構築
     applied_effects: List[AppliedEffect] = [
         PartDamage(
             part_type=hit_part,
@@ -174,7 +162,7 @@ def resolve_attack(
         )
     ]
 
-    # 貫通（can_pierce フラグを持つ技かつ頭部以外の被弾部位破壊時の余剰ダメージ）判定
+    # 貫通判定
     if (
         attacker.stats.can_pierce
         and hit_part != PartType.HEAD
@@ -197,13 +185,10 @@ def resolve_attack(
 
     return ActionResult(
         success=True,
-        damage=damage,
-        effective_damage=effective_damage,
-        hit_part=hit_part,
         is_guarded=is_guarded,
         is_critical=is_critical,
         skill=attacker.stats.skill,
-        applied_effects=applied_effects,
+        applied_effects=tuple(applied_effects),
         adjusted_success=adjusted_success,
         adjusted_mobility=adjusted_mobility,
     )

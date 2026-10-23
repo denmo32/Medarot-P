@@ -1,7 +1,7 @@
 """バトルのシミュレーション・計算・ルール適用を統括するマネージャ（シーンフェーズ非依存）。"""
 from typing import List, Dict, Optional, Tuple, Sequence
 
-from domain.constants import ACTIONABLE_PART_TYPES, CommandSlot, PartType, TeamType, GaugeStatus
+from domain.constants import ACTIONABLE_PART_TYPES, PartType, TeamType, GaugeStatus
 from domain.models import GameDataProtocol, RobotSetup
 from domain.rules import check_battle_end
 
@@ -48,7 +48,7 @@ class BattleManager:
             if robot.team == TeamType.ENEMY:
                 self.ai.decide_command(robot)
 
-    # === 外部公開プロパティ（カプセル化） ===
+    # === 基本プロパティ ===
 
     @property
     def robots(self) -> List[Robot]:
@@ -63,7 +63,6 @@ class BattleManager:
         return self.ctx.battle_log
 
     def find_robot_index(self, robot: Optional[Robot]) -> Optional[int]:
-        """指定機体のインデックスを取得する"""
         return self.ctx.find_robot_index(robot)
 
     def clear_log(self):
@@ -75,7 +74,6 @@ class BattleManager:
     # === シミュレーション制御 ===
 
     def find_ready_player_robot(self) -> Optional[Robot]:
-        """待機状態にある自軍機体を探索する"""
         for robot in self.ctx.robots:
             if robot.team == TeamType.PLAYER and robot.gauge_status == GaugeStatus.READY:
                 return robot
@@ -90,9 +88,6 @@ class BattleManager:
         return is_ended
 
     def detect_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
-        """【純粋シミュレーション】充填中の全機体を自己診断し、
-        割り込み対象機体を即座に反転後退させ、(機体, 中断理由) のリストを返す。
-        """
         interrupts: List[Tuple[Robot, ExecutionOutcome]] = []
         for robot in self.ctx.robots:
             reason = robot.evaluate_interruption()
@@ -102,9 +97,6 @@ class BattleManager:
         return interrupts
 
     def handle_charging_interrupts(self) -> List[Tuple[Robot, ExecutionOutcome]]:
-        """充填中の全機体を自己診断し、割り込みが発生した機体を反転後退させ、
-        割り込みログを設定する。発生した (機体, 中断理由) のリストを返す。
-        """
         interrupts = self.detect_charging_interrupts()
         if interrupts:
             messages: List[str] = []
@@ -114,14 +106,12 @@ class BattleManager:
         return interrupts
 
     def get_preview_targets(self, actor: Robot) -> Dict[PartType, Optional[Tuple[Robot, Optional[PartType]]]]:
-        """指定機体の各部位における予習ターゲット（事前予約）を導出する"""
         return {
             pt: self.targeting.resolve_preview_target(actor, pt)
             for pt in ACTIONABLE_PART_TYPES
         }
 
     def update_atb(self, dt: float) -> Optional[ATBTurnEvent]:
-        """ATB時間を進行させ、手番発生があればドメインイベントを返す（フェーズ非依存）"""
         if self.check_battle_end():
             if self.winner:
                 return BattleEndedEvent(winner=self.winner)
@@ -141,7 +131,6 @@ class BattleManager:
         return None
 
     def _handle_cooled(self, actor: Robot) -> Optional[ATBTurnEvent]:
-        """放熱完了時の処理：待機状態へ戻し、自軍なら入力要求、敵軍ならAIが即座に予約"""
         actor.enter_ready()
         if actor.team == TeamType.PLAYER:
             return PlayerInputRequiredEvent(actor=actor)
@@ -150,7 +139,6 @@ class BattleManager:
             return None
 
     def _handle_charged(self, actor: Robot) -> Optional[ATBTurnEvent]:
-        """充填完了時の処理：コマンド実行を行い、結果イベントを返す"""
         self.ctx.clear_log()
         report = self.executor.execute_charged(actor)
         if report.pre_messages:
@@ -161,21 +149,15 @@ class BattleManager:
     def apply_execution_result(
         self, actor: Robot, report: ExecutionReport
     ) -> Tuple[ExecutionReport, List[str]]:
-        """保留中の行動効果を確定適用し、更新されたレポートとメッセージ一覧を返す"""
         return self.executor.apply_execution_result(actor, report)
 
     def complete_turn(self, actor: Robot):
-        """ターンの総合完了処理。機体を放熱（クールダウン）へ移行させる。"""
         actor.finish_execution_to_cooldown()
 
-    def select_command_slot(self, actor: Robot, slot: CommandSlot) -> bool:
-        """プレイヤーのコマンド選択を検証・確定する。受理できた場合は True を返す。"""
-        if slot.is_skip:
-            return self.submit_player_command(actor, SkipCommand(actor))
-
-        part_type = slot.part_type
+    def select_command(self, actor: Robot, part_type: Optional[PartType]) -> bool:
+        """プレイヤーのコマンド選択（部位指定、またはスキップ=None）を検証・確定する"""
         if part_type is None:
-            return False
+            return self.submit_player_command(actor, SkipCommand(actor))
 
         if not actor.can_execute_part(part_type):
             return False
@@ -188,6 +170,5 @@ class BattleManager:
         return self.submit_player_command(actor, build_command_for_part(actor, part, preview))
 
     def submit_player_command(self, actor: Robot, command: BattleCommand) -> bool:
-        """プレイヤーコマンドをアクター機体に設定する。"""
         actor.set_command(command)
         return True

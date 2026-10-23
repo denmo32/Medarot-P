@@ -31,7 +31,6 @@ EffectHandler = Callable[[AppliedEffect, ApplyContext], Optional[AppliedEffect]]
 
 
 def _apply_damage_effect(effect: DamageEffect, ctx: ApplyContext) -> Optional[AppliedEffect]:
-    """主攻撃および貫通ダメージの確定反映。apply_damage の戻り値から破壊状況を直接取得する。"""
     if ctx.target is None:
         return None
     actual_dmg, destroyed = ctx.target.apply_damage(effect.part_type, effect.amount)
@@ -103,9 +102,11 @@ def apply_action_effects(
             res = handler(eff, apply_ctx)
             if res is not None:
                 applied.append(res)
+        else:
+            applied.append(eff)
 
-    if applied != result.applied_effects:
-        updated_result = dataclasses.replace(result, applied_effects=applied)
+    if tuple(applied) != result.applied_effects:
+        updated_result = dataclasses.replace(result, applied_effects=tuple(applied))
         return dataclasses.replace(report, result=updated_result)
 
     return report

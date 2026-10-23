@@ -1,12 +1,12 @@
 """ドメインモデルのデータクラス定義"""
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Optional, Protocol, Sequence, TYPE_CHECKING, Union
+from typing import Dict, List, Mapping, Optional, Protocol, Sequence, Tuple, TYPE_CHECKING, Union
 from domain.constants import (
     AttributeType, CustomizeSlot, EffectStackPolicy, EffectType, GaugeStatus, HitPolicy,
     PartType, ActionType, PersonalityType, TeamType, SkillType,
 )
-from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage
+from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage, TrapInstall
 
 if TYPE_CHECKING:
     from domain.action_logic import ActionDefinition
@@ -220,43 +220,21 @@ class StatusEffect:
 class ActionResult:
     """戦闘行動の判定・計算結果 DTO。
 
-    主攻撃のダメージ量および被弾部位は、二重管理を防ぐため applied_effects 内の
-    PartDamage オブジェクトから動的に導出されます。
+    主攻撃のダメージ量や被弾部位は applied_effects 内の PartDamage オブジェクトから動的に導出されます。
+    二重管理や内部フィールドへのハック的代入を完全排除した純粋イミュータブルモデルです。
     """
     success: bool
     is_guarded: bool = False
     is_critical: bool = False
     skill: Optional[SkillType] = None
-    applied_effects: List[AppliedEffect] = field(default_factory=list)
+    applied_effects: Tuple[AppliedEffect, ...] = ()
     adjusted_success: int = 0
     adjusted_mobility: int = 0
-    _damage: int = 0
-    _effective_damage: int = 0
-    _hit_part: Optional[PartType] = None
+    target_part: Optional[PartType] = None
 
-    def __init__(
-        self,
-        success: bool,
-        damage: int = 0,
-        effective_damage: int = 0,
-        hit_part: Optional[PartType] = None,
-        is_guarded: bool = False,
-        is_critical: bool = False,
-        skill: Optional[SkillType] = None,
-        applied_effects: Optional[List[AppliedEffect]] = None,
-        adjusted_success: int = 0,
-        adjusted_mobility: int = 0,
-    ):
-        object.__setattr__(self, 'success', success)
-        object.__setattr__(self, 'is_guarded', is_guarded)
-        object.__setattr__(self, 'is_critical', is_critical)
-        object.__setattr__(self, 'skill', skill)
-        object.__setattr__(self, 'applied_effects', list(applied_effects) if applied_effects else [])
-        object.__setattr__(self, 'adjusted_success', adjusted_success)
-        object.__setattr__(self, 'adjusted_mobility', adjusted_mobility)
-        object.__setattr__(self, '_damage', damage)
-        object.__setattr__(self, '_effective_damage', effective_damage)
-        object.__setattr__(self, '_hit_part', hit_part)
+    def __post_init__(self):
+        if not isinstance(self.applied_effects, tuple):
+            object.__setattr__(self, 'applied_effects', tuple(self.applied_effects))
 
     @property
     def primary_damage(self) -> Optional[PartDamage]:
@@ -266,19 +244,20 @@ class ActionResult:
     def damage(self) -> int:
         if primary := self.primary_damage:
             return primary.amount
-        return self._damage
+        trap_effect = next((e for e in self.applied_effects if isinstance(e, TrapInstall)), None)
+        if trap_effect:
+            return trap_effect.trap.damage
+        return 0
 
     @property
     def effective_damage(self) -> int:
-        if primary := self.primary_damage:
-            return primary.effective_damage
-        return self._effective_damage
+        return self.primary_damage.effective_damage if self.primary_damage else 0
 
     @property
     def hit_part(self) -> Optional[PartType]:
-        if primary := self.primary_damage:
-            return primary.part_type
-        return self._hit_part
+        if self.primary_damage:
+            return self.primary_damage.part_type
+        return self.target_part
 
     @property
     def pierce_effect(self) -> Optional[PierceDamage]:

@@ -23,7 +23,6 @@ def resolve_stop_effect(context: EffectResolutionContext) -> ActionResult:
     target_part_type = context.target_part_type
 
     hit_prob = calculate_hit_probability(adj_success, adj_mobility)
-    # コンテキストから注入された RNG を利用
     roll = context.rng.random()
     is_success = roll < hit_prob
 
@@ -32,15 +31,15 @@ def resolve_stop_effect(context: EffectResolutionContext) -> ActionResult:
         effect = make_stop_effect(duration, part_type=target_part_type)
         return ActionResult(
             success=True,
-            applied_effects=[ApplyStatus(effect=effect)],
-            hit_part=target_part_type,
+            applied_effects=(ApplyStatus(effect=effect),),
+            target_part=target_part_type,
             adjusted_success=adj_success,
             adjusted_mobility=adj_mobility,
             skill=context.skill,
         )
     return ActionResult(
         success=False,
-        hit_part=target_part_type,
+        target_part=target_part_type,
         adjusted_success=adj_success,
         adjusted_mobility=adj_mobility,
         skill=context.skill,
@@ -63,7 +62,8 @@ def resolve_repair_effect(context: EffectResolutionContext) -> ActionResult:
 
     return ActionResult(
         success=True,
-        applied_effects=[PartRepair(part_type=target_part, amount=amount)],
+        applied_effects=(PartRepair(part_type=target_part, amount=amount),),
+        target_part=target_part,
         skill=context.skill,
     )
 
@@ -84,7 +84,8 @@ def resolve_restore_effect(context: EffectResolutionContext) -> ActionResult:
 
     return ActionResult(
         success=True,
-        applied_effects=[PartRestore(part_type=target_part)],
+        applied_effects=(PartRestore(part_type=target_part),),
+        target_part=target_part,
         skill=context.skill,
     )
 
@@ -110,7 +111,7 @@ def resolve_scan_effect(context: EffectResolutionContext) -> ActionResult:
 
     return ActionResult(
         success=True,
-        applied_effects=[ApplyStatus(effect=effect)],
+        applied_effects=(ApplyStatus(effect=effect),),
         skill=context.skill,
     )
 
@@ -124,7 +125,7 @@ def resolve_block_effect(context: EffectResolutionContext) -> ActionResult:
     )
     return ActionResult(
         success=True,
-        applied_effects=[ApplyStatus(effect=effect, target_self=True)],
+        applied_effects=(ApplyStatus(effect=effect, target_self=True),),
         skill=context.skill,
     )
 
@@ -139,9 +140,8 @@ def resolve_trap_effect(context: EffectResolutionContext) -> ActionResult:
     )
     return ActionResult(
         success=True,
-        damage=damage,
         skill=context.skill,
-        applied_effects=[TrapInstall(trap=trap)],
+        applied_effects=(TrapInstall(trap=trap),),
     )
 
 
@@ -156,6 +156,7 @@ def resolve_protect_effect(context: EffectResolutionContext) -> ActionResult:
     )
     return ActionResult(
         success=True,
-        applied_effects=[ApplyStatus(effect=effect, target_self=True)],
+        applied_effects=(ApplyStatus(effect=effect, target_self=True),),
+        target_part=context.source_part_type,
         skill=context.skill,
     )
