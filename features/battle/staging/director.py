@@ -45,6 +45,7 @@ class BattleDirector:
         self.pending_await: Optional[Await] = None
         self._send_value: Any = None
         self.opening_popup_visible: bool = False
+        self.is_finished: bool = False
 
         # メインループコルーチンの開始
         self._routine: Optional[Generator] = self._run_battle()
@@ -62,7 +63,7 @@ class BattleDirector:
 
     @property
     def is_game_over(self) -> bool:
-        return self.manager.winner is not None and self._routine is None
+        return self.manager.winner is not None and self.is_finished
 
     # === フレーム進行と入力 ===
 
@@ -115,6 +116,7 @@ class BattleDirector:
         except StopIteration:
             self._routine = None
             self.pending_await = None
+            self.is_finished = True
 
     def _execute_directive(self, d: Directive):
         if isinstance(d, ShowLog):
@@ -130,7 +132,6 @@ class BattleDirector:
         elif isinstance(d, StartCutin):
             self.visual.start_cutin(d.part, d.report)
         elif isinstance(d, StageDamage):
-            # マネージャの最新確定レポート（単一の真実）を参照
             current_report = self.manager.current_report
             if current_report:
                 self.visual.stage_damage(current_report)
@@ -155,7 +156,7 @@ class BattleDirector:
         # 2. メインATBバトルループ
         while not self.manager.winner:
             turn_event = yield AwaitNextTurn()
-            if isinstance(turn_event, BattleEndedEvent) or self.manager.winner:
+            if isinstance(turn_event, BattleEndedEvent):
                 break
 
             if isinstance(turn_event, PlayerInputRequiredEvent):
@@ -183,11 +184,11 @@ class BattleDirector:
         self.manager.clear_log()
 
     def _run_player_input(self, actor: Robot) -> Generator:
-        self.manager.prepare_actor_input(actor)
+        preview_targets = self.manager.get_preview_targets(actor)
         # コマンド選択待ち
-        slot = yield AwaitPlayerInput(actor=actor, preview_targets=self.manager.preview_targets)
+        slot = yield AwaitPlayerInput(actor=actor, preview_targets=preview_targets)
         if slot:
-            self.manager.select_command_slot(slot)
+            self.manager.select_command_slot(actor, slot)
 
     def _run_action(self, actor: Robot, report: ExecutionReport) -> Generator:
         part = actor.current_part
@@ -197,7 +198,7 @@ class BattleDirector:
             if report.pre_messages:
                 yield ShowLog(report.pre_messages)
                 yield AwaitUserConfirm()
-            actor.finish_execution_to_cooldown()
+            # CommandExecutor 内で既に finish_execution_to_cooldown() は実行済みのため重複呼び出しなし
             yield from self._finalize_turn()
             return
 
@@ -250,6 +251,9 @@ class BattleDirector:
 
     def _finalize_turn(self) -> Generator:
         self.manager.complete_execution()
+
+        # ターン終了時に描画モデルのHP目標値を論理モデルと確定同期
+        self.visual.sync_all_targets()
 
         # 勝敗判定
         if self.manager.check_battle_end():

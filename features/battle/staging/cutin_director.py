@@ -22,12 +22,10 @@ class CutinDirector:
         self,
         profile: CutinProfile,
         result: ActionResult,
-        has_pierce: bool,
         duration: Optional[float] = None,
     ):
         self._profile = profile
         self._result = result
-        self._has_pierce = has_pierce
         self._duration = max(0.001, duration if duration is not None else profile.duration)
 
         self._step = CutinStep.PRIMARY
@@ -39,10 +37,9 @@ class CutinDirector:
         cls,
         part: Optional['Part'],
         result: ActionResult,
-        has_pierce: bool,
     ) -> 'CutinDirector':
         profile = resolve_cutin_profile(part)
-        return cls(profile=profile, result=result, has_pierce=has_pierce, duration=profile.duration)
+        return cls(profile=profile, result=result, duration=profile.duration)
 
     @property
     def profile(self) -> CutinProfile:
@@ -54,7 +51,8 @@ class CutinDirector:
 
     @property
     def has_pierce(self) -> bool:
-        return self._has_pierce
+        """結果データから貫通の有無を動的に導出（確定後の更新にも完全追従）"""
+        return self._result.has_pierce
 
     @property
     def step(self) -> CutinStep:
@@ -87,7 +85,7 @@ class CutinDirector:
             self.show_result()
             return
 
-        if self._step == CutinStep.PRIMARY and self._has_pierce:
+        if self._step == CutinStep.PRIMARY and self.has_pierce:
             self._step = CutinStep.PIERCE
             self.show_result()
 
