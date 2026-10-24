@@ -293,7 +293,7 @@ class BattleViewBuilder:
         max_lines = BattleTiming.LOG_DISPLAY_MAX
 
         return MessageWindowModel(
-            lines=list(self.manager.battle_log[-max_lines:]),
+            lines=list(self.director.active_messages[-max_lines:]),
             show_advance_marker=can_advance,
         )
 

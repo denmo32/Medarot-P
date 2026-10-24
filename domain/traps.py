@@ -46,6 +46,23 @@ class TrapManager:
         self.traps = [t for t in self.traps if not (t.target_team == trap.target_team and t.skill == trap.skill)]
         self.traps.append(trap)
 
+    def find_triggered(
+        self, target_team: TeamType, action: Union[ActionType, str, None]
+    ) -> Optional[InstalledTrap]:
+        """条件に合致するトラップを1件検索して返す（消費は行わない）"""
+        for trap in self.traps:
+            if trap.target_team == target_team and is_trap_triggered(trap.skill, action):
+                return trap
+        return None
+
+    def consume(self, trap: InstalledTrap) -> bool:
+        """指定したトラップを消費（リストから削除）する"""
+        for i, t in enumerate(self.traps):
+            if t == trap:
+                self.traps.pop(i)
+                return True
+        return False
+
     def trigger(
         self, target_team: TeamType, action: Union[ActionType, str, None]
     ) -> Optional[InstalledTrap]:

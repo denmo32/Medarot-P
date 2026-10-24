@@ -4,11 +4,12 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
-from domain.constants import PartType
+from domain.constants import PartType, SkillType
 from domain.models import ActionResult
 
 if TYPE_CHECKING:
     from domain.models import DamageResult
+    from domain.traps import InstalledTrap
     from .part import Part
     from .robot import Robot
 
@@ -33,12 +34,24 @@ class BattleCommand:
 
 
 @dataclass(frozen=True)
+class TrapTriggerResult:
+    """トラップ発動結果の純粋DTO"""
+    trap_skill: SkillType
+    part_type: PartType
+    damage: int
+    is_destroyed: bool
+    trap: Optional['InstalledTrap'] = None
+    messages: List[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ExecutionReport:
     """コマンド実行の結果を統一的に表すイミュータブルなレポート。"""
     outcome: ExecutionOutcome
     result: Optional[ActionResult] = None
     target: Optional['Robot'] = None
     intercepted_by: Optional['Robot'] = None
+    trap_trigger: Optional[TrapTriggerResult] = None
     pre_messages: List[str] = field(default_factory=list)
     result_messages: List[str] = field(default_factory=list)
 

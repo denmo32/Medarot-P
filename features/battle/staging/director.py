@@ -1,7 +1,7 @@
 # features/battle/staging/director.py
 """戦闘シーケンスを yield（待機条件のみ）で統括するディレクター。"""
 import logging
-from typing import Any, Dict, Generator, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Sequence, Tuple
 from domain.constants import COMMAND_MENU_PART_ORDER, SkillPresentation
 from core.inputs import InputState
 from features.battle.constants import BattleTiming
@@ -37,6 +37,9 @@ class BattleDirector:
         self.manager = manager
         self.skip_staging = skip_staging
 
+        # 演出用アクティブメッセージ
+        self.active_messages: List[str] = []
+
         # 視覚演出状態（Coordinator を廃止し直接保持）
         self.visual_states: Dict[Robot, RobotVisualState] = {
             r: RobotVisualState(r) for r in self.manager.robots
@@ -52,6 +55,14 @@ class BattleDirector:
 
         self._routine: Optional[Generator] = self._run_battle()
         self._step()
+
+    # === メッセージ管理 ===
+
+    def set_messages(self, messages: Sequence[str]):
+        self.active_messages = list(messages)
+
+    def clear_messages(self):
+        self.active_messages.clear()
 
     # === プロパティ・演出クエリ ===
 
@@ -200,6 +211,10 @@ class BattleDirector:
                 self._send_value = None
 
                 if isinstance(item, Await):
+                    # === スキップモード時は演出系 Await を即時バイパス ===
+                    if self.skip_staging and isinstance(item, (AwaitTime, AwaitUserConfirm, AwaitCutin, AwaitHpAnimation)):
+                        continue
+
                     self.pending_await = item
                     if isinstance(item, AwaitHpAnimation) and not self.is_hp_animating():
                         self.pending_await = None
@@ -236,15 +251,14 @@ class BattleDirector:
         while ready_robot := self.manager.find_ready_player_robot():
             yield from self._run_player_input(ready_robot)
 
-        if not self.skip_staging:
-            self.manager.set_log(self.manager.logs.opening())
-            yield AwaitUserConfirm()
+        self.set_messages(self.manager.logs.opening())
+        yield AwaitUserConfirm()
 
-            self.opening_popup_visible = True
-            yield AwaitTime(BattleTiming.OPENING_POPUP, can_skip=True)
-            self.opening_popup_visible = False
+        self.opening_popup_visible = True
+        yield AwaitTime(BattleTiming.OPENING_POPUP, can_skip=True)
+        self.opening_popup_visible = False
 
-        self.manager.clear_log()
+        self.clear_messages()
 
     def _run_player_input(self, actor: Robot) -> Generator:
         self._selected_command_index = 0
@@ -261,60 +275,68 @@ class BattleDirector:
     def _run_action(self, actor: Robot, report: ExecutionReport) -> Generator:
         part = actor.current_part
 
-        # 失敗・不発時
+        # 1. トラップ発動ステップ（あれば）
+        if report.trap_trigger:
+            if report.trap_trigger.messages:
+                self.set_messages(report.trap_trigger.messages)
+                yield AwaitUserConfirm()
+            self.manager.apply_trap_action(actor, report.trap_trigger)
+            yield AwaitHpAnimation()
+
+            if report.outcome == ExecutionOutcome.TRAP_DESTROYED:
+                if report.pre_messages:
+                    self.set_messages(report.pre_messages)
+                    yield AwaitUserConfirm()
+                yield from self._finalize_turn(actor)
+                return
+
+        # 2. 不発・失敗時
         if report.outcome is not ExecutionOutcome.OK:
-            if not self.skip_staging and report.pre_messages:
-                self.manager.set_log(report.pre_messages)
+            if report.pre_messages:
+                self.set_messages(report.pre_messages)
                 yield AwaitUserConfirm()
             yield from self._finalize_turn(actor)
             return
 
-        # 1. ターゲットレーダー演出
-        if not self.skip_staging and report.target:
+        # 3. ターゲティング & 宣言ステップ
+        if report.target:
             actor_idx = self.manager.find_robot_index(actor)
             target_idx = self.manager.find_robot_index(report.target)
             if actor_idx is not None and target_idx is not None:
                 self.start_radar(actor_idx, target_idx)
                 yield AwaitTime(BattleTiming.TARGET_INDICATION)
 
-        # 2. 技・行動の宣言ログ
-        if not self.skip_staging and part:
-            self.manager.set_log(self.manager.logs.declaration(actor, part))
+        if part:
+            self.set_messages(self.manager.logs.declaration(actor, part))
             yield AwaitUserConfirm()
 
-        # 3. 行動演出の解決（カットイン / ログのみ / その他）
+        # 4. 主行動の演出 & HPコミット
         is_cutin = bool(part and part.presentation == SkillPresentation.CUTIN and report.target)
-        if not self.skip_staging and is_cutin:
+        if is_cutin:
             self.start_cutin(actor, report.target, part, report)
             yield AwaitCutin()
 
-        # 主効果・ダメージを実世界状態へ適用（演出と同期してHPが減少し始める）
+        # 主効果を世界状態へコミット
         self.manager.apply_primary_action(report, actor)
 
-        if not self.skip_staging:
-            if report.result_messages:
-                self.manager.set_log(report.result_messages)
+        if report.result_messages:
+            self.set_messages(report.result_messages)
 
-            if not is_cutin:
-                yield AwaitHpAnimation()
+        yield AwaitHpAnimation()
+        yield AwaitUserConfirm()
+
+        # 5. 貫通演出 & HPコミット（あれば）
+        if report.has_pierce and report.target:
+            self.set_messages(self.manager.logs.pierce())
+            self.manager.apply_pierce_action(report)
+            if is_cutin:
+                self.advance_cutin()
+            yield AwaitHpAnimation()
             yield AwaitUserConfirm()
 
-            # 貫通演出
-            if is_cutin:
-                if report.has_pierce and report.target:
-                    self.manager.set_log(self.manager.logs.pierce())
-                    self.manager.apply_pierce_action(report)
-                    self.advance_cutin()
-                    yield AwaitHpAnimation()
-                    yield AwaitUserConfirm()
-                self.clear_cutin()
-
-            # レーダー終了
-            self.clear_radar()
-        else:
-            # スキップ時は貫通も即時適用
-            if report.has_pierce and report.target:
-                self.manager.apply_pierce_action(report)
+        # クリーンアップ
+        self.clear_cutin()
+        self.clear_radar()
 
         yield from self._finalize_turn(actor)
 
@@ -326,13 +348,12 @@ class BattleDirector:
 
         interrupt_logs = self.manager.detect_and_handle_interrupts()
         if interrupt_logs:
-            if not self.skip_staging:
-                self.manager.set_log(interrupt_logs)
-                yield AwaitUserConfirm()
+            self.set_messages(interrupt_logs)
+            yield AwaitUserConfirm()
 
-        self.manager.clear_log()
+        self.clear_messages()
 
     def _run_battle_end(self) -> Generator:
         if self.manager.winner:
-            self.manager.set_log(self.manager.logs.battle_end(self.manager.winner))
+            self.set_messages(self.manager.logs.battle_end(self.manager.winner))
             yield AwaitUserConfirm()

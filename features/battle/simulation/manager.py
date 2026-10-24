@@ -17,6 +17,7 @@ from .entities.commands import (
     ExecutionOutcome,
     ExecutionReport,
     SkipCommand,
+    TrapTriggerResult,
     build_command_for_part,
 )
 from .entities.robot import Robot
@@ -41,7 +42,6 @@ class BattleManager:
         self.robots: List[Robot] = BattleFactory.create_robots(player_setups, enemy_setups, data_manager)
         self.seed = seed if seed is not None else random.randrange(2**32)
         self.rng = random.Random(self.seed)
-        self._battle_log: List[str] = []
         self.winner: Optional[TeamType] = None
         self.traps = TrapManager()
         self.auto_battle = auto_battle
@@ -67,27 +67,13 @@ class BattleManager:
                 return idx
         return None
 
-    @property
-    def battle_log(self) -> Sequence[str]:
-        return self._battle_log
-
-    @property
-    def has_log(self) -> bool:
-        return bool(self._battle_log)
-
-    def set_log(self, messages: Sequence[str]):
-        self._battle_log = list(messages)
-
-    def append_log(self, message: str):
-        self._battle_log.append(message)
-
-    def extend_log(self, messages: Sequence[str]):
-        self._battle_log.extend(messages)
-
-    def clear_log(self):
-        self._battle_log.clear()
-
     # === 行動結果の世界状態への段階的適用（演出と完全に同期） ===
+
+    def apply_trap_action(self, actor: Robot, trap_trigger: TrapTriggerResult):
+        """トラップ発動によるダメージとトラップ消費を世界状態へ反映する"""
+        if trap_trigger.trap:
+            self.traps.consume(trap_trigger.trap)
+        actor.apply_damage(trap_trigger.part_type, trap_trigger.damage)
 
     def apply_primary_action(self, report: ExecutionReport, actor: Robot):
         """行動の主効果（ダメージ・回復・状態異常・トラップ等）を世界状態へ反映する"""

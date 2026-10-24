@@ -11,6 +11,7 @@ from ..entities.commands import (
     ExecutionReport,
     PartCommand,
     SkipCommand,
+    TrapTriggerResult,
 )
 from ..entities.robot import Robot
 from .log_builder import BattleLogBuilder
@@ -49,24 +50,25 @@ class CommandExecutor:
         if not isinstance(command, PartCommand):
             return ExecutionReport(outcome=ExecutionOutcome.NO_ACTION)
 
-        # 1. トラップ判定
-        trap_logs, is_destroyed = self._check_trap(actor, command.part_type)
-        if is_destroyed:
+        # 1. トラップ判定（純粋計算・副作用なし）
+        trap_trigger = self._check_trap(actor, command.part_type)
+        if trap_trigger and trap_trigger.is_destroyed:
             fail_logs = self.logs.execution_failure(actor, command, ExecutionOutcome.TRAP_DESTROYED)
             return ExecutionReport(
                 outcome=ExecutionOutcome.TRAP_DESTROYED,
-                pre_messages=trap_logs + fail_logs,
+                trap_trigger=trap_trigger,
+                pre_messages=fail_logs,
             )
 
         # 2. パーツコマンドの実行
         report = self._execute_part_command(command)
-        all_pre_messages = trap_logs + list(report.pre_messages)
 
         if report.outcome is not ExecutionOutcome.OK:
             fail_logs = self.logs.execution_failure(actor, command, report.outcome)
             return ExecutionReport(
                 outcome=report.outcome,
-                pre_messages=all_pre_messages + fail_logs,
+                trap_trigger=trap_trigger,
+                pre_messages=list(report.pre_messages) + fail_logs,
             )
 
         # 3. 成功時メッセージの生成
@@ -77,24 +79,32 @@ class CommandExecutor:
             result=report.result,
             target=report.target,
             intercepted_by=report.intercepted_by,
-            pre_messages=all_pre_messages,
+            trap_trigger=trap_trigger,
+            pre_messages=list(report.pre_messages),
             result_messages=result_messages,
         )
 
-    def _check_trap(self, actor: Robot, part_type: PartType) -> Tuple[List[str], bool]:
+    def _check_trap(self, actor: Robot, part_type: PartType) -> Optional[TrapTriggerResult]:
         part = actor.get_part(part_type)
         if not part or not part.is_alive:
-            return [], False
+            return None
 
-        triggered_trap = self.manager.traps.trigger(actor.team, part.action)
+        triggered_trap = self.manager.traps.find_triggered(actor.team, part.action)
         if not triggered_trap:
-            return [], False
+            return None
 
-        _, is_destroyed = actor.apply_damage(part_type, triggered_trap.damage)
+        is_destroyed = (part.hp <= triggered_trap.damage)
         logs = self.logs.trap_triggered(
             actor, part_type, triggered_trap.skill, triggered_trap.damage, is_destroyed
         )
-        return logs, is_destroyed
+        return TrapTriggerResult(
+            trap_skill=triggered_trap.skill,
+            part_type=part_type,
+            damage=triggered_trap.damage,
+            is_destroyed=is_destroyed,
+            trap=triggered_trap,
+            messages=logs,
+        )
 
     def _execute_part_command(self, command: PartCommand) -> ExecutionReport:
         actor = command.actor
