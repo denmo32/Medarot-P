@@ -7,10 +7,10 @@ from domain.constants import (
     AttributeType, CustomizeSlot, EffectStackPolicy, EffectType, GaugeStatus, HitPolicy,
     PartType, ActionType, PersonalityType, TeamType, SkillType,
 )
-from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage, TrapInstall
 
 if TYPE_CHECKING:
     from domain.action_logic import ActionDefinition
+    from domain.traps import InstalledTrap
 
 
 class CombatantLeaderProtocol(Protocol):
@@ -217,60 +217,66 @@ class StatusEffect:
 
 
 @dataclass(frozen=True)
-class ActionResult:
-    """戦闘行動の判定・計算結果 DTO。
+class DamageResult:
+    """部位ダメージ適用の結果データ（主攻撃・貫通で共用）"""
+    part_type: PartType
+    amount: int
+    effective_damage: int = 0
+    destroyed: bool = False
 
-    主攻撃のダメージ量や被弾部位は applied_effects 内の PartDamage オブジェクトから導出されます。
-    """
+
+@dataclass(frozen=True)
+class RepairResult:
+    """回復・復元適用の結果データ"""
+    part_type: PartType
+    amount: int = 0
+    is_restored: bool = False
+
+
+@dataclass(frozen=True)
+class ActionResult:
+    """戦闘行動の判定・計算結果 DTO（平坦構造）。"""
     success: bool
     is_guarded: bool = False
     is_critical: bool = False
     skill: Optional[SkillType] = None
-    applied_effects: Tuple[AppliedEffect, ...] = ()
     adjusted_success: int = 0
     adjusted_mobility: int = 0
     target_part: Optional[PartType] = None
-    _primary_damage: Optional[PartDamage] = field(init=False, repr=False, default=None)
-    _pierce_effect: Optional[PierceDamage] = field(init=False, repr=False, default=None)
 
-    def __post_init__(self):
-        if not isinstance(self.applied_effects, tuple):
-            object.__setattr__(self, 'applied_effects', tuple(self.applied_effects))
-        primary = next((e for e in self.applied_effects if isinstance(e, PartDamage)), None)
-        pierce = next((e for e in self.applied_effects if isinstance(e, PierceDamage)), None)
-        object.__setattr__(self, '_primary_damage', primary)
-        object.__setattr__(self, '_pierce_effect', pierce)
-
-    @property
-    def primary_damage(self) -> Optional[PartDamage]:
-        return self._primary_damage
+    # 具体的な結果フィールド
+    primary_damage: Optional[DamageResult] = None
+    pierce_damage: Optional[DamageResult] = None
+    status_effect: Optional[StatusEffect] = None
+    status_to_self: bool = False
+    repair_result: Optional[RepairResult] = None
+    installed_trap: Optional["InstalledTrap"] = None
 
     @property
     def damage(self) -> int:
-        if self._primary_damage:
-            return self._primary_damage.amount
-        trap_effect = next((e for e in self.applied_effects if isinstance(e, TrapInstall)), None)
-        if trap_effect:
-            return trap_effect.trap.damage
+        if self.primary_damage:
+            return self.primary_damage.amount
+        if self.installed_trap:
+            return self.installed_trap.damage
         return 0
 
     @property
     def effective_damage(self) -> int:
-        return self._primary_damage.effective_damage if self._primary_damage else 0
+        return self.primary_damage.effective_damage if self.primary_damage else 0
 
     @property
     def hit_part(self) -> Optional[PartType]:
-        if self._primary_damage:
-            return self._primary_damage.part_type
+        if self.primary_damage:
+            return self.primary_damage.part_type
         return self.target_part
 
     @property
-    def pierce_effect(self) -> Optional[PierceDamage]:
-        return self._pierce_effect
+    def pierce_effect(self) -> Optional[DamageResult]:
+        return self.pierce_damage
 
     @property
     def has_pierce(self) -> bool:
-        return self.success and (self._pierce_effect is not None)
+        return self.success and (self.pierce_damage is not None)
 
 
 @dataclass(frozen=True)

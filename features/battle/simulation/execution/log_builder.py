@@ -3,13 +3,6 @@
 from typing import TYPE_CHECKING, List, Optional
 
 from domain.constants import PartType, SkillType, EffectType, TeamType
-from domain.effect_payloads import (
-    AppliedEffect,
-    ApplyStatus,
-    PartRepair,
-    PartRestore,
-    TrapInstall,
-)
 from domain.models import ActionResult, StatusEffect
 from ..entities.commands import ExecutionOutcome, PartCommand
 
@@ -118,30 +111,29 @@ class BattleLogBuilder:
             return []
 
         messages: List[str] = []
-        for applied in result.applied_effects:
-            messages.extend(cls._format_applied_effect(applied, target))
 
-        return messages
+        if result.repair_result:
+            rep = result.repair_result
+            if rep.is_restored:
+                messages.append(f"{target.name}の{rep.part_type.label}が復元された！")
+            else:
+                messages.append(f"{target.name}の{rep.part_type.label}が {rep.amount} 回復した！")
 
-    @staticmethod
-    def _format_applied_effect(effect: AppliedEffect, target: 'Robot') -> List[str]:
-        if isinstance(effect, PartRepair):
-            return [f"{target.name}の{effect.part_type.label}が {effect.amount} 回復した！"]
-        if isinstance(effect, PartRestore):
-            return [f"{target.name}の{effect.part_type.label}が復元された！"]
-        if isinstance(effect, TrapInstall):
+        if result.installed_trap:
             team_label = "味方チーム" if target.team == TeamType.PLAYER else "相手チーム"
-            return [f"{team_label}に「{effect.trap.skill.value}」が設置された！"]
-        if isinstance(effect, ApplyStatus):
-            eff = effect.effect
+            messages.append(f"{team_label}に「{result.installed_trap.skill.value}」が設置された！")
+
+        if result.status_effect:
+            eff = result.status_effect
             name = target.name
             if eff.type == EffectType.STOP:
                 label = eff.part_type.label if eff.part_type else ""
-                return [f"{name}の{label}が停止した！" if label else f"{name}が停止した！"]
-            if eff.type == EffectType.BLOCK:
-                return [f"{name}は味方への攻撃を庇う！"]
-            if eff.type == EffectType.PROTECT:
-                return [f"{name}はダメージを減少する！"]
-            if eff.type == EffectType.SUCCESS_UP:
-                return [f"{name}の命中度が上がった！ 残り{eff.charges}回"]
-        return []
+                messages.append(f"{name}の{label}が停止した！" if label else f"{name}が停止した！")
+            elif eff.type == EffectType.BLOCK:
+                messages.append(f"{name}は味方への攻撃を庇う！")
+            elif eff.type == EffectType.PROTECT:
+                messages.append(f"{name}はダメージを減少する！")
+            elif eff.type == EffectType.SUCCESS_UP:
+                messages.append(f"{name}の命中度が上がった！ 残り{eff.charges}回")
+
+        return messages

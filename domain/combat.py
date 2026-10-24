@@ -3,10 +3,9 @@
 
 import logging
 import random
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Optional
 from domain.constants import HitPolicy, PartType
-from domain.effect_payloads import AppliedEffect, PartDamage, PierceDamage
-from domain.models import BattleParticipant, ActionResult
+from domain.models import BattleParticipant, ActionResult, DamageResult
 from domain.action_logic import get_action_definition
 from domain.combat_formulas import (
     calculate_hit_probability,
@@ -117,17 +116,15 @@ def resolve_attack(
     effective_damage = min(damage, target_hp_before)
     is_destroyed = damage >= target_hp_before
 
-    # 8. 適用ペイロードの構築
-    applied_effects: List[AppliedEffect] = [
-        PartDamage(
-            part_type=hit_part,
-            amount=damage,
-            effective_damage=effective_damage,
-            destroyed=is_destroyed,
-        )
-    ]
+    primary = DamageResult(
+        part_type=hit_part,
+        amount=damage,
+        effective_damage=effective_damage,
+        destroyed=is_destroyed,
+    )
 
-    # 貫通判定
+    # 8. 貫通判定
+    pierce = None
     if (
         attacker.stats.can_pierce
         and hit_part != PartType.HEAD
@@ -139,13 +136,11 @@ def resolve_attack(
             if pierce_part is not None:
                 pierce_target_hp = target.parts_hp.get(pierce_part, 0)
                 pierce_effective = min(overflow, pierce_target_hp)
-                applied_effects.append(
-                    PierceDamage(
-                        part_type=pierce_part,
-                        amount=overflow,
-                        effective_damage=pierce_effective,
-                        destroyed=overflow >= pierce_target_hp,
-                    )
+                pierce = DamageResult(
+                    part_type=pierce_part,
+                    amount=overflow,
+                    effective_damage=pierce_effective,
+                    destroyed=overflow >= pierce_target_hp,
                 )
 
     return ActionResult(
@@ -153,7 +148,8 @@ def resolve_attack(
         is_guarded=is_guarded,
         is_critical=is_critical,
         skill=attacker.stats.skill,
-        applied_effects=tuple(applied_effects),
+        primary_damage=primary,
+        pierce_damage=pierce,
         adjusted_success=adjusted_success,
         adjusted_mobility=adjusted_mobility,
     )

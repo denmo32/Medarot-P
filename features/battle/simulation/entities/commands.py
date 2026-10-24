@@ -1,8 +1,5 @@
 # features/battle/simulation/entities/commands.py
-"""バトルコマンド（指示・予約）のデータクラス (Command Pattern / DTO) および実行レポート。
-
-機体の意志（予約状態）を表すため、エンティティ層に属します。
-"""
+"""バトルコマンド（指示・予約）のデータクラス (Command Pattern / DTO) および実行レポート。"""
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Tuple
@@ -11,7 +8,7 @@ from domain.constants import COMMAND_MENU_PART_ORDER, PartType
 from domain.models import ActionResult
 
 if TYPE_CHECKING:
-    from domain.effect_payloads import PierceDamage
+    from domain.models import DamageResult
     from .part import Part
     from .robot import Robot
 
@@ -26,7 +23,7 @@ class ExecutionOutcome(Enum):
     ACTION_UNIMPLEMENTED = auto()
     TARGET_LOST = auto()
     RESERVED_PART_DESTROYED = auto()
-    TRAP_DESTROYED = auto()  # トラップ被弾によるパーツ破壊を明示
+    TRAP_DESTROYED = auto()
 
 
 @dataclass(frozen=True)
@@ -51,7 +48,7 @@ class ExecutionReport:
         return self.result.has_pierce if self.result else False
 
     @property
-    def pierce_effect(self) -> Optional['PierceDamage']:
+    def pierce_effect(self) -> Optional['DamageResult']:
         return self.result.pierce_effect if self.result else None
 
 
@@ -86,7 +83,7 @@ def build_command_menu_selectable_mask(
     mask = []
     for pt in COMMAND_MENU_PART_ORDER:
         if pt is None:
-            mask.append(True)  # スキップは常に可能
+            mask.append(True)
         else:
             part = actor.get_part(pt) if actor else None
             has_target = bool(preview_targets.get(pt))

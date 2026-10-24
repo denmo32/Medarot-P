@@ -1,8 +1,7 @@
 """戦闘・行動効果の計算と生成（RNG 一元化）"""
 from typing import Optional
 from domain.constants import EffectType, PartType, EffectStackPolicy, SkillType, TeamType
-from domain.effect_payloads import ApplyStatus, PartRepair, PartRestore, TrapInstall
-from domain.models import StatusEffect, ActionResult, EffectResolutionContext
+from domain.models import StatusEffect, ActionResult, EffectResolutionContext, RepairResult
 from domain.combat_formulas import calculate_hit_probability
 from domain.traps import InstalledTrap
 
@@ -31,7 +30,7 @@ def resolve_stop_effect(context: EffectResolutionContext) -> ActionResult:
         effect = make_stop_effect(duration, part_type=target_part_type)
         return ActionResult(
             success=True,
-            applied_effects=(ApplyStatus(effect=effect),),
+            status_effect=effect,
             target_part=target_part_type,
             adjusted_success=adj_success,
             adjusted_mobility=adj_mobility,
@@ -62,7 +61,7 @@ def resolve_repair_effect(context: EffectResolutionContext) -> ActionResult:
 
     return ActionResult(
         success=True,
-        applied_effects=(PartRepair(part_type=target_part, amount=amount),),
+        repair_result=RepairResult(part_type=target_part, amount=amount),
         target_part=target_part,
         skill=context.skill,
     )
@@ -84,7 +83,7 @@ def resolve_restore_effect(context: EffectResolutionContext) -> ActionResult:
 
     return ActionResult(
         success=True,
-        applied_effects=(PartRestore(part_type=target_part),),
+        repair_result=RepairResult(part_type=target_part, is_restored=True),
         target_part=target_part,
         skill=context.skill,
     )
@@ -111,7 +110,7 @@ def resolve_scan_effect(context: EffectResolutionContext) -> ActionResult:
 
     return ActionResult(
         success=True,
-        applied_effects=(ApplyStatus(effect=effect),),
+        status_effect=effect,
         skill=context.skill,
     )
 
@@ -125,7 +124,8 @@ def resolve_block_effect(context: EffectResolutionContext) -> ActionResult:
     )
     return ActionResult(
         success=True,
-        applied_effects=(ApplyStatus(effect=effect, target_self=True),),
+        status_effect=effect,
+        status_to_self=True,
         skill=context.skill,
     )
 
@@ -141,7 +141,7 @@ def resolve_trap_effect(context: EffectResolutionContext) -> ActionResult:
     return ActionResult(
         success=True,
         skill=context.skill,
-        applied_effects=(TrapInstall(trap=trap),),
+        installed_trap=trap,
     )
 
 
@@ -156,7 +156,8 @@ def resolve_protect_effect(context: EffectResolutionContext) -> ActionResult:
     )
     return ActionResult(
         success=True,
-        applied_effects=(ApplyStatus(effect=effect, target_self=True),),
+        status_effect=effect,
+        status_to_self=True,
         target_part=context.source_part_type,
         skill=context.skill,
     )
