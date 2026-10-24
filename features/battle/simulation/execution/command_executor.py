@@ -7,7 +7,6 @@ from domain.constants import PartType, SkillKind
 from domain.models import EffectResolutionContext
 
 from ..entities.commands import (
-    BattleCommand,
     ExecutionOutcome,
     ExecutionReport,
     PartCommand,
@@ -37,48 +36,47 @@ class CommandExecutor:
         self.rng = rng or self.manager.rng.random
 
     def execute_charged(self, actor: Robot) -> ExecutionReport:
-        """充填完了した機体のコマンドを実行・適用し、結果レポートを作成する。"""
+        """充填完了した機体のコマンドを実行し、結果レポートを作成する。"""
         actor.start_execution()
-
         command = actor.current_command
+
         if isinstance(command, SkipCommand):
             return ExecutionReport(
                 outcome=ExecutionOutcome.SKIPPED,
                 pre_messages=self.logs.skipped(actor),
             )
 
-        pre_messages: List[str] = []
-        if isinstance(command, PartCommand):
-            trap_logs, is_destroyed = self._check_trap(actor, command.part_type)
-            pre_messages.extend(trap_logs)
-            if is_destroyed:
-                fail_logs = self.logs.execution_failure(actor, command, ExecutionOutcome.TRAP_DESTROYED)
-                return ExecutionReport(
-                    outcome=ExecutionOutcome.TRAP_DESTROYED,
-                    pre_messages=trap_logs + fail_logs,
-                )
+        if not isinstance(command, PartCommand):
+            return ExecutionReport(outcome=ExecutionOutcome.NO_ACTION)
 
-        initial_report = self._execute_internal(command)
-        all_pre_messages = pre_messages + list(initial_report.pre_messages)
-
-        if initial_report.outcome is not ExecutionOutcome.OK:
-            fail_logs = self.logs.execution_failure(actor, command, initial_report.outcome)
+        # 1. トラップ判定
+        trap_logs, is_destroyed = self._check_trap(actor, command.part_type)
+        if is_destroyed:
+            fail_logs = self.logs.execution_failure(actor, command, ExecutionOutcome.TRAP_DESTROYED)
             return ExecutionReport(
-                outcome=initial_report.outcome,
+                outcome=ExecutionOutcome.TRAP_DESTROYED,
+                pre_messages=trap_logs + fail_logs,
+            )
+
+        # 2. パーツコマンドの実行
+        report = self._execute_part_command(command)
+        all_pre_messages = trap_logs + list(report.pre_messages)
+
+        if report.outcome is not ExecutionOutcome.OK:
+            fail_logs = self.logs.execution_failure(actor, command, report.outcome)
+            return ExecutionReport(
+                outcome=report.outcome,
                 pre_messages=all_pre_messages + fail_logs,
             )
 
-        # 結果メッセージの生成（世界状態への適用は演出タイミングに合わせて Manager が行う）
-        result_messages: List[str] = []
-        messages = self.logs.effect_resolution(initial_report.result, initial_report.target)
-        if messages:
-            result_messages.extend(messages)
+        # 3. 成功時メッセージの生成
+        result_messages = list(self.logs.effect_resolution(report.result, report.target))
 
         return ExecutionReport(
-            outcome=initial_report.outcome,
-            result=initial_report.result,
-            target=initial_report.target,
-            intercepted_by=initial_report.intercepted_by,
+            outcome=report.outcome,
+            result=report.result,
+            target=report.target,
+            intercepted_by=report.intercepted_by,
             pre_messages=all_pre_messages,
             result_messages=result_messages,
         )
@@ -97,13 +95,6 @@ class CommandExecutor:
             actor, part_type, triggered_trap.skill, triggered_trap.damage, is_destroyed
         )
         return logs, is_destroyed
-
-    def _execute_internal(self, command: Optional[BattleCommand]) -> ExecutionReport:
-        if isinstance(command, SkipCommand):
-            return ExecutionReport(outcome=ExecutionOutcome.SKIPPED)
-        if isinstance(command, PartCommand):
-            return self._execute_part_command(command)
-        return ExecutionReport(outcome=ExecutionOutcome.NO_ACTION)
 
     def _execute_part_command(self, command: PartCommand) -> ExecutionReport:
         actor = command.actor

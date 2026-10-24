@@ -1,9 +1,7 @@
-# features/battle/presentation/command_menu_builder.py
 """コマンドメニューの項目情報（CommandMenuItemModel）を組み立てるビルダーロジック。"""
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from domain.constants import COMMAND_MENU_PART_ORDER, PartType
-from features.battle.simulation.context import find_robot_index
 from features.battle.simulation.entities.commands import is_part_command_selectable
 from .view_models import CommandMenuItemModel
 
@@ -47,7 +45,11 @@ def build_command_menu_items(
             ))
             continue
 
-        preview_index = _resolve_robot_index(preview_targets.get(part_type), robots)
+        target_info = preview_targets.get(part_type)
+        preview_index = (
+            next((i for i, r in enumerate(robots) if r is target_info[0]), None)
+            if target_info else None
+        )
         visual_enabled = part.can_execute
         selectable = is_part_command_selectable(part, preview_index is not None)
 
@@ -61,12 +63,3 @@ def build_command_menu_items(
         ))
 
     return items
-
-
-def _resolve_robot_index(
-    target_info: Optional[Tuple['Robot', Optional[PartType]]],
-    robots: Sequence['Robot'],
-) -> Optional[int]:
-    if not target_info:
-        return None
-    return find_robot_index(robots, target_info[0])

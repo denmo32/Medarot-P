@@ -167,13 +167,13 @@ class BattleDirector:
                 new_idx, confirmed = hit_test_command_menu(
                     screen_size,
                     (input_state.mouse_x, input_state.mouse_y),
-                    len(COMMAND_MENU_PART_ORDER),
+                    len(await_item.menu_items),
                     self._selected_command_index,
                 )
                 if 0 <= new_idx < len(await_item.selectable_mask) and await_item.selectable_mask[new_idx]:
                     self._selected_command_index = new_idx
                     if confirmed:
-                        chosen_part = COMMAND_MENU_PART_ORDER[new_idx]
+                        chosen_part = await_item.menu_items[new_idx].part_type
                         self._advance(send_val=chosen_part)
                         return True
 
@@ -182,7 +182,7 @@ class BattleDirector:
                 self._selected_command_index, input_state, await_item.selectable_mask
             )
             if input_state.btn_ok and await_item.selectable_mask[self._selected_command_index]:
-                chosen_part = COMMAND_MENU_PART_ORDER[self._selected_command_index]
+                chosen_part = await_item.menu_items[self._selected_command_index].part_type
                 self._advance(send_val=chosen_part)
                 return True
 
