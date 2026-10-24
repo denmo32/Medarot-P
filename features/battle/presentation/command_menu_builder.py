@@ -8,8 +8,8 @@ from .view_models import CommandMenuItemModel
 if TYPE_CHECKING:
     from features.battle.simulation.entities.robot import Robot
 
-SKIP_LABEL = "スキップ"
-SKIP_ACTION_LABEL = "なし"
+MEDAFORCE_LABEL = "メダフォース"
+MEDAFORCE_ACTION_LABEL = "未実装"
 EMPTY_LABEL = "---"
 
 
@@ -23,13 +23,13 @@ def build_command_menu_items(
 
     for part_type in COMMAND_MENU_PART_ORDER:
         if part_type is None:
-            # スキップ項目
+            # メダフォース項目（現在は仮配置・非活性）
             items.append(CommandMenuItemModel(
                 part_type=None,
-                label=SKIP_LABEL,
-                action_label=SKIP_ACTION_LABEL,
-                visual_enabled=True,
-                selectable=True,
+                label=MEDAFORCE_LABEL,
+                action_label=MEDAFORCE_ACTION_LABEL,
+                visual_enabled=False,
+                selectable=False,
             ))
             continue
 

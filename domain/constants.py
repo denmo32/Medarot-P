@@ -62,7 +62,7 @@ class CustomizeState(KeyedEnum):
 COMMAND_MENU_HEAD_INDEX = 0
 COMMAND_MENU_RIGHT_ARM_INDEX = 1
 COMMAND_MENU_LEFT_ARM_INDEX = 2
-COMMAND_MENU_SKIP_INDEX = 3
+COMMAND_MENU_MEDAFORCE_INDEX = 3  # 旧 SKIP_INDEX から変更
 
 
 class AccentState(str, Enum):
@@ -154,12 +154,12 @@ ALL_PART_TYPES = (
     PartType.LEGS,
 )
 
-# コマンドメニュー項目の表示順契約（None はスキップ項目）
+# コマンドメニュー項目の表示順契約（None はメダフォース項目）
 COMMAND_MENU_PART_ORDER: Tuple[Optional[PartType], ...] = (
     PartType.HEAD,
     PartType.RIGHT_ARM,
     PartType.LEFT_ARM,
-    None,  # スキップ
+    None,  # メダフォース（仮配置・非活性）
 )
 
 

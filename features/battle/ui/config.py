@@ -31,12 +31,12 @@ class BattleUiParams:
     blink_interval_ms: int = 500
     advance_marker_size: int = 8
 
-    # コマンドメニュー
-    command_menu_top_padding_ratio: float = 0.04
-    action_name_y_ratio: float = 0.05
-    btn_width_ratio: float = 0.25
-    btn_height_ratio: float = 0.075
-    btn_padding_ratio: float = 0.012
+    # コマンドメニュー（3段配置に合わせて高さを0.075→0.055に調整）
+    command_menu_top_padding_ratio: float = 0.02
+    action_name_y_ratio: float = 0.04
+    btn_width_ratio: float = 0.22
+    btn_height_ratio: float = 0.055
+    btn_padding_ratio: float = 0.008
 
     # カットイン演出
     cutin_left_ratio: float = 0.25

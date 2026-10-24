@@ -6,6 +6,7 @@ from domain.constants import (
     COMMAND_MENU_HEAD_INDEX,
     COMMAND_MENU_LEFT_ARM_INDEX,
     COMMAND_MENU_RIGHT_ARM_INDEX,
+    COMMAND_MENU_MEDAFORCE_INDEX,
     TeamType,
 )
 from ui_base.interaction import handle_menu_mouse
@@ -205,18 +206,18 @@ def calculate_command_menu_rects(
     rects: List[pygame.Rect] = []
     for i in range(button_count):
         rect = pygame.Rect(0, 0, btn_w, btn_h)
-        if i == COMMAND_MENU_HEAD_INDEX:
+        if i == COMMAND_MENU_HEAD_INDEX:  # 上: 頭部
             rect.centerx = center_x
             rect.top = start_y
-        elif i == COMMAND_MENU_RIGHT_ARM_INDEX:
+        elif i == COMMAND_MENU_RIGHT_ARM_INDEX:  # 左: 右腕
             rect.right = center_x - (btn_pad // 2)
             rect.top = start_y + btn_h + btn_pad
-        elif i == COMMAND_MENU_LEFT_ARM_INDEX:
+        elif i == COMMAND_MENU_LEFT_ARM_INDEX:  # 右: 左腕
             rect.left = center_x + (btn_pad // 2)
             rect.top = start_y + btn_h + btn_pad
-        else:
-            rect.left = center_x + btn_w + btn_pad * 2
-            rect.centery = start_y + btn_h + (btn_pad // 2)
+        elif i == COMMAND_MENU_MEDAFORCE_INDEX:  # 下: メダフォース
+            rect.centerx = center_x
+            rect.top = start_y + (btn_h + btn_pad) * 2
         rects.append(rect)
 
     return rects
