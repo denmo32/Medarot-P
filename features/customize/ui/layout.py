@@ -36,13 +36,13 @@ def calculate_customize_layout(
     sw, sh = screen_size
     cfg = CUSTOMIZE_UI_PARAMS
 
-    padding = int(sw * cfg['PANEL_PADDING_RATIO'])
-    y = int(sh * cfg['PANEL_Y_RATIO'])
-    height = int(sh * cfg['PANEL_HEIGHT_RATIO'])
+    padding = int(sw * cfg.panel_padding_ratio)
+    y = int(sh * cfg.panel_y_ratio)
+    height = int(sh * cfg.panel_height_ratio)
 
-    col1_w = int(sw * cfg['COLUMN_1_WIDTH_RATIO'])
-    col2_w = int(sw * cfg['COLUMN_2_WIDTH_RATIO'])
-    col3_w = int(sw * cfg['COLUMN_3_WIDTH_RATIO'])
+    col1_w = int(sw * cfg.column_1_width_ratio)
+    col2_w = int(sw * cfg.column_2_width_ratio)
+    col3_w = int(sw * cfg.column_3_width_ratio)
 
     cols = [
         {'x': padding, 'w': col1_w, 'title': "機体選択"},
@@ -50,11 +50,11 @@ def calculate_customize_layout(
         {'x': padding * 3 + col1_w + col2_w, 'w': col3_w, 'title': ""},
     ]
 
-    content_start_y = y + int(sh * cfg['CONTENT_START_Y_RATIO'])
+    content_start_y = y + int(sh * cfg.content_start_y_ratio)
 
-    c1_item_h = int(sh * cfg['COLUMN_1_ITEM_HEIGHT_RATIO'])
-    c1_gap = int(sh * cfg['COLUMN_1_ITEM_GAP_RATIO'])
-    c1_pad = _scaled(cfg['COLUMN_1_ITEM_PADDING'], screen_size)
+    c1_item_h = int(sh * cfg.column_1_item_height_ratio)
+    c1_gap = int(sh * cfg.column_1_item_gap_ratio)
+    c1_pad = _scaled(cfg.column_1_item_padding, screen_size)
     robot_rects = [
         pygame.Rect(
             cols[0]['x'] + c1_pad,
@@ -65,9 +65,9 @@ def calculate_customize_layout(
         for i in range(PLAYER_COUNT)
     ]
 
-    c2_item_h = int(sh * cfg['COLUMN_2_ITEM_HEIGHT_RATIO'])
-    c2_gap = int(sh * cfg['COLUMN_2_ITEM_GAP_RATIO'])
-    c2_text_pad = _scaled(cfg['COLUMN_2_TEXT_OFFSET_X'], screen_size)
+    c2_item_h = int(sh * cfg.column_2_item_height_ratio)
+    c2_gap = int(sh * cfg.column_2_item_gap_ratio)
+    c2_text_pad = _scaled(cfg.column_2_text_offset_x, screen_size)
 
     if isinstance(model, CustomizeViewModel):
         slots_count = model.slot_count
@@ -87,9 +87,9 @@ def calculate_customize_layout(
     ]
 
     list_start_y = content_start_y + c2_gap + slots_count * (c2_item_h + c2_gap) + c2_gap * 2
-    list_item_start_y = list_start_y + _scaled(cfg['COLUMN_2_LIST_START_PADDING'], screen_size)
-    list_item_h = int(sh * cfg['COLUMN_2_LIST_ITEM_HEIGHT_RATIO'])
-    list_indent = _scaled(cfg['COLUMN_2_LIST_INDENT'], screen_size)
+    list_item_start_y = list_start_y + _scaled(cfg.column_2_list_start_padding, screen_size)
+    list_item_h = int(sh * cfg.column_2_list_item_height_ratio)
+    list_indent = _scaled(cfg.column_2_list_indent, screen_size)
 
     part_list_rects = []
     for i in range(available_count):

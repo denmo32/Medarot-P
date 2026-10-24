@@ -138,24 +138,6 @@ _PART_LABELS = {
     PartType.LEGS: "脚部",
 }
 
-# 互換性維持のためのエイリアス（CustomizeViewBuilder 等が参照）
-PART_TYPE_LABELS = {
-    CustomizeSlot.MEDAL: "メダル",
-    CustomizeSlot.HEAD: "頭部",
-    CustomizeSlot.RIGHT_ARM: "右腕",
-    CustomizeSlot.LEFT_ARM: "左腕",
-    CustomizeSlot.LEGS: "脚部",
-    PartType.HEAD: "頭部",
-    PartType.RIGHT_ARM: "右腕",
-    PartType.LEFT_ARM: "左腕",
-    PartType.LEGS: "脚部",
-    "medal": "メダル",
-    "head": "頭部",
-    "right_arm": "右腕",
-    "left_arm": "左腕",
-    "legs": "脚部",
-}
-
 CUSTOMIZE_SLOTS = (
     CustomizeSlot.MEDAL,
     CustomizeSlot.HEAD,

@@ -1,7 +1,7 @@
 """カスタマイズ画面の View Model 構築クラス（RobotSetup 対応）"""
 from typing import Optional, Tuple, Union
 from domain.config import PLAYER_COUNT
-from domain.constants import PART_TYPE_LABELS, CustomizeState, PartType, CustomizeSlot
+from domain.constants import CustomizeState, PartType, CustomizeSlot
 from domain.models import GameDataProtocol, MedalData, PartData, SaveDataProtocol
 from features.customize.presentation.view_models import (
     CustomizeDetailPanelModel,
@@ -36,7 +36,7 @@ class CustomizeViewBuilder:
 
         slots = [
             CustomizeSlotItemModel(
-                label=PART_TYPE_LABELS.get(s, s.value),
+                label=s.label,
                 part_name=self.data_manager.get_part_name(
                     self.save_data.get_part_id(selected_robot_idx, s)
                 ),

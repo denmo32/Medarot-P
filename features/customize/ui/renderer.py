@@ -29,12 +29,12 @@ class CustomizeRenderer(BaseRenderer):
         self.draw_box(rect, self.theme.panel_bg, self.theme.panel_border)
 
         cfg = CUSTOMIZE_UI_PARAMS
-        title_x = self.scaled(cfg['COLUMN_1_ITEM_PADDING'])
-        title_y = self.scaled(cfg['COLUMN_1_ITEM_PADDING'])
+        title_x = self.scaled(cfg.column_1_item_padding)
+        title_y = self.scaled(cfg.column_1_item_padding)
         self.draw_text(title, (col['x'] + title_x, layout['y'] + title_y), (150, 160, 180), 'normal')
 
         line_y = layout['content_start_y']
-        line_x_end = self.scaled(cfg['COLUMN_1_ITEM_PADDING'])
+        line_x_end = self.scaled(cfg.column_1_item_padding)
         pygame.draw.line(
             self.screen, self.theme.panel_border,
             (col['x'] + line_x_end, line_y),
@@ -45,7 +45,7 @@ class CustomizeRenderer(BaseRenderer):
     def _draw_column_1(self, model: CustomizeViewModel, layout: dict):
         self._draw_panel_base(0, "機体選択", layout)
         cfg = CUSTOMIZE_UI_PARAMS
-        text_offset_x = self.scaled(cfg['COLUMN_1_TEXT_OFFSET_X'])
+        text_offset_x = self.scaled(cfg.column_1_text_offset_x)
 
         for i, name in enumerate(model.robot_names):
             rect = layout['robot_rects'][i]
@@ -57,11 +57,11 @@ class CustomizeRenderer(BaseRenderer):
         self._draw_panel_base(1, model.active_robot_name, layout)
         col = layout['cols'][1]
         cfg = CUSTOMIZE_UI_PARAMS
-        text_offset_x = self.scaled(cfg['COLUMN_2_TEXT_OFFSET_X'])
-        part_name_offset_x = self.scaled(cfg['COLUMN_2_PART_NAME_OFFSET_X'])
-        list_title_offset_y = self.scaled(cfg['COLUMN_2_LIST_TITLE_OFFSET_Y'])
-        list_highlight_w = self.scaled(cfg['COLUMN_2_LIST_HIGHLIGHT_WIDTH'])
-        list_item_offset_x = self.scaled(cfg['COLUMN_2_LIST_ITEM_OFFSET_X'])
+        text_offset_x = self.scaled(cfg.column_2_text_offset_x)
+        part_name_offset_x = self.scaled(cfg.column_2_part_name_offset_x)
+        list_title_offset_y = self.scaled(cfg.column_2_list_title_offset_y)
+        list_highlight_w = self.scaled(cfg.column_2_list_highlight_width)
+        list_item_offset_x = self.scaled(cfg.column_2_list_item_offset_x)
 
         # スロット情報
         for i, slot in enumerate(model.slots):
@@ -105,13 +105,13 @@ class CustomizeRenderer(BaseRenderer):
         col = layout['cols'][2]
 
         cfg = CUSTOMIZE_UI_PARAMS
-        title_offset_x = self.scaled(cfg['COLUMN_3_TITLE_OFFSET_X'])
-        info_offset_y = self.scaled(cfg['COLUMN_3_INFO_START_OFFSET_Y'])
-        row_label_offset_x = self.scaled(cfg['COLUMN_3_ROW_LABEL_OFFSET_X'])
-        row_value_offset_x = self.scaled(cfg['COLUMN_3_ROW_VALUE_OFFSET_X'])
-        row_line_offset_y = self.scaled(cfg['COLUMN_3_ROW_LINE_OFFSET_Y'])
-        row_h = self.scale_y(cfg['COLUMN_3_ROW_HEIGHT_RATIO'])
-        section_gap = self.scale_y(cfg['COLUMN_3_SECTION_GAP_RATIO'])
+        title_offset_x = self.scaled(cfg.column_3_title_offset_x)
+        info_offset_y = self.scaled(cfg.column_3_info_start_offset_y)
+        row_label_offset_x = self.scaled(cfg.column_3_row_label_offset_x)
+        row_value_offset_x = self.scaled(cfg.column_3_row_value_offset_x)
+        row_line_offset_y = self.scaled(cfg.column_3_row_line_offset_y)
+        row_h = self.scale_y(cfg.column_3_row_height_ratio)
+        section_gap = self.scale_y(cfg.column_3_section_gap_ratio)
 
         self.draw_text(detail.name, (col['x'] + title_offset_x, start_y + section_gap), self.theme.select_highlight, 'medium')
 

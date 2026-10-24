@@ -1,6 +1,5 @@
 """カスタマイズ画面のUIパラメータ定義"""
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -33,10 +32,6 @@ class CustomizeUiParams:
     column_3_row_line_offset_y: int = 5
     column_3_row_height_ratio: float = 0.07
     column_3_section_gap_ratio: float = 0.03
-
-    def __getitem__(self, item: str) -> Any:
-        key = item.lower()
-        return getattr(self, key)
 
 
 CUSTOMIZE_UI_PARAMS = CustomizeUiParams()
