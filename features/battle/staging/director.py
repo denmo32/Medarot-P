@@ -2,8 +2,9 @@
 """戦闘シーケンスを yield（ジェネレータ）で統括するディレクター。"""
 import logging
 from typing import Any, Generator, Optional
-from domain.constants import SkillPresentation
+from domain.constants import COMMAND_MENU_PART_ORDER, SkillPresentation
 from features.battle.constants import BattleTiming
+from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 from features.battle.simulation.entities.commands import (
     ExecutionOutcome,
     ExecutionReport,
@@ -49,6 +50,7 @@ class BattleDirector:
         self._send_value: Any = None
         self.opening_popup_visible: bool = False
         self.is_finished: bool = False
+        self._selected_command_index: int = 0
 
         self._routine: Optional[Generator] = self._run_battle()
         self._step()
@@ -58,6 +60,10 @@ class BattleDirector:
         return self.pending_await if isinstance(self.pending_await, AwaitPlayerInput) else None
 
     @property
+    def selected_command_index(self) -> int:
+        return self._selected_command_index
+
+    @property
     def can_user_confirm(self) -> bool:
         return isinstance(self.pending_await, AwaitUserConfirm)
 
@@ -65,15 +71,19 @@ class BattleDirector:
     def is_game_over(self) -> bool:
         return self.manager.winner is not None and self.is_finished
 
-    def advance_player_input(self):
-        """外部（Scene のマウス操作等）からコマンド決定された場合に進行させる"""
-        if isinstance(self.pending_await, AwaitPlayerInput) and self.pending_await.is_done:
-            self._advance(send_val=self.pending_await.take_result())
+    def handle_command_menu_mouse(self, new_index: int, confirmed: bool) -> bool:
+        """マウスヒットテスト結果に基づく選択カーソル移動および決定"""
+        if not isinstance(self.pending_await, AwaitPlayerInput):
+            return False
 
-    def advance(self):
-        """互換性のための前進メソッド"""
-        if isinstance(self.pending_await, AwaitPlayerInput) and self.pending_await.is_done:
-            self.advance_player_input()
+        mask = self.pending_await.selectable_mask
+        if 0 <= new_index < len(mask) and mask[new_index]:
+            self._selected_command_index = new_index
+            if confirmed:
+                chosen_part = COMMAND_MENU_PART_ORDER[new_index]
+                self._advance(send_val=chosen_part)
+                return True
+        return False
 
     def _advance(self, send_val: Any = None):
         self._send_value = send_val
@@ -129,8 +139,12 @@ class BattleDirector:
                 return True
 
         elif isinstance(await_item, AwaitPlayerInput):
-            if await_item.handle_input(input_state):
-                self._advance(send_val=await_item.take_result())
+            self._selected_command_index = resolve_command_menu_navigation(
+                self._selected_command_index, input_state, await_item.selectable_mask
+            )
+            if input_state.btn_ok and await_item.selectable_mask[self._selected_command_index]:
+                chosen_part = COMMAND_MENU_PART_ORDER[self._selected_command_index]
+                self._advance(send_val=chosen_part)
                 return True
 
         return False
@@ -213,6 +227,7 @@ class BattleDirector:
         self.manager.clear_log()
 
     def _run_player_input(self, actor: Robot) -> Generator:
+        self._selected_command_index = 0
         preview_targets = self.manager.get_preview_targets(actor)
         selectable_mask = build_command_menu_selectable_mask(actor, preview_targets)
         selected_part = yield AwaitPlayerInput(

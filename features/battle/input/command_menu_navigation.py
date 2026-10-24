@@ -3,7 +3,7 @@
 レイアウト計算（ui/battle/layout.py）とは独立した、バトルメニュー固有の
 入力規則のみを扱う。pygame には依存しない。
 """
-from typing import Sequence
+from typing import Dict, Sequence
 
 from core.inputs import InputState
 from domain.constants import (
@@ -12,6 +12,30 @@ from domain.constants import (
     COMMAND_MENU_RIGHT_ARM_INDEX,
     COMMAND_MENU_SKIP_INDEX,
 )
+
+# ダイアモンド配置のトポロジー（現在インデックス -> {入力方向: 遷移先インデックス}）
+COMMAND_MENU_TRANSITIONS: Dict[int, Dict[str, int]] = {
+    COMMAND_MENU_HEAD_INDEX: {
+        "down": COMMAND_MENU_SKIP_INDEX,
+        "left": COMMAND_MENU_RIGHT_ARM_INDEX,
+        "right": COMMAND_MENU_LEFT_ARM_INDEX,
+    },
+    COMMAND_MENU_RIGHT_ARM_INDEX: {
+        "up": COMMAND_MENU_HEAD_INDEX,
+        "right": COMMAND_MENU_LEFT_ARM_INDEX,
+        "down": COMMAND_MENU_SKIP_INDEX,
+    },
+    COMMAND_MENU_LEFT_ARM_INDEX: {
+        "up": COMMAND_MENU_HEAD_INDEX,
+        "left": COMMAND_MENU_RIGHT_ARM_INDEX,
+        "down": COMMAND_MENU_SKIP_INDEX,
+    },
+    COMMAND_MENU_SKIP_INDEX: {
+        "up": COMMAND_MENU_HEAD_INDEX,
+        "left": COMMAND_MENU_LEFT_ARM_INDEX,
+        "right": COMMAND_MENU_LEFT_ARM_INDEX,
+    },
+}
 
 
 def resolve_command_menu_navigation(
@@ -23,19 +47,21 @@ def resolve_command_menu_navigation(
 
     移動先が選択不可（selectable が False）の場合は現在位置を維持する。
     """
-    new_index = current_index
-
+    direction = None
     if input_state.btn_up:
-        new_index = COMMAND_MENU_HEAD_INDEX
-    elif input_state.btn_left:
-        # スキップ(3)からは左腕(2)へ、それ以外は右腕(1)へ
-        new_index = COMMAND_MENU_LEFT_ARM_INDEX if current_index == COMMAND_MENU_SKIP_INDEX else COMMAND_MENU_RIGHT_ARM_INDEX
-    elif input_state.btn_right:
-        # 右入力は常に左腕(2)を目指し、スキップ(3)へは遷移させない
-        new_index = COMMAND_MENU_LEFT_ARM_INDEX
+        direction = "up"
     elif input_state.btn_down:
-        # 下入力でのみスキップ(3)へ移動する
-        new_index = COMMAND_MENU_SKIP_INDEX
+        direction = "down"
+    elif input_state.btn_left:
+        direction = "left"
+    elif input_state.btn_right:
+        direction = "right"
+
+    if direction is None:
+        return current_index
+
+    target_map = COMMAND_MENU_TRANSITIONS.get(current_index, {})
+    new_index = target_map.get(direction, current_index)
 
     if 0 <= new_index < len(selectable_mask) and selectable_mask[new_index]:
         return new_index

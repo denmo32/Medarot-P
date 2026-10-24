@@ -53,18 +53,16 @@ class BattleScene(Scene):
                 return SceneTransition.to(SceneId.TITLE)
             return SceneTransition.stay()
 
-        # マウス操作のみ Scene（画面解像度を持つ層）で判定し、Await に委譲
-        input_await = self.director.current_player_input_await
-        if input_await and input_state.mouse_clicked and self.screen is not None:
+        # マウス操作のみ Scene（画面解像度を持つ層）で判定し、Director へ伝達
+        if self.director.current_player_input_await and input_state.mouse_clicked and self.screen is not None:
             screen_size = self.screen.get_size()
             new_index, confirmed = hit_test_command_menu(
                 screen_size,
                 (input_state.mouse_x, input_state.mouse_y),
                 len(COMMAND_MENU_PART_ORDER),
-                input_await.selected_index,
+                self.director.selected_command_index,
             )
-            if input_await.try_mouse_select(new_index, confirmed):
-                self.director.advance_player_input()
+            self.director.handle_command_menu_mouse(new_index, confirmed)
             return SceneTransition.stay()
 
         # キーボード・パッド入力は原則通り Director に完全一元委譲
@@ -80,11 +78,6 @@ class BattleScene(Scene):
     def render(self):
         if self.renderer is None or self.view_builder is None or self.director is None:
             return
-        
-        # Await 側の選択インデックスを安全に参照
-        selected_index = 0
-        if input_await := self.director.current_player_input_await:
-            selected_index = input_await.selected_index
 
-        model = self.view_builder.build(selected_index)
+        model = self.view_builder.build(self.director.selected_command_index)
         self.renderer.render(model)

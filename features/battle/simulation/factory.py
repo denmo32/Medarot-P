@@ -1,4 +1,4 @@
-# features/battle/factory.py
+# features/battle/simulation/factory.py
 """バトル関連のオブジェクト生成を担うファクトリクラス（RobotSetup・RNG対応）。"""
 
 import logging
@@ -12,14 +12,14 @@ from domain.config import (
 )
 from domain.constants import ALL_PART_TYPES, CustomizeSlot, TeamType, PartType, AttributeType, PersonalityType
 from domain.models import GameDataProtocol, MedalData, RobotSetup, SaveDataProtocol
-from .entities.part import Part
-from .entities.robot import Robot
-from .debug_enemy import (
+from features.battle.debug_enemy import (
     ENABLE_CUSTOM_ENEMY,
     CUSTOM_ENEMY_SETUPS,
     DEBUG_PLAYER_COUNT,
     DEBUG_ENEMY_COUNT,
 )
+from .entities.part import Part
+from .entities.robot import Robot
 
 logger = logging.getLogger(__name__)
 
