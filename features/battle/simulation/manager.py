@@ -1,4 +1,4 @@
-# features/battle/manager.py
+# features/battle/simulation/manager.py
 """バトルのシミュレーション・計算・ルール適用を統括するマネージャ（シーンフェーズ非依存）。"""
 from typing import List, Dict, Optional, Tuple, Sequence
 
@@ -33,9 +33,11 @@ class BattleManager:
         enemy_setups: List[RobotSetup],
         data_manager: GameDataProtocol,
         seed: Optional[int] = None,
+        auto_battle: bool = False,
     ):
         robots = BattleFactory.create_robots(player_setups, enemy_setups, data_manager)
         self.ctx = BattleContext(robots, seed=seed)
+        self.auto_battle = auto_battle
 
         self.targeting = TargetingResolver(self.ctx)
         self.ai = AIController(self.ctx, self.targeting)
@@ -43,9 +45,9 @@ class BattleManager:
         self.atb = ATBSystem(self.ctx.robots)
         self.executor = CommandExecutor(self.ctx, self.targeting, self.logs)
 
-        # 敵AIの初期行動予約
+        # 敵AI（およびオート戦闘時はプレイヤーも）の初期行動予約
         for robot in robots:
-            if robot.team == TeamType.ENEMY:
+            if robot.team == TeamType.ENEMY or self.auto_battle:
                 self.ai.decide_command(robot)
 
     # === 基本プロパティ ===
@@ -74,6 +76,8 @@ class BattleManager:
     # === シミュレーション制御 ===
 
     def find_ready_player_robot(self) -> Optional[Robot]:
+        if self.auto_battle:
+            return None
         for robot in self.ctx.robots:
             if robot.team == TeamType.PLAYER and robot.gauge_status == GaugeStatus.READY:
                 return robot
@@ -135,7 +139,7 @@ class BattleManager:
 
     def _handle_cooled(self, actor: Robot) -> Optional[ATBTurnEvent]:
         actor.enter_ready()
-        if actor.team == TeamType.PLAYER:
+        if actor.team == TeamType.PLAYER and not self.auto_battle:
             return PlayerInputRequiredEvent(actor=actor)
         else:
             self.ai.decide_command(actor)

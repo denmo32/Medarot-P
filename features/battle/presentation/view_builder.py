@@ -33,8 +33,8 @@ from .view_models import (
 )
 
 if TYPE_CHECKING:
-    from features.battle.context import BattleContext
-    from features.battle.entities.robot import Robot
+    from features.battle.simulation.context import BattleContext
+    from features.battle.simulation.entities.robot import Robot
 
 CUTIN_POPUP_LABELS = {
     "critical": "CRITICAL!!",

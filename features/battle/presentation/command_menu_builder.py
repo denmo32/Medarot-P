@@ -3,11 +3,12 @@
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from domain.constants import COMMAND_MENU_PART_ORDER, PartType
-from features.battle.context import find_robot_index
+from features.battle.simulation.context import find_robot_index
+from features.battle.simulation.entities.commands import is_part_command_selectable
 from .view_models import CommandMenuItemModel
 
 if TYPE_CHECKING:
-    from features.battle.entities.robot import Robot
+    from features.battle.simulation.entities.robot import Robot
 
 SKIP_LABEL = "スキップ"
 SKIP_ACTION_LABEL = "なし"
@@ -46,12 +47,9 @@ def build_command_menu_items(
             ))
             continue
 
-        visual_enabled = part.can_execute
         preview_index = _resolve_robot_index(preview_targets.get(part_type), robots)
-
-        selectable = visual_enabled
-        if selectable and part.locks_target and preview_index is None:
-            selectable = False
+        visual_enabled = part.can_execute
+        selectable = is_part_command_selectable(part, preview_index is not None)
 
         items.append(CommandMenuItemModel(
             part_type=part_type,

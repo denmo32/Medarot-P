@@ -1,16 +1,15 @@
+# features/battle/staging/directives.py
 """戦闘シーケンスの指示（Directive）および待機条件（Await）の定義。"""
 from dataclasses import dataclass
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 from domain.constants import COMMAND_MENU_PART_ORDER, PartType
 from core.inputs import InputState
 from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 
 if TYPE_CHECKING:
-    from features.battle.entities.commands import ExecutionReport
-    from features.battle.entities.part import Part
-    from features.battle.entities.robot import Robot
-    from features.battle.events import ATBTurnEvent
-    from features.battle.staging.director import BattleDirector
+    from features.battle.simulation.entities.commands import ExecutionReport
+    from features.battle.simulation.entities.part import Part
+    from features.battle.simulation.entities.robot import Robot
 
 
 # ==============================================================================
@@ -67,23 +66,12 @@ class SetOpeningPopupVisible(Directive):
 
 
 # ==============================================================================
-# 待機指示 (Await Directives)
+# 待機指示 (Await Directives) - 純粋データトークン
 # ==============================================================================
 
 class Await(Directive):
-    """条件が満たされるまで進行を停止する待機オブジェクトの基底クラス"""
-
-    def tick(self, dt: float, director: 'BattleDirector'):
-        pass
-
-    def handle_input(self, input_state: InputState, director: 'BattleDirector') -> bool:
-        return False
-
-    def is_done(self, director: 'BattleDirector') -> bool:
-        return True
-
-    def take_result(self) -> Any:
-        return None
+    """進行停止・待機条件を表すトークンの基底クラス"""
+    pass
 
 
 @dataclass
@@ -91,99 +79,51 @@ class AwaitTime(Await):
     remaining: float
     can_skip: bool = False
 
-    def tick(self, dt: float, director: 'BattleDirector'):
-        self.remaining = max(0.0, self.remaining - dt)
 
-    def handle_input(self, input_state: InputState, director: 'BattleDirector') -> bool:
-        if self.can_skip and (input_state.btn_ok or input_state.mouse_clicked):
-            self.remaining = 0.0
-            return True
-        return False
-
-    def is_done(self, director: 'BattleDirector') -> bool:
-        return self.remaining <= 0.0
-
-
-@dataclass
+@dataclass(frozen=True)
 class AwaitUserConfirm(Await):
-    _confirmed: bool = False
-
-    def handle_input(self, input_state: InputState, director: 'BattleDirector') -> bool:
-        # Facade 経由で判定
-        if (input_state.btn_ok or input_state.mouse_clicked) and not director.is_hp_animating():
-            self._confirmed = True
-            return True
-        return False
-
-    def is_done(self, director: 'BattleDirector') -> bool:
-        return self._confirmed
+    pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class AwaitHpAnimation(Await):
-    def is_done(self, director: 'BattleDirector') -> bool:
-        # Facade 経由で判定
-        return not director.is_hp_animating()
+    pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class AwaitCutin(Await):
-    _finished: bool = False
+    pass
 
-    def tick(self, dt: float, director: 'BattleDirector'):
-        director.update_cutin(dt)
-        if director.is_cutin_finished():
-            self._finished = True
 
-    def handle_input(self, input_state: InputState, director: 'BattleDirector') -> bool:
-        if input_state.btn_ok or input_state.mouse_clicked:
-            director.advance_cutin()
-            self._finished = True
-            return True
-        return False
-
-    def is_done(self, director: 'BattleDirector') -> bool:
-        return self._finished
+@dataclass(frozen=True)
+class AwaitNextTurn(Await):
+    pass
 
 
 @dataclass
 class AwaitPlayerInput(Await):
     actor: 'Robot'
     preview_targets: dict
+    selectable_mask: Tuple[bool, ...]
     selected_index: int = 0
     _selected_part: Optional[PartType] = None
     _is_submitted: bool = False
 
-    def _get_selectable_mask(self) -> List[bool]:
-        mask = []
-        for pt in COMMAND_MENU_PART_ORDER:
-            if pt is None:
-                mask.append(True)  # スキップは常に可能
-                continue
-            part = self.actor.get_part(pt)
-            can_exec = part.can_execute if part else False
-            if can_exec and part.locks_target and not self.preview_targets.get(pt):
-                can_exec = False
-            mask.append(can_exec)
-        return mask
-
-    def handle_input(self, input_state: InputState, director: 'BattleDirector') -> bool:
+    def handle_input(self, input_state: InputState) -> bool:
         """キーボード/ゲームパッド入力による移動と決定"""
-        selectable_mask = self._get_selectable_mask()
         self.selected_index = resolve_command_menu_navigation(
-            self.selected_index, input_state, selectable_mask
+            self.selected_index, input_state, self.selectable_mask
         )
-        if input_state.btn_ok and selectable_mask[self.selected_index]:
+        if input_state.btn_ok and self.selectable_mask[self.selected_index]:
             self.submit(COMMAND_MENU_PART_ORDER[self.selected_index])
             return True
         return False
 
     def try_mouse_select(self, new_index: int, confirmed: bool) -> bool:
-        """Scene から渡されたマウスヒットテスト結果をカプセル化して確定"""
-        selectable_mask = self._get_selectable_mask()
-        if 0 <= new_index < len(selectable_mask) and selectable_mask[new_index]:
+        """マウスヒットテスト結果に基づく選択・決定"""
+        if 0 <= new_index < len(self.selectable_mask) and self.selectable_mask[new_index]:
             self.selected_index = new_index
-        if confirmed and selectable_mask[self.selected_index]:
+        if confirmed and self.selectable_mask[self.selected_index]:
             self.submit(COMMAND_MENU_PART_ORDER[self.selected_index])
             return True
         return False
@@ -193,25 +133,9 @@ class AwaitPlayerInput(Await):
         self._selected_part = part_type
         self._is_submitted = True
 
-    def is_done(self, director: 'BattleDirector') -> bool:
+    @property
+    def is_done(self) -> bool:
         return self._is_submitted
 
     def take_result(self) -> Optional[PartType]:
         return self._selected_part
-
-
-@dataclass
-class AwaitNextTurn(Await):
-    _event: Optional['ATBTurnEvent'] = None
-
-    def tick(self, dt: float, director: 'BattleDirector'):
-        # Facade 経由で進行
-        turn = director.update_atb(dt)
-        if turn is not None:
-            self._event = turn
-
-    def is_done(self, director: 'BattleDirector') -> bool:
-        return self._event is not None
-
-    def take_result(self) -> Optional['ATBTurnEvent']:
-        return self._event

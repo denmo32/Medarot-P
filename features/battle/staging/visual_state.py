@@ -3,7 +3,7 @@ from typing import Dict, TYPE_CHECKING
 from domain.constants import PartType
 
 if TYPE_CHECKING:
-    from ..entities.robot import Robot
+    from ..simulation.entities.robot import Robot
 
 
 class RobotVisualState:

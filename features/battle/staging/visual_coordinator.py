@@ -1,3 +1,4 @@
+# features/battle/staging/visual_coordinator.py
 """バトルの演出進行（HPアニメーション、カットイン、レーダー）を一元管理するコーディネーター。"""
 from typing import Dict, Optional, Sequence, TYPE_CHECKING
 
@@ -6,9 +7,9 @@ from .target_radar_director import TargetRadarDirector
 from .visual_state import RobotVisualState
 
 if TYPE_CHECKING:
-    from ..entities.commands import ExecutionReport
-    from ..entities.part import Part
-    from ..entities.robot import Robot
+    from ..simulation.entities.commands import ExecutionReport
+    from ..simulation.entities.part import Part
+    from ..simulation.entities.robot import Robot
 
 
 class VisualCoordinator:
@@ -82,6 +83,10 @@ class VisualCoordinator:
     def advance_cutin(self):
         if self.cutin_director:
             self.cutin_director.advance()
+
+    def is_cutin_finished(self) -> bool:
+        """カットイン演出が終了（または未再生）しているか"""
+        return self.cutin_director is None or self.cutin_director.is_animation_finished
 
     def clear_cutin(self):
         self.cutin_director = None

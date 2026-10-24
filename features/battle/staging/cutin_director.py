@@ -6,9 +6,9 @@ from domain.models import ActionResult
 from .cutin_timeline import CutinProfile, resolve_cutin_profile
 
 if TYPE_CHECKING:
-    from ..entities.commands import ExecutionReport
-    from ..entities.part import Part
-    from ..entities.robot import Robot
+    from ..simulation.entities.commands import ExecutionReport
+    from ..simulation.entities.part import Part
+    from ..simulation.entities.robot import Robot
 
 
 class CutinStep(str, Enum):

@@ -1,13 +1,13 @@
-# features/battle/entities/commands.py
+# features/battle/simulation/entities/commands.py
 """バトルコマンド（指示・予約）のデータクラス (Command Pattern / DTO) および実行レポート。
 
 機体の意志（予約状態）を表すため、エンティティ層に属します。
 """
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Tuple
 
-from domain.constants import PartType
+from domain.constants import COMMAND_MENU_PART_ORDER, PartType
 from domain.models import ActionResult
 
 if TYPE_CHECKING:
@@ -67,6 +67,31 @@ class PartCommand(BattleCommand):
     part_type: PartType
     target_robot: Optional['Robot'] = None
     target_part: Optional[PartType] = None
+
+
+def is_part_command_selectable(part: Optional['Part'], has_valid_target: bool) -> bool:
+    """パーツがコマンド選択可能かどうか（生存・実装済み・事前固定ターゲット有効性）を判定する（SSOT）。"""
+    if not part or not part.can_execute:
+        return False
+    if part.locks_target and not has_valid_target:
+        return False
+    return True
+
+
+def build_command_menu_selectable_mask(
+    actor: Optional['Robot'],
+    preview_targets: Mapping[PartType, Any],
+) -> Tuple[bool, ...]:
+    """コマンドメニュー項目（スキップ含む）の選択可否マスクを一元的に導出する。"""
+    mask = []
+    for pt in COMMAND_MENU_PART_ORDER:
+        if pt is None:
+            mask.append(True)  # スキップは常に可能
+        else:
+            part = actor.get_part(pt) if actor else None
+            has_target = bool(preview_targets.get(pt))
+            mask.append(is_part_command_selectable(part, has_target))
+    return tuple(mask)
 
 
 def build_command_for_part(

@@ -1,11 +1,12 @@
+# features/battle/scene.py
 """バトル画面のシーン（型付き遷移・集約入力駆動・決定論的RNG・Directorによる完全調停）"""
 import random
 from typing import Optional
 from core.scene_manager import Scene, SceneTransition
 from core.constants import SceneId
 from domain.constants import COMMAND_MENU_PART_ORDER
-from features.battle.factory import BattleFactory
-from features.battle.manager import BattleManager
+from features.battle.simulation.factory import BattleFactory
+from features.battle.simulation.manager import BattleManager
 from features.battle.presentation.view_builder import BattleViewBuilder
 from features.battle.staging.director import BattleDirector
 from features.battle.staging.visual_coordinator import VisualCoordinator
@@ -63,7 +64,7 @@ class BattleScene(Scene):
                 input_await.selected_index,
             )
             if input_await.try_mouse_select(new_index, confirmed):
-                self.director.advance()
+                self.director.advance_player_input()
             return SceneTransition.stay()
 
         # キーボード・パッド入力は原則通り Director に完全一元委譲
