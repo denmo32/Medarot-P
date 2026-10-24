@@ -1,17 +1,20 @@
-# features/battle/ai_controller.py
+# features/battle/simulation/ai_controller.py
 """敵AIの行動選択を担当するコントローラ。"""
+from typing import TYPE_CHECKING
 from domain.ai_logic import get_tactics
 from domain.constants import TacticsType
 from domain.models import TacticsContext
-from .context import BattleContext
 from .entities.commands import SkipCommand, build_command_for_part
 from .entities.robot import Robot
 from .execution.targeting_resolver import TargetingResolver
 
+if TYPE_CHECKING:
+    from .manager import BattleManager
+
 
 class AIController:
-    def __init__(self, ctx: BattleContext, targeting: TargetingResolver):
-        self.ctx = ctx
+    def __init__(self, manager: 'BattleManager', targeting: TargetingResolver):
+        self.manager = manager
         self.targeting = targeting
 
     def decide_command(self, robot: Robot):
@@ -23,7 +26,7 @@ class AIController:
             active_effects=tuple(robot.active_effects),
         )
 
-        chosen = get_tactics(TacticsType.RANDOM).select_part(valid_parts, tactics_ctx, rng=self.ctx.rng)
+        chosen = get_tactics(TacticsType.RANDOM).select_part(valid_parts, tactics_ctx, rng=self.manager.rng)
         if not chosen:
             robot.set_command(SkipCommand(robot))
             return

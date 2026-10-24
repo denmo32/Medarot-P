@@ -1,9 +1,10 @@
 """戦闘シーケンスの進行待機条件（Await）の定義。"""
 from dataclasses import dataclass
-from typing import Tuple, TYPE_CHECKING
+from typing import List, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from features.battle.simulation.entities.robot import Robot
+    from features.battle.presentation.view_models import CommandMenuItemModel
 
 
 class Await:
@@ -46,5 +47,8 @@ class AwaitNextTurn(Await):
 class AwaitPlayerInput(Await):
     """プレイヤーのコマンド選択入力を待機する"""
     actor: 'Robot'
-    preview_targets: dict
-    selectable_mask: Tuple[bool, ...]
+    menu_items: List['CommandMenuItemModel']
+
+    @property
+    def selectable_mask(self) -> Tuple[bool, ...]:
+        return tuple(item.selectable for item in self.menu_items)

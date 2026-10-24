@@ -1,4 +1,4 @@
-"""予約済みコマンドの実行・確定解決を担当するエグゼキュータ（シーンフェーズ非依存）。"""
+"""予約済みコマンドの確定解決を担当するエグゼキュータ。"""
 from typing import Callable, List, Optional, Tuple, TYPE_CHECKING
 
 from domain.combat import resolve_attack
@@ -14,31 +14,30 @@ from ..entities.commands import (
     SkipCommand,
 )
 from ..entities.robot import Robot
-from .effect_applier import apply_action_effects
 from .log_builder import BattleLogBuilder
 from .targeting_resolver import TargetingResolver
 
 if TYPE_CHECKING:
-    from ..context import BattleContext
+    from ..manager import BattleManager
 
 
 class CommandExecutor:
-    """戦闘コマンドの実行解決エンジン。計算と世界状態（Robot/Trap）への適用を一貫して行います。"""
+    """戦闘コマンドの実行解決エンジン。"""
 
     def __init__(
         self,
-        ctx: 'BattleContext',
+        manager: 'BattleManager',
         targeting: TargetingResolver,
         logs: BattleLogBuilder,
         rng: Optional[Callable[[], float]] = None,
     ):
-        self.ctx = ctx
+        self.manager = manager
         self.targeting = targeting
         self.logs = logs
-        self.rng = rng or self.ctx.rng.random
+        self.rng = rng or self.manager.rng.random
 
     def execute_charged(self, actor: Robot) -> ExecutionReport:
-        """充填完了した機体のコマンドを実行・適用し、完全確定した結果レポートを作成する。"""
+        """充填完了した機体のコマンドを実行・適用し、結果レポートを作成する。"""
         actor.start_execution()
 
         command = actor.current_command
@@ -69,24 +68,17 @@ class CommandExecutor:
                 pre_messages=all_pre_messages + fail_logs,
             )
 
-        # 成功時：効果（ダメージ・状態異常・トラップ等）を世界状態へ即時反映
-        applied_report = apply_action_effects(initial_report, actor, ctx=self.ctx)
-        expired_effects = actor.on_action_completed()
-
-        # 結果メッセージの生成
+        # 結果メッセージの生成（世界状態への適用は演出タイミングに合わせて Manager が行う）
         result_messages: List[str] = []
-        messages = self.logs.effect_resolution(applied_report.result, applied_report.target)
+        messages = self.logs.effect_resolution(initial_report.result, initial_report.target)
         if messages:
             result_messages.extend(messages)
-        for eff in expired_effects:
-            if expire_msg := self.logs.effect_expired(actor, eff):
-                result_messages.append(expire_msg)
 
         return ExecutionReport(
-            outcome=applied_report.outcome,
-            result=applied_report.result,
-            target=applied_report.target,
-            intercepted_by=applied_report.intercepted_by,
+            outcome=initial_report.outcome,
+            result=initial_report.result,
+            target=initial_report.target,
+            intercepted_by=initial_report.intercepted_by,
             pre_messages=all_pre_messages,
             result_messages=result_messages,
         )
@@ -96,7 +88,7 @@ class CommandExecutor:
         if not part or not part.is_alive:
             return [], False
 
-        triggered_trap = self.ctx.traps.trigger(actor.team, part.action)
+        triggered_trap = self.manager.traps.trigger(actor.team, part.action)
         if not triggered_trap:
             return [], False
 
@@ -154,7 +146,7 @@ class CommandExecutor:
                 source_part_type=command.part_type,
                 target_part_type=target_part_type,
                 target_parts_max_hp=target_robot.get_parts_max_hp(),
-                rng=self.ctx.rng,
+                rng=self.manager.rng,
             )
             result = part.resolve_effect(effect_ctx)
             return ExecutionReport(outcome=ExecutionOutcome.OK, result=result, target=target_robot)
@@ -162,4 +154,4 @@ class CommandExecutor:
         return ExecutionReport(outcome=ExecutionOutcome.NO_ACTION)
 
     def _find_interceptor(self, target_robot: Robot) -> Optional[Robot]:
-        return next((r for r in self.ctx.robots if r.can_intercept(target_robot)), None)
+        return next((r for r in self.manager.robots if r.can_intercept(target_robot)), None)

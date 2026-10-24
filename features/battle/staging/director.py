@@ -1,18 +1,17 @@
 # features/battle/staging/director.py
 """戦闘シーケンスを yield（待機条件のみ）で統括するディレクター。"""
 import logging
-from typing import Any, Generator, Optional
+from typing import Any, Dict, Generator, Optional, Tuple
 from domain.constants import COMMAND_MENU_PART_ORDER, SkillPresentation
+from core.inputs import InputState
 from features.battle.constants import BattleTiming
 from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
-from features.battle.simulation.entities.commands import (
-    ExecutionOutcome,
-    ExecutionReport,
-    build_command_menu_selectable_mask,
-)
+from features.battle.presentation.command_menu_builder import build_command_menu_items
+from features.battle.simulation.entities.commands import ExecutionOutcome, ExecutionReport
 from features.battle.simulation.entities.robot import Robot
 from features.battle.simulation.events import ActionExecutedEvent, BattleEndedEvent, PlayerInputRequiredEvent
 from features.battle.simulation.manager import BattleManager
+from features.battle.staging.cutin_director import CutinDirector
 from features.battle.staging.directives import (
     Await,
     AwaitCutin,
@@ -22,7 +21,9 @@ from features.battle.staging.directives import (
     AwaitTime,
     AwaitUserConfirm,
 )
-from features.battle.staging.visual_coordinator import VisualCoordinator
+from features.battle.staging.target_radar_director import TargetRadarDirector
+from features.battle.staging.visual_state import RobotVisualState
+from features.battle.ui.layout import hit_test_command_menu
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +31,18 @@ _MAX_COROUTINE_STEPS = 100
 
 
 class BattleDirector:
-    """戦闘の演出・進行手続きを一元管理するスケジューラ"""
+    """戦闘の演出・進行手続き・視覚状態を一元管理するスケジューラ"""
 
-    def __init__(self, manager: BattleManager, visual: VisualCoordinator, skip_staging: bool = False):
+    def __init__(self, manager: BattleManager, skip_staging: bool = False):
         self.manager = manager
-        self.visual = visual
         self.skip_staging = skip_staging
+
+        # 視覚演出状態（Coordinator を廃止し直接保持）
+        self.visual_states: Dict[Robot, RobotVisualState] = {
+            r: RobotVisualState(r) for r in self.manager.robots
+        }
+        self.cutin: Optional[CutinDirector] = None
+        self.radar: Optional[TargetRadarDirector] = None
 
         self.pending_await: Optional[Await] = None
         self._send_value: Any = None
@@ -45,6 +52,8 @@ class BattleDirector:
 
         self._routine: Optional[Generator] = self._run_battle()
         self._step()
+
+    # === プロパティ・演出クエリ ===
 
     @property
     def current_player_input_await(self) -> Optional[AwaitPlayerInput]:
@@ -62,19 +71,34 @@ class BattleDirector:
     def is_game_over(self) -> bool:
         return self.manager.winner is not None and self.is_finished
 
-    def handle_command_menu_mouse(self, new_index: int, confirmed: bool) -> bool:
-        """マウスヒットテスト結果に基づく選択カーソル移動および決定"""
-        if not isinstance(self.pending_await, AwaitPlayerInput):
-            return False
+    def is_hp_animating(self) -> bool:
+        return any(vs.is_hp_animating for vs in self.visual_states.values())
 
-        mask = self.pending_await.selectable_mask
-        if 0 <= new_index < len(mask) and mask[new_index]:
-            self._selected_command_index = new_index
-            if confirmed:
-                chosen_part = COMMAND_MENU_PART_ORDER[new_index]
-                self._advance(send_val=chosen_part)
-                return True
-        return False
+    def is_combat_active(self, robot: Robot) -> bool:
+        return self.cutin is not None and self.cutin.is_combatant(robot)
+
+    # === 演出制御 ===
+
+    def start_cutin(self, actor: Robot, target: Robot, part: Any, report: ExecutionReport):
+        self.cutin = CutinDirector(actor=actor, target=target, part=part, report=report)
+
+    def advance_cutin(self):
+        if self.cutin:
+            self.cutin.advance()
+
+    def is_cutin_finished(self) -> bool:
+        return self.cutin is None or self.cutin.is_animation_finished
+
+    def clear_cutin(self):
+        self.cutin = None
+
+    def start_radar(self, attacker_index: int, target_index: int):
+        self.radar = TargetRadarDirector(attacker_index, target_index)
+
+    def clear_radar(self):
+        self.radar = None
+
+    # === 進行更新 ===
 
     def _advance(self, send_val: Any = None):
         self._send_value = send_val
@@ -82,6 +106,12 @@ class BattleDirector:
         self._step()
 
     def tick(self, dt: float):
+        for vs in self.visual_states.values():
+            vs.update(dt)
+
+        if self.radar:
+            self.radar.update(dt)
+
         if self.pending_await is None:
             return
 
@@ -93,12 +123,13 @@ class BattleDirector:
                 self._advance()
 
         elif isinstance(await_item, AwaitCutin):
-            self.visual.update_cutin(dt)
-            if self.visual.is_cutin_finished():
+            if self.cutin:
+                self.cutin.update(dt)
+            if self.is_cutin_finished():
                 self._advance()
 
         elif isinstance(await_item, AwaitHpAnimation):
-            if not self.visual.is_hp_animating():
+            if not self.is_hp_animating():
                 self._advance()
 
         elif isinstance(await_item, AwaitNextTurn):
@@ -106,14 +137,15 @@ class BattleDirector:
             if turn is not None:
                 self._advance(send_val=turn)
 
-    def handle_input(self, input_state) -> bool:
+    def handle_input(self, input_state: InputState, screen_size: Optional[Tuple[int, int]] = None) -> bool:
+        """キーボードおよびマウス入力を一元処理する"""
         if self.pending_await is None:
             return False
 
         await_item = self.pending_await
 
         if isinstance(await_item, AwaitUserConfirm):
-            if (input_state.btn_ok or input_state.mouse_clicked) and not self.visual.is_hp_animating():
+            if (input_state.btn_ok or input_state.mouse_clicked) and not self.is_hp_animating():
                 self._advance()
                 return True
 
@@ -125,11 +157,27 @@ class BattleDirector:
 
         elif isinstance(await_item, AwaitCutin):
             if input_state.btn_ok or input_state.mouse_clicked:
-                self.visual.advance_cutin()
+                self.advance_cutin()
                 self._advance()
                 return True
 
         elif isinstance(await_item, AwaitPlayerInput):
+            # マウスクリック処理（解像度情報がある場合）
+            if input_state.mouse_clicked and screen_size is not None:
+                new_idx, confirmed = hit_test_command_menu(
+                    screen_size,
+                    (input_state.mouse_x, input_state.mouse_y),
+                    len(COMMAND_MENU_PART_ORDER),
+                    self._selected_command_index,
+                )
+                if 0 <= new_idx < len(await_item.selectable_mask) and await_item.selectable_mask[new_idx]:
+                    self._selected_command_index = new_idx
+                    if confirmed:
+                        chosen_part = COMMAND_MENU_PART_ORDER[new_idx]
+                        self._advance(send_val=chosen_part)
+                        return True
+
+            # 十字キー・決定キーナビゲーション
             self._selected_command_index = resolve_command_menu_navigation(
                 self._selected_command_index, input_state, await_item.selectable_mask
             )
@@ -153,7 +201,7 @@ class BattleDirector:
 
                 if isinstance(item, Await):
                     self.pending_await = item
-                    if isinstance(item, AwaitHpAnimation) and not self.visual.is_hp_animating():
+                    if isinstance(item, AwaitHpAnimation) and not self.is_hp_animating():
                         self.pending_await = None
                         continue
                     if isinstance(item, AwaitTime) and item.remaining <= 0.0:
@@ -166,6 +214,8 @@ class BattleDirector:
             self._routine = None
             self.pending_await = None
             self.is_finished = True
+
+    # === シーケンスコルーチン ===
 
     def _run_battle(self) -> Generator:
         yield from self._run_opening()
@@ -199,11 +249,11 @@ class BattleDirector:
     def _run_player_input(self, actor: Robot) -> Generator:
         self._selected_command_index = 0
         preview_targets = self.manager.get_preview_targets(actor)
-        selectable_mask = build_command_menu_selectable_mask(actor, preview_targets)
+        menu_items = build_command_menu_items(actor, preview_targets, self.manager.robots)
+
         selected_part = yield AwaitPlayerInput(
             actor=actor,
-            preview_targets=preview_targets,
-            selectable_mask=selectable_mask,
+            menu_items=menu_items,
         )
         precomputed = preview_targets.get(selected_part) if selected_part else None
         self.manager.select_command(actor, selected_part, precomputed_target=precomputed)
@@ -224,7 +274,7 @@ class BattleDirector:
             actor_idx = self.manager.find_robot_index(actor)
             target_idx = self.manager.find_robot_index(report.target)
             if actor_idx is not None and target_idx is not None:
-                self.visual.start_radar(actor_idx, target_idx)
+                self.start_radar(actor_idx, target_idx)
                 yield AwaitTime(BattleTiming.TARGET_INDICATION)
 
         # 2. 技・行動の宣言ログ
@@ -235,11 +285,11 @@ class BattleDirector:
         # 3. 行動演出の解決（カットイン / ログのみ / その他）
         is_cutin = bool(part and part.presentation == SkillPresentation.CUTIN and report.target)
         if not self.skip_staging and is_cutin:
-            self.visual.start_cutin(actor, report.target, part, report)
+            self.start_cutin(actor, report.target, part, report)
             yield AwaitCutin()
 
-        # ダメージ反映（内部目標HPへの反映は演出スキップ時も必ず行う）
-        self.visual.stage_primary_damage(report)
+        # 主効果・ダメージを実世界状態へ適用（演出と同期してHPが減少し始める）
+        self.manager.apply_primary_action(report, actor)
 
         if not self.skip_staging:
             if report.result_messages:
@@ -253,23 +303,23 @@ class BattleDirector:
             if is_cutin:
                 if report.has_pierce and report.target:
                     self.manager.set_log(self.manager.logs.pierce())
-                    self.visual.stage_pierce_damage(report)
-                    self.visual.advance_cutin()
+                    self.manager.apply_pierce_action(report)
+                    self.advance_cutin()
                     yield AwaitHpAnimation()
                     yield AwaitUserConfirm()
-                self.visual.clear_cutin()
+                self.clear_cutin()
 
             # レーダー終了
-            self.visual.clear_radar()
+            self.clear_radar()
         else:
-            # スキップ時は即座に全ターゲットHPを同期
-            self.visual.sync_all_targets()
+            # スキップ時は貫通も即時適用
+            if report.has_pierce and report.target:
+                self.manager.apply_pierce_action(report)
 
         yield from self._finalize_turn(actor)
 
     def _finalize_turn(self, actor: Robot) -> Generator:
         self.manager.complete_turn(actor)
-        self.visual.sync_all_targets()
 
         if self.manager.check_battle_end():
             return

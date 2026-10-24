@@ -1,5 +1,5 @@
 # features/battle/presentation/view_builder.py
-"""BattleContext, VisualCoordinator および BattleDirector から表示専用モデルを生成する。"""
+"""BattleManager および BattleDirector から表示専用モデルを生成する。"""
 import dataclasses
 from typing import Dict, List, Optional, TYPE_CHECKING
 from domain.constants import (
@@ -12,10 +12,8 @@ from domain.constants import (
 )
 from domain.models import ActionResult
 from features.battle.constants import BattleTiming
-from features.battle.presentation.command_menu_builder import build_command_menu_items
 from features.battle.staging.cutin_director import CutinDirector, CutinStep
 from features.battle.staging.director import BattleDirector
-from features.battle.staging.visual_coordinator import VisualCoordinator
 from .view_models import (
     CommandMenuModel,
     BattleRenderModel,
@@ -33,7 +31,7 @@ from .view_models import (
 )
 
 if TYPE_CHECKING:
-    from features.battle.simulation.context import BattleContext
+    from features.battle.simulation.manager import BattleManager
     from features.battle.simulation.entities.robot import Robot
 
 CUTIN_POPUP_LABELS = {
@@ -103,16 +101,15 @@ def _resolve_cutin_popup(result: Optional[ActionResult], step: CutinStep) -> Opt
 
 
 class BattleViewBuilder:
-    """戦闘状態（Context）、演出状態（Visual）および進行管理（Director）から描画モデルを一括生成する"""
+    """戦闘状態（Manager）および進行管理（Director）から描画モデルを一括生成する"""
 
-    def __init__(self, ctx: 'BattleContext', visual: VisualCoordinator, director: BattleDirector):
-        self.ctx = ctx
-        self.visual = visual
+    def __init__(self, manager: 'BattleManager', director: BattleDirector):
+        self.manager = manager
         self.director = director
 
         self._player_robots: List['Robot'] = []
         self._enemy_robots: List['Robot'] = []
-        for robot in ctx.robots:
+        for robot in manager.robots:
             if robot.team == TeamType.PLAYER:
                 self._player_robots.append(robot)
             else:
@@ -124,10 +121,9 @@ class BattleViewBuilder:
         }
 
     def _build_snapshot_map(self) -> Dict['Robot', _RobotVisualSnapshot]:
-        """全機体の視覚情報を1回だけ導出して辞書化"""
         snapshots = {}
-        for robot in self.ctx.robots:
-            vs = self.visual.visual_states[robot]
+        for robot in self.manager.robots:
+            vs = self.director.visual_states[robot]
             is_alive = vs.is_visually_alive
             accent = _resolve_accent_state(robot.gauge_status, is_alive, robot.is_stopped)
             snapshots[robot] = _RobotVisualSnapshot(
@@ -170,7 +166,7 @@ class BattleViewBuilder:
         team_indexes = {}
         views: List[RobotViewModel] = []
 
-        for index, robot in enumerate(self.ctx.robots):
+        for index, robot in enumerate(self.manager.robots):
             team_index = team_indexes.get(robot.team, 0)
             team_indexes[robot.team] = team_index + 1
             snap = snapshots[robot]
@@ -193,11 +189,11 @@ class BattleViewBuilder:
     def _build_top_status(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> TopStatusPanelModel:
         return TopStatusPanelModel(
             player_cards=[
-                self._build_robot_card(i, r, snapshots[r], self.visual.is_combat_active(r))
+                self._build_robot_card(i, r, snapshots[r], self.director.is_combat_active(r))
                 for i, r in enumerate(self._player_robots)
             ],
             enemy_cards=[
-                self._build_robot_card(i, r, snapshots[r], self.visual.is_combat_active(r))
+                self._build_robot_card(i, r, snapshots[r], self.director.is_combat_active(r))
                 for i, r in enumerate(self._enemy_robots)
             ],
         )
@@ -276,7 +272,7 @@ class BattleViewBuilder:
         return badges
 
     def _build_target_radar(self) -> Optional[TargetRadarModel]:
-        radar_dir = self.visual.radar_director
+        radar_dir = self.director.radar
         if radar_dir is None:
             return None
 
@@ -293,11 +289,11 @@ class BattleViewBuilder:
         if is_command_menu_open:
             return None
 
-        can_advance = self.director.can_user_confirm and not self.visual.is_hp_animating()
+        can_advance = self.director.can_user_confirm and not self.director.is_hp_animating()
         max_lines = BattleTiming.LOG_DISPLAY_MAX
 
         return MessageWindowModel(
-            lines=list(self.ctx.battle_log[-max_lines:]),
+            lines=list(self.manager.battle_log[-max_lines:]),
             show_advance_marker=can_advance,
         )
 
@@ -307,8 +303,7 @@ class BattleViewBuilder:
             return None
 
         actor = input_await.actor
-        # ViewBuilder が責任を持って項目モデルを構築
-        items = build_command_menu_items(actor, input_await.preview_targets, self.ctx.robots)
+        items = input_await.menu_items
         if not items:
             return None
 
@@ -327,7 +322,7 @@ class BattleViewBuilder:
         )
 
     def _build_cutin(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> Optional[CutinModel]:
-        director = self.visual.cutin_director
+        director = self.director.cutin
         if director is None:
             return None
 
@@ -412,5 +407,5 @@ class BattleViewBuilder:
         if self.director.opening_popup_visible:
             return OverlayModel(opening_popup_visible=True)
         if self.director.is_game_over:
-            return OverlayModel(game_over_winner=self.ctx.winner)
+            return OverlayModel(game_over_winner=self.manager.winner)
         return None
