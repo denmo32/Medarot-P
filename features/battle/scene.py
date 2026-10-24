@@ -6,7 +6,6 @@ from core.scene_manager import Scene, SceneTransition
 from core.constants import SceneId
 from features.battle.simulation.factory import BattleFactory
 from features.battle.simulation.manager import BattleManager
-from features.battle.presentation.view_builder import BattleViewBuilder
 from features.battle.staging.director import BattleDirector
 from features.battle.ui.renderer import BattleRenderer
 
@@ -17,7 +16,6 @@ class BattleScene(Scene):
         self.seed = None
         self.manager: Optional[BattleManager] = None
         self.director: Optional[BattleDirector] = None
-        self.view_builder: Optional[BattleViewBuilder] = None
         self.renderer = BattleRenderer(self.screen) if self.screen is not None else None
 
     def on_enter(self, seed: Optional[int] = None, **payload):
@@ -31,8 +29,6 @@ class BattleScene(Scene):
         self.manager = BattleManager(player_setups, enemy_setups, self.ctx.data_manager, seed=self.seed)
         # 2. 進行スケジューラ（ディレクター）
         self.director = BattleDirector(self.manager)
-        # 3. 表示モデル構築
-        self.view_builder = BattleViewBuilder(self.manager, self.director)
 
     def handle_input(self, input_state) -> SceneTransition:
         if input_state.btn_menu:
@@ -55,8 +51,5 @@ class BattleScene(Scene):
             self.director.tick(dt)
 
     def render(self):
-        if self.renderer is None or self.view_builder is None or self.director is None:
-            return
-
-        model = self.view_builder.build(self.director.selected_command_index)
-        self.renderer.render(model)
+        if self.renderer is not None and self.director is not None:
+            self.renderer.render(self.director)

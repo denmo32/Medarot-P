@@ -1,5 +1,5 @@
 """バトル画面の座標・矩形計算。"""
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import Any, TYPE_CHECKING, List, Optional, Tuple
 import pygame
 
 from domain.constants import (
@@ -11,9 +11,6 @@ from domain.constants import (
 from ui_base.interaction import handle_menu_mouse
 from ui_base.config import SCREEN_HEIGHT
 from features.battle.ui.config import BATTLE_UI_PARAMS as UI_PARAMS
-
-if TYPE_CHECKING:
-    from features.battle.presentation.view_models import RobotViewModel, CutinActorModel
 
 
 def _ui_scale(screen_size: Tuple[int, int]) -> float:
@@ -116,15 +113,21 @@ def calculate_robot_y_ratio(team_index: int, team_count: int) -> float:
 
 
 def calculate_robot_position(
-    robot: 'RobotViewModel',
+    robot: Any,
     screen_size: Tuple[int, int],
+    team_index: Optional[int] = None,
+    team_count: Optional[int] = None,
 ) -> Tuple[int, int]:
-    y_ratio = calculate_robot_y_ratio(robot.team_index, robot.team_count)
-    is_player = _is_player(robot.team)
+    t_idx = team_index if team_index is not None else getattr(robot, 'team_index', 0)
+    t_cnt = team_count if team_count is not None else getattr(robot, 'team_count', 1)
+    y_ratio = calculate_robot_y_ratio(t_idx, t_cnt)
+
+    team = getattr(robot, 'team', robot)
+    is_player = _is_player(team)
     team_x_ratio = (UI_PARAMS.player_team_x_ratio if is_player
                     else UI_PARAMS.enemy_team_x_ratio)
     margin = UI_PARAMS.team_boundary_margin_ratio
-    progress_ratio = robot.progress_ratio
+    progress_ratio = getattr(robot, 'progress_ratio', getattr(robot, 'position', 0.0))
 
     if is_player:
         end_x = 0.5 - margin
@@ -138,17 +141,23 @@ def calculate_robot_position(
 
 
 def calculate_home_marker_rect(
-    robot: 'RobotViewModel',
+    robot: Any,
     screen_size: Tuple[int, int],
+    team_index: Optional[int] = None,
+    team_count: Optional[int] = None,
 ) -> pygame.Rect:
     marker_rx = _scaled(UI_PARAMS.home_marker_rx, screen_size)
     marker_ry = _scaled(UI_PARAMS.home_marker_ry, screen_size)
 
-    team_x_ratio = (UI_PARAMS.player_team_x_ratio if _is_player(robot.team)
+    t_idx = team_index if team_index is not None else getattr(robot, 'team_index', 0)
+    t_cnt = team_count if team_count is not None else getattr(robot, 'team_count', 1)
+    team = getattr(robot, 'team', robot)
+
+    team_x_ratio = (UI_PARAMS.player_team_x_ratio if _is_player(team)
                     else UI_PARAMS.enemy_team_x_ratio + UI_PARAMS.gauge_width_ratio)
     hx, hy = _to_px(
         team_x_ratio,
-        calculate_robot_y_ratio(robot.team_index, robot.team_count),
+        calculate_robot_y_ratio(t_idx, t_cnt),
         screen_size,
     )
 
@@ -244,11 +253,11 @@ def calculate_cutin_actor_positions(
 
 
 def calculate_cutin_actor_x(
-    actor_model: 'CutinActorModel',
+    actor: Any,
     screen_size: Tuple[int, int],
 ) -> int:
-    actor_x, target_x = calculate_cutin_actor_positions(actor_model.team, screen_size)
-    motion = actor_model.motion
+    actor_x, target_x = calculate_cutin_actor_positions(actor.team, screen_size)
+    motion = actor.motion
     if motion is None:
         return actor_x
 
@@ -256,7 +265,7 @@ def calculate_cutin_actor_x(
     contact_offset = _scaled(UI_PARAMS.cutin_melee_contact_offset, screen_size)
     exit_margin = _scaled(UI_PARAMS.cutin_melee_exit_margin, screen_size)
 
-    if _is_player(actor_model.team):
+    if _is_player(actor.team):
         contact_x = target_x - contact_offset
         exit_x = sw + exit_margin
     else:

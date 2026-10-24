@@ -1,6 +1,6 @@
 """ロボットの視覚的な状態（HPアニメーション・破壊フェードなど）を管理するクラス"""
 from typing import Dict, TYPE_CHECKING
-from domain.constants import PartType, ALL_PART_TYPES
+from domain.constants import PartType, ALL_PART_TYPES, AccentState, GaugeStatus
 
 if TYPE_CHECKING:
     from ..simulation.entities.robot import Robot
@@ -44,6 +44,22 @@ class RobotVisualState:
             if self.parts_break_progress.get(pt, 0.0) != target_progress:
                 return True
         return False
+
+    @property
+    def accent_state(self) -> AccentState:
+        """ロボットの現在の進行状況・生存状態に応じたアクセントカラー状態"""
+        if self.robot.is_stopped:
+            return AccentState.STOPPED
+        if not self.is_visually_alive:
+            return AccentState.NEUTRAL
+        status = self.robot.gauge_status
+        if status == GaugeStatus.CHARGING:
+            return AccentState.CHARGING
+        if status == GaugeStatus.COOLDOWN:
+            return AccentState.COOLDOWN
+        if status in (GaugeStatus.READY, GaugeStatus.EXECUTING):
+            return AccentState.READY
+        return AccentState.NEUTRAL
 
     def update(self, dt: float):
         """表示用HPの遅延減少アニメーションおよび破壊部位のフェード"""

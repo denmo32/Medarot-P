@@ -1,38 +1,59 @@
-"""画面上部の各機体ステータスを描画するレンダラー（RobotRenderContext を直接解釈）。"""
+"""画面上部の各機体ステータスを描画するレンダラー（Robot と RobotVisualState を直接解釈）。"""
 import pygame
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from domain.constants import ALL_PART_TYPES, EffectType
+from domain.constants import ALL_PART_TYPES, EffectType, TeamType
 from domain.models import StatusEffect
 from ui_base.renderer import BaseRenderer
+from ui_base.config import resolve_accent_color
 from features.battle.ui import layout
-from features.battle.presentation.view_models import BattleRenderModel, RobotRenderContext
-from ui_base.config import Theme, resolve_accent_color
+from features.battle.simulation.entities.robot import Robot
+from features.battle.staging.cutin_director import CutinDirector
+from features.battle.staging.visual_state import RobotVisualState
 
 
 class StatusPanelRenderer(BaseRenderer):
-    def render(self, model: BattleRenderModel):
+    def render(
+        self,
+        robots: Sequence[Robot],
+        visual_states: Dict[Robot, RobotVisualState],
+        cutin: Optional[CutinDirector] = None,
+    ):
         screen_size = self.get_screen_size()
         panel_layout = layout.calculate_top_status_layout(screen_size)
-        dim_active = any(ctx.is_combat_active for ctx in model.robots)
+        dim_active = cutin is not None
+
+        player_robots = [r for r in robots if r.team == TeamType.PLAYER]
+        enemy_robots = [r for r in robots if r.team == TeamType.ENEMY]
 
         self.draw_box(panel_layout['left_panel_rect'], self.theme.status_panel_bg, self.theme.status_panel_border, 1)
-        for ctx, card_rect in zip(model.player_robots, panel_layout['left_card_rects']):
-            self._render_robot_card(ctx, card_rect, dim_active)
+        for robot, card_rect in zip(player_robots, panel_layout['left_card_rects']):
+            vs = visual_states.get(robot)
+            if vs:
+                is_active = cutin.is_combatant(robot) if cutin else False
+                self._render_robot_card(robot, vs, card_rect, dim_active, is_active)
 
         self.draw_box(panel_layout['right_panel_rect'], self.theme.status_panel_bg, self.theme.status_panel_border, 1)
-        for ctx, card_rect in zip(model.enemy_robots, panel_layout['right_card_rects']):
-            self._render_robot_card(ctx, card_rect, dim_active)
+        for robot, card_rect in zip(enemy_robots, panel_layout['right_card_rects']):
+            vs = visual_states.get(robot)
+            if vs:
+                is_active = cutin.is_combatant(robot) if cutin else False
+                self._render_robot_card(robot, vs, card_rect, dim_active, is_active)
 
-    def _render_robot_card(self, ctx: RobotRenderContext, rect: pygame.Rect, dim_active: bool = False):
-        robot = ctx.robot
-        vs = ctx.visual_state
+    def _render_robot_card(
+        self,
+        robot: Robot,
+        vs: RobotVisualState,
+        rect: pygame.Rect,
+        dim_active: bool,
+        is_combat_active: bool,
+    ):
         is_alive = vs.is_visually_alive
 
         bg_col = self.theme.status_card_bg if is_alive else self.theme.status_card_dead_bg
         self.draw_box(rect, bg_col, self.theme.status_card_border, 1)
 
-        accent_color = resolve_accent_color(ctx.accent_state, self.theme)
+        accent_color = resolve_accent_color(vs.accent_state, self.theme)
         bar_h = self.scaled(6)
         pygame.draw.rect(self.screen, accent_color, (rect.x + 1, rect.y + 1, rect.width - 2, bar_h))
 
@@ -67,16 +88,22 @@ class StatusPanelRenderer(BaseRenderer):
         pygame.draw.line(self.screen, self.theme.status_card_border, (rect.x + pad, divider_y), (rect.right - pad, divider_y), 1)
 
         avail_w = rect.width - pad * 2
-        self._render_parts_hp_list(ctx, rect.x + pad, divider_y + self.scaled(3), avail_w, is_alive)
+        self._render_parts_hp_list(robot, vs, rect.x + pad, divider_y + self.scaled(3), avail_w, is_alive)
         self.screen.set_clip(None)
 
-        if dim_active and not ctx.is_combat_active:
+        if dim_active and not is_combat_active:
             dim = pygame.Surface(rect.size, pygame.SRCALPHA)
             dim.fill(self.theme.status_card_dim)
             self.screen.blit(dim, rect.topleft)
 
     def _render_parts_hp_list(
-        self, ctx: RobotRenderContext, start_x: int, start_y: int, avail_w: int, is_alive: bool
+        self,
+        robot: Robot,
+        vs: RobotVisualState,
+        start_x: int,
+        start_y: int,
+        avail_w: int,
+        is_alive: bool,
     ):
         row_h = self.scaled(18)
         right_x = start_x + avail_w
@@ -85,15 +112,15 @@ class StatusPanelRenderer(BaseRenderer):
         num_w = self.scaled(56)
 
         for i, pt in enumerate(ALL_PART_TYPES):
-            part = ctx.robot.get_part(pt)
+            part = robot.get_part(pt)
             if not part:
                 continue
 
             ry = start_y + i * row_h
-            display_hp = float(ctx.visual_state.parts_display_hp.get(pt, part.hp))
+            display_hp = float(vs.parts_display_hp.get(pt, part.hp))
             max_hp = max(1, part.max_hp)
             is_part_alive = display_hp > 0
-            is_stopped = ctx.robot.is_part_stopped(pt)
+            is_stopped = robot.is_part_stopped(pt)
 
             lbl_col = self.theme.status_part_label if is_part_alive else self.theme.hp_broken_text
             self.draw_text(pt.label, (start_x, ry), lbl_col, 'small')
@@ -134,7 +161,7 @@ class StatusPanelRenderer(BaseRenderer):
                 badges.append((f"命中+{eff.magnitude} ({charges}回)", self.theme.badge_buff_bg, self.theme.text))
         return badges
 
-    def _extract_target_text(self, robot) -> Optional[str]:
+    def _extract_target_text(self, robot: Robot) -> Optional[str]:
         if not robot.is_charging:
             return None
         cmd = robot.current_part_command
