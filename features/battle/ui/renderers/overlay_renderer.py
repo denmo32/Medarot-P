@@ -3,7 +3,7 @@ import pygame
 
 from domain.constants import TeamType
 from ui_base.renderer import BaseRenderer
-from features.battle.presentation.view_models import OverlayModel
+from features.battle.presentation.view_models import BattleRenderModel
 
 OPENING_POPUP_TEXT = "ロボトルファイト！"
 WINNER_TEXTS = {
@@ -13,7 +13,7 @@ WINNER_TEXTS = {
 
 
 class OverlayRenderer(BaseRenderer):
-    def render(self, model: OverlayModel):
+    def render(self, model: BattleRenderModel):
         screen_size = self.get_screen_size()
 
         if model.opening_popup_visible:
@@ -28,7 +28,7 @@ class OverlayRenderer(BaseRenderer):
             OPENING_POPUP_TEXT, sw // 2, sh // 2, self.theme.text, 'notice', 'center',
         )
 
-    def render_game_over(self, winner, screen_size):
+    def render_game_over(self, winner: TeamType, screen_size):
         sw, sh = screen_size
 
         overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)

@@ -1,12 +1,8 @@
-# features/battle/presentation/view_builder.py
-"""BattleManager および BattleDirector から表示専用モデルを生成する。"""
+"""BattleManager および BattleDirector から表示モデルを効率的に生成する。"""
 import dataclasses
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from domain.constants import (
-    ALL_PART_TYPES,
     AccentState,
-    BadgeKind,
-    EffectType,
     GaugeStatus,
     TeamType,
 )
@@ -15,19 +11,14 @@ from features.battle.constants import BattleTiming
 from features.battle.staging.cutin_director import CutinDirector, CutinStep
 from features.battle.staging.director import BattleDirector
 from .view_models import (
-    CommandMenuModel,
     BattleRenderModel,
+    CommandMenuModel,
     CutinActorModel,
     CutinModel,
     CutinPopupModel,
-    EffectBadgeModel,
     MessageWindowModel,
-    OverlayModel,
-    PartMiniHpModel,
-    RobotStatusCardModel,
-    RobotViewModel,
+    RobotRenderContext,
     TargetRadarModel,
-    TopStatusPanelModel,
 )
 
 if TYPE_CHECKING:
@@ -41,15 +32,6 @@ CUTIN_POPUP_LABELS = {
     "miss": "MISS!",
     "pierce": "PENETRATION",
 }
-
-
-@dataclasses.dataclass(frozen=True)
-class _RobotVisualSnapshot:
-    """フレーム単位で導出されたロボットの視覚情報キャッシュ"""
-    is_alive: bool
-    accent_state: AccentState
-    part_break_progress: Dict
-    parts_display_hp: Dict
 
 
 def _resolve_accent_state(gauge_status: GaugeStatus, is_alive: bool, is_stopped: bool) -> AccentState:
@@ -107,182 +89,75 @@ class BattleViewBuilder:
         self.manager = manager
         self.director = director
 
-        self._player_robots: List['Robot'] = []
-        self._enemy_robots: List['Robot'] = []
-        for robot in manager.robots:
-            if robot.team == TeamType.PLAYER:
-                self._player_robots.append(robot)
-            else:
-                self._enemy_robots.append(robot)
-
         self._team_counts = {
-            TeamType.PLAYER: len(self._player_robots),
-            TeamType.ENEMY: len(self._enemy_robots),
+            TeamType.PLAYER: sum(1 for r in manager.robots if r.team == TeamType.PLAYER),
+            TeamType.ENEMY: sum(1 for r in manager.robots if r.team == TeamType.ENEMY),
         }
 
-    def _build_snapshot_map(self) -> Dict['Robot', _RobotVisualSnapshot]:
-        snapshots = {}
-        for robot in self.manager.robots:
-            vs = self.director.visual_states[robot]
-            is_alive = vs.is_visually_alive
-            accent = _resolve_accent_state(robot.gauge_status, is_alive, robot.is_stopped)
-            snapshots[robot] = _RobotVisualSnapshot(
-                is_alive=is_alive,
-                accent_state=accent,
-                part_break_progress=dict(vs.parts_break_progress),
-                parts_display_hp=dict(vs.parts_display_hp),
-            )
-        return snapshots
-
     def build(self, selected_button_index: int = 0) -> BattleRenderModel:
-        snapshots = self._build_snapshot_map()
+        # 各ロボットの軽量コンテキスト生成
+        all_robots: List[RobotRenderContext] = []
+        player_robots: List[RobotRenderContext] = []
+        enemy_robots: List[RobotRenderContext] = []
 
-        cutin = self._build_cutin(snapshots)
+        team_indices = {TeamType.PLAYER: 0, TeamType.ENEMY: 0}
+
+        for idx, robot in enumerate(self.manager.robots):
+            t_idx = team_indices[robot.team]
+            team_indices[robot.team] += 1
+
+            vs = self.director.visual_states[robot]
+            accent = _resolve_accent_state(robot.gauge_status, vs.is_visually_alive, robot.is_stopped)
+
+            ctx = RobotRenderContext(
+                index=idx,
+                robot=robot,
+                visual_state=vs,
+                team_index=t_idx,
+                team_count=self._team_counts[robot.team],
+                accent_state=accent,
+                is_combat_active=self.director.is_combat_active(robot),
+            )
+            all_robots.append(ctx)
+            if robot.team == TeamType.PLAYER:
+                player_robots.append(ctx)
+            else:
+                enemy_robots.append(ctx)
+
         command_menu = self._build_command_menu(selected_button_index)
-        target_radar = self._build_target_radar()
         message_window = self._build_message_window(command_menu is not None)
-        overlay = self._build_overlay()
-        top_status = self._build_top_status(snapshots)
+        cutin = self._build_cutin()
+        target_radar = self._build_target_radar()
 
         return BattleRenderModel(
-            show_field=True,
-            show_message_window=message_window is not None,
-            show_command_menu=command_menu is not None,
-            show_cutin=cutin is not None,
-            show_opening_popup=overlay is not None and overlay.opening_popup_visible,
-            show_game_over=overlay is not None and overlay.game_over_winner is not None,
-            show_target_radar=target_radar is not None,
-            show_preview_target_markers=bool(command_menu and command_menu.preview_target_robot_indices),
-            robots=self._build_robots(snapshots),
-            target_radar=target_radar,
-            message_window=message_window,
+            robots=all_robots,
+            player_robots=player_robots,
+            enemy_robots=enemy_robots,
             command_menu=command_menu,
+            message_window=message_window,
             cutin=cutin,
-            overlay=overlay,
-            top_status=top_status,
+            target_radar=target_radar,
+            opening_popup_visible=self.director.opening_popup_visible,
+            game_over_winner=self.manager.winner if self.director.is_game_over else None,
         )
 
-    def _build_robots(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> List[RobotViewModel]:
-        team_indexes = {}
-        views: List[RobotViewModel] = []
-
-        for index, robot in enumerate(self.manager.robots):
-            team_index = team_indexes.get(robot.team, 0)
-            team_indexes[robot.team] = team_index + 1
-            snap = snapshots[robot]
-
-            views.append(RobotViewModel(
-                index=index,
-                team=robot.team,
-                is_alive=snap.is_alive,
-                gauge_status=robot.gauge_status,
-                is_stopped=robot.is_stopped,
-                accent_state=snap.accent_state,
-                part_status=snap.part_break_progress,
-                part_stopped={pt: robot.is_part_stopped(pt) for pt in ALL_PART_TYPES},
-                progress_ratio=robot.position,
-                team_index=team_index,
-                team_count=self._team_counts[robot.team],
-            ))
-        return views
-
-    def _build_top_status(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> TopStatusPanelModel:
-        return TopStatusPanelModel(
-            player_cards=[
-                self._build_robot_card(i, r, snapshots[r], self.director.is_combat_active(r))
-                for i, r in enumerate(self._player_robots)
-            ],
-            enemy_cards=[
-                self._build_robot_card(i, r, snapshots[r], self.director.is_combat_active(r))
-                for i, r in enumerate(self._enemy_robots)
-            ],
-        )
-
-    def _build_robot_card(
-        self, robot_index: int, robot: 'Robot', snap: _RobotVisualSnapshot, is_combat_active: bool = False
-    ) -> RobotStatusCardModel:
-        parts_hp: List[PartMiniHpModel] = []
-
-        for part_type in ALL_PART_TYPES:
-            part = robot.get_part(part_type)
-            if not part:
-                continue
-            display_hp = float(snap.parts_display_hp.get(part_type, part.hp))
-            max_hp = max(1, part.max_hp)
-            parts_hp.append(PartMiniHpModel(
-                part_type=part_type,
-                label=part_type.label,
-                current_hp=int(display_hp),
-                max_hp=part.max_hp,
-                ratio=max(0.0, min(1.0, display_hp / max_hp)),
-                is_broken=display_hp <= 0,
-                is_stopped=robot.is_part_stopped(part_type),
-            ))
-
-        display_name = f"{robot.name}[LEADER]" if robot.is_leader else robot.name
-        return RobotStatusCardModel(
-            robot_index=robot_index,
-            name=display_name,
-            team=robot.team,
-            is_leader=robot.is_leader,
-            is_alive=snap.is_alive,
-            accent_state=snap.accent_state,
-            target_text=self._build_target_text(robot),
-            badges=self._build_effect_badges(robot),
-            parts_hp=parts_hp,
-            is_combat_active=is_combat_active,
-        )
-
-    def _build_target_text(self, robot: 'Robot') -> Optional[str]:
-        if not robot.is_charging:
-            return None
-        command = robot.current_part_command
-        if command is None:
-            return None
-        part = robot.current_part
-        if not part:
+    def _build_command_menu(self, selected_button_index: int) -> Optional[CommandMenuModel]:
+        input_await = self.director.current_player_input_await
+        if input_await is None or not input_await.menu_items:
             return None
 
-        if command.target_robot:
-            target_label = command.target_robot.name
-            if command.target_part:
-                target_label += f" [{command.target_part.label}]"
-            return f"└> {target_label}"
+        selected = selected_button_index if 0 <= selected_button_index < len(input_await.menu_items) else 0
+        selected_item = input_await.menu_items[selected]
 
-        if not part.locks_target:
-            return "└> 直前選定"
-        return None
+        preview_indices = []
+        if selected_item.preview_target_robot_index is not None:
+            preview_indices.append(selected_item.preview_target_robot_index)
 
-    def _build_effect_badges(self, robot: 'Robot') -> List[EffectBadgeModel]:
-        badges: List[EffectBadgeModel] = []
-        for effect in robot.active_effects:
-            if effect.type == EffectType.STOP:
-                text = "停止"
-                if effect.part_type:
-                    text += f" {effect.part_type.label}"
-                text += f" {effect.duration:.1f}s"
-                badges.append(EffectBadgeModel(text, BadgeKind.STOP))
-            elif effect.type == EffectType.BLOCK:
-                badges.append(EffectBadgeModel("護衛 (BLOCK)", BadgeKind.BLOCK))
-            elif effect.type == EffectType.PROTECT:
-                badges.append(EffectBadgeModel("自衛 (PROTECT)", BadgeKind.PROTECT))
-            elif effect.type == EffectType.SUCCESS_UP:
-                charges = effect.charges if effect.charges is not None else 1
-                badges.append(EffectBadgeModel(f"命中+{effect.magnitude} ({charges}回)", BadgeKind.SUCCESS_UP))
-        return badges
-
-    def _build_target_radar(self) -> Optional[TargetRadarModel]:
-        radar_dir = self.director.radar
-        if radar_dir is None:
-            return None
-
-        state = radar_dir.evaluate(is_static=False)
-        return TargetRadarModel(
-            attacker_index=radar_dir.attacker_index,
-            target_index=radar_dir.target_index,
-            travel_progress=state.travel_progress,
-            scale=state.scale,
-            is_static=False,
+        return CommandMenuModel(
+            actor_name=input_await.actor.name,
+            selected_index=selected,
+            items=input_await.menu_items,
+            preview_target_robot_indices=preview_indices,
         )
 
     def _build_message_window(self, is_command_menu_open: bool) -> Optional[MessageWindowModel]:
@@ -297,47 +172,43 @@ class BattleViewBuilder:
             show_advance_marker=can_advance,
         )
 
-    def _build_command_menu(self, selected_button_index: int) -> Optional[CommandMenuModel]:
-        input_await = self.director.current_player_input_await
-        if input_await is None:
+    def _build_target_radar(self) -> Optional[TargetRadarModel]:
+        radar_dir = self.director.radar
+        if radar_dir is None:
             return None
 
-        actor = input_await.actor
-        items = input_await.menu_items
-        if not items:
-            return None
-
-        selected = selected_button_index if 0 <= selected_button_index < len(items) else 0
-        selected_item = items[selected]
-
-        preview_indices = []
-        if selected_item.preview_target_robot_index is not None:
-            preview_indices.append(selected_item.preview_target_robot_index)
-
-        return CommandMenuModel(
-            actor_name=actor.name,
-            selected_index=selected,
-            items=items,
-            preview_target_robot_indices=preview_indices,
+        state = radar_dir.evaluate(is_static=False)
+        return TargetRadarModel(
+            attacker_index=radar_dir.attacker_index,
+            target_index=radar_dir.target_index,
+            travel_progress=state.travel_progress,
+            scale=state.scale,
         )
 
-    def _build_cutin(self, snapshots: Dict['Robot', _RobotVisualSnapshot]) -> Optional[CutinModel]:
+    def _build_cutin(self) -> Optional[CutinModel]:
         director = self.director.cutin
         if director is None:
             return None
 
-        actor_snap = snapshots[director.actor]
-        target_snap = snapshots[director.target]
+        actor_vs = self.director.visual_states[director.actor]
+        target_vs = self.director.visual_states[director.target]
+
+        actor_accent = _resolve_accent_state(
+            director.actor.gauge_status, actor_vs.is_visually_alive, director.actor.is_stopped
+        )
+        target_accent = _resolve_accent_state(
+            director.target.gauge_status, target_vs.is_visually_alive, director.target.is_stopped
+        )
 
         actor_model = CutinActorModel(
             team=director.actor.team,
-            part_status=actor_snap.part_break_progress,
-            accent_state=actor_snap.accent_state,
+            part_status=actor_vs.parts_break_progress,
+            accent_state=actor_accent,
         )
         target_model = CutinActorModel(
             team=director.target.team,
-            part_status=target_snap.part_break_progress,
-            accent_state=target_snap.accent_state,
+            part_status=target_vs.parts_break_progress,
+            accent_state=target_accent,
         )
 
         return self._build_cutin_timeline(director, actor_model, target_model)
@@ -402,10 +273,3 @@ class BattleViewBuilder:
             impacts=impacts,
             camera_progress=camera_progress,
         )
-
-    def _build_overlay(self) -> Optional[OverlayModel]:
-        if self.director.opening_popup_visible:
-            return OverlayModel(opening_popup_visible=True)
-        if self.director.is_game_over:
-            return OverlayModel(game_over_winner=self.manager.winner)
-        return None
