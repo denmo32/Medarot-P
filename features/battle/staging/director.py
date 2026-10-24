@@ -1,5 +1,5 @@
 # features/battle/staging/director.py
-"""戦闘シーケンスを yield（ジェネレータ）で統括するディレクター。"""
+"""戦闘シーケンスを yield（待機条件のみ）で統括するディレクター。"""
 import logging
 from typing import Any, Generator, Optional
 from domain.constants import COMMAND_MENU_PART_ORDER, SkillPresentation
@@ -14,7 +14,6 @@ from features.battle.simulation.entities.robot import Robot
 from features.battle.simulation.events import ActionExecutedEvent, BattleEndedEvent, PlayerInputRequiredEvent
 from features.battle.simulation.manager import BattleManager
 from features.battle.staging.directives import (
-    AdvanceCutinPierce,
     Await,
     AwaitCutin,
     AwaitHpAnimation,
@@ -22,14 +21,6 @@ from features.battle.staging.directives import (
     AwaitPlayerInput,
     AwaitTime,
     AwaitUserConfirm,
-    ClearCutin,
-    ClearRadar,
-    Directive,
-    SetOpeningPopupVisible,
-    ShowLog,
-    StageDamage,
-    StartCutin,
-    StartRadar,
 )
 from features.battle.staging.visual_coordinator import VisualCoordinator
 
@@ -169,33 +160,12 @@ class BattleDirector:
                         self.pending_await = None
                         continue
                     break
-                elif isinstance(item, Directive):
-                    self._execute_directive(item)
             else:
                 logger.error("コルーチンの1フレーム消化ステップ数が上限 (%d) を超えました。", _MAX_COROUTINE_STEPS)
         except StopIteration:
             self._routine = None
             self.pending_await = None
             self.is_finished = True
-
-    def _execute_directive(self, d: Directive):
-        if isinstance(d, ShowLog):
-            self.manager.set_log(d.messages)
-        elif isinstance(d, StartRadar):
-            self.visual.start_radar(d.attacker_index, d.target_index)
-        elif isinstance(d, ClearRadar):
-            self.visual.clear_radar()
-        elif isinstance(d, StartCutin):
-            self.visual.start_cutin(d.actor, d.target, d.part, d.report)
-        elif isinstance(d, StageDamage):
-            self.visual.stage_primary_damage(d.report)
-        elif isinstance(d, AdvanceCutinPierce):
-            self.visual.stage_pierce_damage(d.report)
-            self.visual.advance_cutin()
-        elif isinstance(d, ClearCutin):
-            self.visual.clear_cutin()
-        elif isinstance(d, SetOpeningPopupVisible):
-            self.opening_popup_visible = d.visible
 
     def _run_battle(self) -> Generator:
         yield from self._run_opening()
@@ -217,12 +187,12 @@ class BattleDirector:
             yield from self._run_player_input(ready_robot)
 
         if not self.skip_staging:
-            yield ShowLog(self.manager.logs.opening())
+            self.manager.set_log(self.manager.logs.opening())
             yield AwaitUserConfirm()
 
-            yield SetOpeningPopupVisible(True)
+            self.opening_popup_visible = True
             yield AwaitTime(BattleTiming.OPENING_POPUP, can_skip=True)
-            yield SetOpeningPopupVisible(False)
+            self.opening_popup_visible = False
 
         self.manager.clear_log()
 
@@ -244,7 +214,7 @@ class BattleDirector:
         # 失敗・不発時
         if report.outcome is not ExecutionOutcome.OK:
             if not self.skip_staging and report.pre_messages:
-                yield ShowLog(report.pre_messages)
+                self.manager.set_log(report.pre_messages)
                 yield AwaitUserConfirm()
             yield from self._finalize_turn(actor)
             return
@@ -254,26 +224,26 @@ class BattleDirector:
             actor_idx = self.manager.find_robot_index(actor)
             target_idx = self.manager.find_robot_index(report.target)
             if actor_idx is not None and target_idx is not None:
-                yield StartRadar(actor_idx, target_idx)
+                self.visual.start_radar(actor_idx, target_idx)
                 yield AwaitTime(BattleTiming.TARGET_INDICATION)
 
         # 2. 技・行動の宣言ログ
         if not self.skip_staging and part:
-            yield ShowLog(self.manager.logs.declaration(actor, part))
+            self.manager.set_log(self.manager.logs.declaration(actor, part))
             yield AwaitUserConfirm()
 
         # 3. 行動演出の解決（カットイン / ログのみ / その他）
         is_cutin = bool(part and part.presentation == SkillPresentation.CUTIN and report.target)
         if not self.skip_staging and is_cutin:
-            yield StartCutin(actor, report.target, part, report)
+            self.visual.start_cutin(actor, report.target, part, report)
             yield AwaitCutin()
 
         # ダメージ反映（内部目標HPへの反映は演出スキップ時も必ず行う）
-        yield StageDamage(report)
+        self.visual.stage_primary_damage(report)
 
         if not self.skip_staging:
             if report.result_messages:
-                yield ShowLog(report.result_messages)
+                self.manager.set_log(report.result_messages)
 
             if not is_cutin:
                 yield AwaitHpAnimation()
@@ -282,14 +252,15 @@ class BattleDirector:
             # 貫通演出
             if is_cutin:
                 if report.has_pierce and report.target:
-                    yield ShowLog(self.manager.logs.pierce())
-                    yield AdvanceCutinPierce(report)
+                    self.manager.set_log(self.manager.logs.pierce())
+                    self.visual.stage_pierce_damage(report)
+                    self.visual.advance_cutin()
                     yield AwaitHpAnimation()
                     yield AwaitUserConfirm()
-                yield ClearCutin()
+                self.visual.clear_cutin()
 
             # レーダー終了
-            yield ClearRadar()
+            self.visual.clear_radar()
         else:
             # スキップ時は即座に全ターゲットHPを同期
             self.visual.sync_all_targets()
@@ -306,12 +277,12 @@ class BattleDirector:
         interrupt_logs = self.manager.detect_and_handle_interrupts()
         if interrupt_logs:
             if not self.skip_staging:
-                yield ShowLog(interrupt_logs)
+                self.manager.set_log(interrupt_logs)
                 yield AwaitUserConfirm()
 
         self.manager.clear_log()
 
     def _run_battle_end(self) -> Generator:
         if self.manager.winner:
-            yield ShowLog(self.manager.logs.battle_end(self.manager.winner))
+            self.manager.set_log(self.manager.logs.battle_end(self.manager.winner))
             yield AwaitUserConfirm()
