@@ -132,9 +132,10 @@ def resolve_block_effect(context: EffectResolutionContext) -> ActionResult:
 
 def resolve_trap_effect(context: EffectResolutionContext) -> ActionResult:
     damage = max(1, context.attacker_attack)
+    target_team = TeamType.ENEMY if context.attacker_team == TeamType.PLAYER else TeamType.PLAYER
     trap = InstalledTrap(
         skill=context.skill or SkillType.SHOOTING_TRAP,
-        target_team=TeamType.ENEMY,
+        target_team=target_team,
         source_name="",
         damage=damage,
     )

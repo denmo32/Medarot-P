@@ -173,6 +173,7 @@ class EffectResolutionContext:
     attacker_attack: int
     attacker_success: int
     target_mobility: int
+    attacker_team: TeamType = TeamType.PLAYER
     skill: Optional[SkillType] = None
     proficiency_bonus: int = 0
     target_parts_hp: Dict[PartType, int] = field(default_factory=dict)
@@ -186,6 +187,7 @@ class EffectResolutionContext:
         cls,
         attacker: BattleParticipant,
         target: BattleParticipant,
+        attacker_team: TeamType,
         source_part_type: Optional[PartType],
         target_part_type: Optional[PartType],
         target_parts_max_hp: Dict[PartType, int],
@@ -195,6 +197,7 @@ class EffectResolutionContext:
             attacker_attack=attacker.stats.attack,
             attacker_success=attacker.stats.success + attacker.buff_success,
             target_mobility=target.legs_stats.get("mobility", 0),
+            attacker_team=attacker_team,
             skill=attacker.stats.skill,
             proficiency_bonus=0,
             target_parts_hp=target.parts_hp,

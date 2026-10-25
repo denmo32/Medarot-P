@@ -144,6 +144,7 @@ class CommandExecutor:
             effect_ctx = EffectResolutionContext.from_participants(
                 attacker=attacker_p,
                 target=target_robot.to_participant(),
+                attacker_team=actor.team,
                 source_part_type=command.part_type,
                 target_part_type=target_part_type,
                 target_parts_max_hp=target_robot.get_parts_max_hp(),

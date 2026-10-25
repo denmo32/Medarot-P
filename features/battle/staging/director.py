@@ -299,7 +299,9 @@ class BattleDirector:
             return
 
         # 3. ターゲティング & 宣言ステップ
-        if report.target:
+        # 機体狙いではない技（targets_part=False のトラップ等）はレーダーを描画しない
+        should_show_radar = bool(report.target and (part is None or part.targets_part))
+        if should_show_radar:
             actor_idx = self.manager.find_robot_index(actor)
             target_idx = self.manager.find_robot_index(report.target)
             if actor_idx is not None and target_idx is not None:

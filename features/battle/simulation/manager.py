@@ -103,7 +103,7 @@ class BattleManager:
         # 4. トラップ設置
         if result.installed_trap and target:
             installed = dataclasses.replace(
-                result.installed_trap, target_team=target.team, source_name=actor.name
+                result.installed_trap, source_name=actor.name
             )
             self.traps.install(installed)
 
