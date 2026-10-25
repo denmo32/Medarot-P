@@ -2,10 +2,8 @@
 """戦闘シーケンスを yield（待機条件のみ）で統括するディレクター。"""
 import logging
 from typing import Any, Dict, Generator, List, Optional, Sequence, Tuple
-from domain.constants import COMMAND_MENU_PART_ORDER, SkillPresentation
-from core.inputs import InputState
+from domain.constants import PartType, SkillPresentation
 from features.battle.constants import BattleTiming
-from features.battle.input.command_menu_navigation import resolve_command_menu_navigation
 from features.battle.presentation.command_menu_builder import build_command_menu_items
 from features.battle.simulation.entities.commands import ExecutionOutcome, ExecutionReport
 from features.battle.simulation.entities.robot import Robot
@@ -23,7 +21,6 @@ from features.battle.staging.directives import (
 )
 from features.battle.staging.target_radar_director import TargetRadarDirector
 from features.battle.staging.visual_state import RobotVisualState
-from features.battle.ui.layout import hit_test_command_menu
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +48,6 @@ class BattleDirector:
         self._send_value: Any = None
         self.opening_popup_visible: bool = False
         self.is_finished: bool = False
-        self._selected_command_index: int = 0
 
         self._routine: Optional[Generator] = self._run_battle()
         self._step()
@@ -69,10 +65,6 @@ class BattleDirector:
     @property
     def current_player_input_await(self) -> Optional[AwaitPlayerInput]:
         return self.pending_await if isinstance(self.pending_await, AwaitPlayerInput) else None
-
-    @property
-    def selected_command_index(self) -> int:
-        return self._selected_command_index
 
     @property
     def can_user_confirm(self) -> bool:
@@ -148,55 +140,35 @@ class BattleDirector:
             if turn is not None:
                 self._advance(send_val=turn)
 
-    def handle_input(self, input_state: InputState, screen_size: Optional[Tuple[int, int]] = None) -> bool:
-        """キーボードおよびマウス入力を一元処理する"""
+    def confirm_or_advance(self) -> bool:
+        """メッセージ送り、スキップ可能ウェイトの短縮、カットイン早送りなどの進行要求を処理する"""
         if self.pending_await is None:
             return False
 
         await_item = self.pending_await
 
         if isinstance(await_item, AwaitUserConfirm):
-            if (input_state.btn_ok or input_state.mouse_clicked) and not self.is_hp_animating():
+            if not self.is_hp_animating():
                 self._advance()
                 return True
 
-        elif isinstance(await_item, AwaitTime):
-            if await_item.can_skip and (input_state.btn_ok or input_state.mouse_clicked):
-                await_item.remaining = 0.0
-                self._advance()
-                return True
+        elif isinstance(await_item, AwaitTime) and await_item.can_skip:
+            await_item.remaining = 0.0
+            self._advance()
+            return True
 
         elif isinstance(await_item, AwaitCutin):
-            if input_state.btn_ok or input_state.mouse_clicked:
-                self.advance_cutin()
-                self._advance()
-                return True
+            self.advance_cutin()
+            self._advance()
+            return True
 
-        elif isinstance(await_item, AwaitPlayerInput):
-            # マウスクリック処理（解像度情報がある場合）
-            if input_state.mouse_clicked and screen_size is not None:
-                new_idx, confirmed = hit_test_command_menu(
-                    screen_size,
-                    (input_state.mouse_x, input_state.mouse_y),
-                    len(await_item.menu_items),
-                    self._selected_command_index,
-                )
-                if 0 <= new_idx < len(await_item.selectable_mask) and await_item.selectable_mask[new_idx]:
-                    self._selected_command_index = new_idx
-                    if confirmed:
-                        chosen_part = await_item.menu_items[new_idx].part_type
-                        self._advance(send_val=chosen_part)
-                        return True
+        return False
 
-            # 十字キー・決定キーナビゲーション
-            self._selected_command_index = resolve_command_menu_navigation(
-                self._selected_command_index, input_state, await_item.selectable_mask
-            )
-            if input_state.btn_ok and await_item.selectable_mask[self._selected_command_index]:
-                chosen_part = await_item.menu_items[self._selected_command_index].part_type
-                self._advance(send_val=chosen_part)
-                return True
-
+    def submit_player_command(self, chosen_part: Optional[PartType]) -> bool:
+        """プレイヤー入力待ち時に、確定した選択部位（またはメダフォース等）を注入してコルーチンを再開する"""
+        if isinstance(self.pending_await, AwaitPlayerInput):
+            self._advance(send_val=chosen_part)
+            return True
         return False
 
     def _step(self):
@@ -261,7 +233,6 @@ class BattleDirector:
         self.clear_messages()
 
     def _run_player_input(self, actor: Robot) -> Generator:
-        self._selected_command_index = 0
         preview_targets = self.manager.get_preview_targets(actor)
         menu_items = build_command_menu_items(actor, preview_targets, self.manager.robots)
 

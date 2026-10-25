@@ -30,7 +30,7 @@ class BattleRenderer(BaseRenderer):
         self.command_menu = CommandMenuRenderer(screen)
         self.cutin = CutinRenderer(screen)
 
-    def render(self, director: BattleDirector):
+    def render(self, director: BattleDirector, selected_command_index: int = 0):
         """Director および Manager から直接 1 フレーム分の描画を行う"""
         self.clear()
         manager = director.manager
@@ -45,8 +45,8 @@ class BattleRenderer(BaseRenderer):
         # 3. フィールド上のオブジェクト（機体アイコン、マーカー、レーダー）
         preview_indices: list[int] = []
         input_await = director.current_player_input_await
-        if input_await and 0 <= director.selected_command_index < len(input_await.menu_items):
-            item = input_await.menu_items[director.selected_command_index]
+        if input_await and 0 <= selected_command_index < len(input_await.menu_items):
+            item = input_await.menu_items[selected_command_index]
             if item.preview_target_robot_index is not None:
                 preview_indices.append(item.preview_target_robot_index)
 
@@ -59,7 +59,7 @@ class BattleRenderer(BaseRenderer):
 
         # 4. コマンドメニュー または メッセージウィンドウ
         if input_await:
-            self.command_menu.render(input_await, director.selected_command_index)
+            self.command_menu.render(input_await, selected_command_index)
         else:
             show_advance = director.can_user_confirm and not director.is_hp_animating()
             self._render_message_window(director.active_messages, show_advance, screen_size)
