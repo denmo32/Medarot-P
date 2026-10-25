@@ -13,6 +13,11 @@ from features.battle.staging.visual_state import RobotVisualState
 
 
 class StatusPanelRenderer(BaseRenderer):
+    def __init__(self, screen):
+        super().__init__(screen)
+        # バッジ文字列とカラーをキーとするサーフェスキャッシュ
+        self._badge_surface_cache: Dict[Tuple[str, Tuple[int, int, int]], pygame.Surface] = {}
+
     def render(
         self,
         robots: Sequence[Robot],
@@ -73,7 +78,11 @@ class StatusPanelRenderer(BaseRenderer):
             badge_x = rect.x + pad
             badge_limit = rect.right - pad
             for text, bg_c, text_c in badges:
-                badge_surf = self.fonts['tiny'].render(text, True, text_c)
+                cache_key = (text, text_c)
+                badge_surf = self._badge_surface_cache.get(cache_key)
+                if badge_surf is None:
+                    badge_surf = self.fonts['tiny'].render(text, True, text_c)
+                    self._badge_surface_cache[cache_key] = badge_surf
                 bw = badge_surf.get_width() + self.scaled(4)
                 bh = badge_surf.get_height() + self.scaled(2)
                 if badge_x + bw > badge_limit:
